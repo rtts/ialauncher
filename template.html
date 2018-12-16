@@ -1,0 +1,213 @@
+<!doctype html>
+<html>
+  <head>
+    <title>DOS Games</title>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" href="favicon.png">
+    <style>
+      button {
+          width: {{initial_grid}}vw;
+          height: {{initial_grid}}vh;
+      }
+      body, html {
+          margin: 0;
+          padding: 0;
+          background: black;
+          color: white;
+          font-family: monospace;
+      }
+      body::-webkit-scrollbar {
+          display: none;
+      }
+
+      button {
+          outline: none;
+          background: black;
+          opacity: 0.5;
+          float: left;
+          padding: 0;
+          margin: 0;
+          display: block;
+          color: white;
+          position: relative;
+          box-sizing: border-box;
+          border: 10px solid black;
+      }
+
+      button.hidden {
+          background: #333;
+      }
+      button.hidden img {
+          display: none;
+      }
+      button.hidden h2 {
+          text-decoration: line-through;
+      }
+      button.dosmemories {
+          border-color: yellow;
+      }
+
+      button:focus {
+          opacity: 1;
+          border: none;
+      }
+
+      img {
+          display: block;
+          image-rendering: crisp-edges;
+          //object-fit: contain;
+          width: 100%;
+          height: 100%;
+      }
+
+      h2 {
+          {% if not edit %}
+          display: none;
+          {% endif %}
+          position: absolute;
+          margin: 0;
+          padding: 5px;
+          box-sizing: border-box;
+          bottom: 0;
+          text-align: center;
+          font-size: 1em;
+          font-weight: normal;
+          background: #00000099;
+          width: 100%;
+      }
+
+    </style>
+  </head>
+  <body>
+    {% for game in games %}
+      <button data-url="{{game.urlencoded()}}" data-title="{{game.title}}" tabindex="0" ondblclick="start_game(this)" class="{% if game.hidden %}hidden{% endif %}{% if game.dosmemories %} dosmemories{% endif %}">
+        <img src="{{game.urlencoded()}}/title_screen.jpg" draggable="false">
+        <h2>{{game.identifier}}</h2>
+      </button>
+    {% endfor %}
+    <script>
+      function DO(game, action) {
+          var x = new XMLHttpRequest();
+          x.open('GET', '\\' + game.dataset.url + '/' + action, true);
+          x.send();
+      }
+      function post(game, action, data) {
+          var x = new XMLHttpRequest();
+          x.open('POST', '\\' + game.dataset.url + '/' + action, true);
+          x.send(data + '\n');
+      }
+
+      document.addEventListener('DOMContentLoaded', function(event) {
+          var games = document.querySelectorAll('button');
+          games[0].focus();
+
+          function handle_keydown(e) {
+              // console.log('key with code ' + e.keyCode + ' pressed')
+              switch (e.keyCode) {
+                  case 13: // enter key
+                      e.preventDefault();
+                      DO(document.activeElement, 'start');
+                      break;
+
+                  case 33: // page up
+                      e.preventDefault();
+                      break;
+
+                  case 34: // page down
+                      e.preventDefault();
+                      break;
+
+                  case 37: // left arrow
+                      e.preventDefault();
+                      i = [].indexOf.call(games, document.activeElement);
+                      if (i != 0) i--;
+                      games[i].focus();
+                      break;
+
+                  case 38: // up arrow
+                      e.preventDefault();
+                      i = [].indexOf.call(games, document.activeElement);
+                      do {
+                          if (i == 0) break;
+                          i--;
+                      }
+                      while (games[i].getBoundingClientRect().left != document.activeElement.getBoundingClientRect().left);
+                      games[i].focus();
+                      break;
+
+                  case 39: // right arrow
+                      e.preventDefault();
+                      i = [].indexOf.call(games, document.activeElement);
+                      if (i != games.length - 1) i++;
+                      games[i].focus();
+                      break;
+
+                  case 40: // down arrow
+                      e.preventDefault();
+                      i = [].indexOf.call(games, document.activeElement);
+                      do {
+                          if (i == games.length - 1) break;
+                          i++;
+                      }
+                      while (games[i].getBoundingClientRect().left != document.activeElement.getBoundingClientRect().left);
+                      games[i].focus();
+                      break;
+
+                      {% if edit %}
+                  case 46: // delete
+                      DO(document.activeElement, 'hide');
+                      document.activeElement.classList.toggle('hidden');
+                      break;
+
+                  case 113: // F2
+                      newname = prompt('Rename this game:', document.activeElement.dataset.title);
+                      post(document.activeElement, 'rename', newname);
+                      break;
+                      {% endif %}
+              }
+          }
+
+          current_zoom_level = 25
+          function handle_keypress(e) {
+              if (e.ctrlKey) {
+                  return;
+              }
+              if (e.key == '.') {
+                  DO(document.activeElement, 'next_song');
+              }
+              if (e.key == '-') {
+                  old_value = document.styleSheets[0].cssRules[0].style.getPropertyValue('width').replace('vw', '');
+                  new_value = Math.min(100, 100 / (100 / old_value + 1));
+                  document.styleSheets[0].cssRules[0].style.setProperty('width', new_value + 'vw');
+                  document.styleSheets[0].cssRules[0].style.setProperty('height', new_value + 'vh');
+                  document.activeElement.scrollIntoView();
+              }
+              if (e.key == '=') {
+                  old_value = document.styleSheets[0].cssRules[0].style.getPropertyValue('width').replace('vw', '');
+                  new_value = Math.min(100, 100 / (100 / old_value - 1));
+                  document.styleSheets[0].cssRules[0].style.setProperty('width', new_value + 'vw');
+                  document.styleSheets[0].cssRules[0].style.setProperty('height', new_value + 'vh');
+                  document.activeElement.scrollIntoView();
+              }
+              if (/^[a-z0-9]$/.exec(e.key)) {
+                  for (let game of games) {
+                      if (game.dataset.title.toLowerCase()[0] == e.key) {
+                          game.focus();
+                          game.scrollIntoView();
+                          break;
+                      }
+                  }
+              }
+          }
+
+          function handle_wheel(e) {
+              e.preventDefault()
+          }
+          document.addEventListener("keydown", handle_keydown);
+          document.addEventListener("keypress", handle_keypress);
+          document.addEventListener("wheel", handle_wheel);
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,27 @@
+#!/usr/bin/env python3
+import argparse
+from backend import Backend
+from frontend import Frontend
+
+parser = argparse.ArgumentParser(
+    description='Play old school DOS games using DOSBox',
+)
+parser.add_argument('-e', '--edit',
+                    action='store_true',
+                    help='Active edit mode, enabling special keystrokes for managing the games',
+)
+parser.add_argument('-l', '--letter',
+                    help='Show only games starting with this letter',
+)
+parser.add_argument('-geometry',
+                    help='X Geometry string; see X(7)',
+)
+
+p, _ = parser.parse_known_args()
+b = Backend(edit=p.edit, letter=p.letter)
+f = Frontend(p.geometry)
+
+if __name__ == '__main__':
+    b.start()
+    f.start()
+    b.end()
