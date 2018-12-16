@@ -29,7 +29,7 @@ class Backend(TCPServer):
 
     def __init__(self, edit=False, letter=None):
         self.edit = edit
-        self.letter = letter.lower()
+        self.letter = letter
         self.load_games()
         super().__init__(('localhost', 11236), GameHandler)
 
@@ -39,7 +39,7 @@ class Backend(TCPServer):
                 continue
             if entry.startswith('.'):
                 continue
-            if self.letter and not entry.lower().startswith(self.letter):
+            if self.letter and not entry[0].lower() in self.letter:
                 continue
             try:
                 game = Game(os.path.join(games_dir, entry))
@@ -51,9 +51,9 @@ class Backend(TCPServer):
 
     def get_games(self):
         if self.letter is None:
-            return [game for game in sorted(self.games.values(), key=lambda g: g.title) if (not game.hidden) or self.edit]
+            return [game for game in sorted(self.games.values(), key=lambda g: g.title.lower()) if (not game.hidden) or self.edit]
         else:
-            return [game for game in sorted(self.games.values(), key=lambda g: g.title) if game.title.lower().startswith(self.letter) and ((not game.hidden) or self.edit)]
+            return [game for game in sorted(self.games.values(), key=lambda g: g.title.lower()) if (game.title[0].lower() in self.letter) and ((not game.hidden) or self.edit)]
 
     def start(self):
         thread = Thread(target=self.serve_forever)
