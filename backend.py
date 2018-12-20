@@ -37,8 +37,6 @@ class Backend(TCPServer):
         for entry in os.listdir(games_dir):
             if not os.path.isdir(os.path.join(games_dir, entry)):
                 continue
-            if entry.startswith('.'):
-                continue
             if self.letter and not entry[0].lower() in self.letter:
                 continue
             try:
@@ -59,32 +57,12 @@ class Backend(TCPServer):
         thread = Thread(target=self.serve_forever)
         thread.daemon = True
         thread.start()
-        self.start_music()
-
-    def start_music(self):
-        def play():
-            while True:
-                random_file = random.choice(os.listdir(midi_dir))
-                time.sleep(1)
-                self.process = subprocess.Popen(['timidity', '-A25,25', os.path.join(midi_dir, random_file)])
-                if self.process.wait():
-                    return
-        thread = Thread(target=play)
-        thread.daeomon = True
-        thread.start()
-
-    def stop_music(self):
-        self.process.kill()
 
     def end(self):
-        self.stop_music()
         self.shutdown()
 
 class Game:
     def __init__(self, path):
-        '''Initialize a game given its path
-
-        '''
         self.path = path
         self.gamedir = os.path.join(self.path, 'dosbox_drive_c')
         entry = os.path.basename(path)
@@ -100,14 +78,15 @@ class Game:
         #self.title = c['metadata'].get('title')
         self.title = self.identifier
         self.year = c['metadata'].get('year')
-        self.url = c['metadata'].get('url')
         self.emulator_start = c['metadata'].get('emulator_start')
+        self.url = c['metadata'].get('url')
+        if self.url:
+            self.url = self.url.split()
 
-        try: # TODO: remove me!
-            if 'DOS.Memories.Project' in self.url:
-                self.dosmemories = True
-        except:
-            pass
+            # todo: remove me!
+            for u in self.url:
+                if 'DOS.Memories.Project' in u:
+                    self.dosmemories = True
 
     def rename(self, newname):
         dirname, oldname = os.path.split(self.path)
@@ -115,16 +94,12 @@ class Game:
         if os.path.exists(newpath):
             raise ValueError('Cannot rename, requested name already exists!')
         else:
-            os.rename(self.path, newpath)
             self.title = newname
-            self.path = newpath
             self.write_metadata()
+            os.rename(self.path, newpath)
+            self.__init__(newpath)
 
     def hide(self):
-        '''Hides a game by prepending a dot (.) to the directory name.
-           If the game is already hidden, unhide it.
-
-        '''
         parent, entry = os.path.split(self.path)
         if not entry.startswith('.'):
             newpath = os.path.join(parent, '.' + self.identifier)
@@ -137,56 +112,29 @@ class Game:
             self.path = newpath
             self.hidden = False
 
-    def extract_zipfile(self, zipfile):
-        with ZipFile(zipfile, 'r') as f:
-            f.extractall(self.gamedir)
-        if os.path.isfile(os.path.join(self.gamedir, 'dosbox.conf')):
-            os.remove(os.path.join(self.gamedir, 'dosbox.conf'))
-
-    def find_existing_zipfile(self):
-        '''Searches the game directory for a zipfile to extract
-
-        '''
-        def either(c):
-            return '[{}{}]'.format(c.lower(), c.upper()) if c.isalpha() else c
-        glob = '*.' + ''.join(either(char) for char in 'zip')
-        zipfiles = list(Path(self.path).glob(glob))
-        if len(zipfiles) == 0:
-            return None
-        elif len(zipfiles) > 1:
-            raise IOError('Multiple zipfiles are present in the game directory!')
-        else:
-            return os.path.join(self.path, zipfiles[0])
-
-    def prepare_game(self, autorun=True):
-        '''Downloads the zipfile (if needed), extracts it (if needed) and
-        starts the DOSBox emulator
-
-        '''
-        if not os.path.isdir(self.gamedir):
-            zipfile = self.find_existing_zipfile()
-            if zipfile is None:
-                self.download_zipfile()
-                zipfile = self.find_existing_zipfile()
-                if zipfile is None:
-                    raise IOError('Failed to download zipfile!')
-            self.extract_zipfile(zipfile)
-
     def start(self, autorun=True):
-        self.prepare_game()
+        if not os.path.isdir(self.gamedir):
+            self.download_files()
         os.chdir(self.gamedir)
         batfile = os.path.join(self.gamedir, 'dosbox.bat')
 
         if self.emulator_start:
             if os.path.isfile(self.emulator_start):
-                os.system('dosbox "{}" -exit -fullscreen'.format(self.emulator_start))
+                if autorun:
+                    os.system('dosbox "{}" -exit -fullscreen'.format(self.emulator_start))
+                else:
+                    os.system('dosbox "{}" -fullscreen'.format(self.emulator_start))
             else:
                 with open(batfile, 'w') as f:
                     if autorun:
                         f.write('@echo off\ncls\n')
                     f.write(self.emulator_start)
-                os.system('dosbox dosbox.bat -exit -fullscreen')# if autorun else os.system('dosbox .')
+                if autorun:
+                    os.system('dosbox dosbox.bat -exit -fullscreen')
+                else:
+                    os.system('dosbox dosbox.bat -fullscreen')
         else:
+            open(batfile, 'a').close()
             os.system('dosbox .')
 
         if not autorun and os.path.isfile(batfile):
@@ -194,13 +142,33 @@ class Game:
                 self.emulator_start = f.read()
                 self.write_metadata()
 
+    def download_files(self, autorun=True):
+        os.chdir(self.path)
+        for u in self.url:
+            filename = unquote(u.split('/')[-1])
+            if not os.path.isfile(filename):
+                print('Downloading', filename)
+                request.urlretrieve(u, filename)
+            if filename.endswith('zip') or filename.endswith('ZIP') or filename.endswith('play'):
+                print('Extracting', filename)
+                self.extract_file(filename)
+            else:
+                os.makedirs(self.gamedir, exist_ok=True)
+                shutil.copy(filename, self.gamedir)
+
+    def extract_file(self, zipfile):
+        with ZipFile(zipfile, 'r') as f:
+            f.extractall(self.gamedir)
+        if os.path.isfile(os.path.join(self.gamedir, 'dosbox.conf')):
+            os.remove(os.path.join(self.gamedir, 'dosbox.conf'))
+
     def write_metadata(self):
         if self.title:
             self.config['metadata']['title'] = self.title
         if self.year:
             self.config['metadata']['year'] = self.year
         if self.url:
-            self.config['metadata']['url'] = self.url
+            self.config['metadata']['url'] = '\n'.join(self.url)
         if self.emulator_start:
             self.config['metadata']['emulator_start'] = self.emulator_start
         inifile = os.path.join(self.path, 'metadata.ini')
@@ -208,7 +176,7 @@ class Game:
             self.config.write(f)
 
     def get_titlescreen(self):
-        for candidate in ['title_screen.png', '00_coverscreenshot.jpg']:
+        for candidate in ['title.png', '00_coverscreenshot.jpg']:
             path = os.path.join(self.path, candidate)
             if os.path.isfile(path):
                 return path
@@ -216,9 +184,6 @@ class Game:
 
     def urlencoded(self):
         return quote(self.identifier)
-
-    def download_zipfile(self):
-        request.urlretrieve(self.url, os.path.join(self.path, self.title + '.zip'))
 
 class DOSMemoriesGame(Game):
     def __init__(self, path):
@@ -275,14 +240,7 @@ class GameHandler(StreamRequestHandler):
                 if self.server.edit:
                     game.hide()
 
-            if action == 'next_song':
-                self.server.stop_music()
-                self.server.start_music()
-
             if action == 'start':
-                if not self.server.edit:
-                    self.server.stop_music()
-
                 game.start(autorun=not self.server.edit)
 
                 if self.server.edit:
@@ -292,12 +250,9 @@ class GameHandler(StreamRequestHandler):
                         os.system('eog --fullscreen "{}"/*'.format(screenshotsdir))
                         title_screens = sorted(os.listdir(screenshotsdir))
                         if title_screens:
-                            os.rename(os.path.join(screenshotsdir, title_screens[0]), os.path.join(game.path, 'title_screen.png'))
+                            os.rename(os.path.join(screenshotsdir, title_screens[0]), os.path.join(game.path, 'title.png'))
                             shutil.rmtree(screenshotsdir)
                             os.mkdir(screenshotsdir)
-
-                if not self.server.edit:
-                    self.server.start_music()
 
             if action == 'rename':
                 while self.rfile.readline().strip():
