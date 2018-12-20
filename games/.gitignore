@@ -1,4 +1,5 @@
 *
-!.gitignore
-!metadata.ini
-!title.png
+
+!**/
+![0-9]*/metadata.ini
+![0-9]*/title.png
