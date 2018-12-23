@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
+import os
 import argparse
-from backend import Backend
-from frontend import Frontend
+from app.backend import Backend
+from app.frontend import Frontend
+
+games_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'games')
 
 parser = argparse.ArgumentParser(
     description='Play old school DOS games using DOSBox',
@@ -17,8 +20,8 @@ parser.add_argument('-geometry',
                     help='X Geometry string; see X(7)',
 )
 
-p, _ = parser.parse_known_args()
-b = Backend(edit=p.edit, letter=p.letter)
+p = parser.parse_args()
+b = Backend(games_dir, edit=p.edit, letter=p.letter)
 f = Frontend(p.geometry)
 
 if __name__ == '__main__':

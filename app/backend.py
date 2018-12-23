@@ -18,8 +18,6 @@ from urllib.parse import quote, unquote
 from socketserver import TCPServer, StreamRequestHandler
 from configparser import RawConfigParser
 
-games_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'games')
-midi_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'midi')
 screenshotsdir = os.path.join(os.path.expanduser("~"), '.dosbox', 'capture')
 template_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'template.html')
 
@@ -27,13 +25,13 @@ class Backend(TCPServer):
     allow_reuse_address = True
     games = {}
 
-    def __init__(self, edit=False, letter=None):
+    def __init__(self, games_dir, edit=False, letter=None):
         self.edit = edit
         self.letter = letter
-        self.load_games()
+        self.load_games(games_dir)
         super().__init__(('localhost', 11236), GameHandler)
 
-    def load_games(self):
+    def load_games(self, games_dir):
         for entry in os.listdir(games_dir):
             if not os.path.isdir(os.path.join(games_dir, entry)):
                 continue
@@ -79,6 +77,11 @@ class Game:
         self.title = self.identifier
         self.year = c['metadata'].get('year')
         self.emulator_start = c['metadata'].get('emulator_start')
+        self.dosbox_conf = c['metadata'].get('dosbox_conf')
+
+        # REMOVE ME!
+        #self.dosbox_conf = '\n[dos]\nems = false'
+
         self.url = c['metadata'].get('url')
         if self.url:
             self.url = self.url.split()
@@ -117,30 +120,52 @@ class Game:
             self.download_files()
         os.chdir(self.gamedir)
         batfile = os.path.join(self.gamedir, 'dosbox.bat')
+        conffile = os.path.join(self.gamedir, 'dosbox.conf')
+        dosbox_args = ['-fullscreen']
+        dosbox_run = '.'
+
+        if self.dosbox_conf:
+            with open(conffile, 'w') as f:
+                f.write(self.dosbox_conf)
+            dosbox_args.append('-userconf')
+            dosbox_args.append('-conf dosbox.conf')
 
         if self.emulator_start:
             if os.path.isfile(self.emulator_start):
-                if autorun:
-                    os.system('dosbox "{}" -exit -fullscreen'.format(self.emulator_start))
-                else:
-                    os.system('dosbox "{}" -fullscreen'.format(self.emulator_start))
+                dosbox_run = self.emulator_start
             else:
                 with open(batfile, 'w') as f:
                     if autorun:
                         f.write('@echo off\ncls\n')
                     f.write(self.emulator_start)
-                if autorun:
-                    os.system('dosbox dosbox.bat -exit -fullscreen')
-                else:
-                    os.system('dosbox dosbox.bat -fullscreen')
+                dosbox_run = 'dosbox.bat'
         else:
             open(batfile, 'a').close()
-            os.system('dosbox .')
 
-        if not autorun and os.path.isfile(batfile):
-            with open(batfile, 'r') as f:
-                self.emulator_start = f.read()
-                self.write_metadata()
+        if autorun:
+            dosbox_args.append('-exit')
+        else:
+            dosbox_run = '.'
+            open(batfile, 'a').close()
+
+        os.system('dosbox {} {}'.format(dosbox_run, ' '.join(dosbox_args)))
+
+        if not autorun:
+            if os.path.isfile(batfile):
+                with open(batfile, 'r') as f:
+                    self.emulator_start = f.read()
+                    if self.emulator_start:
+                        self.write_metadata()
+
+        # TODO: Indent me!
+        if os.listdir(screenshotsdir):
+            os.system('eog --fullscreen "{}"/*'.format(screenshotsdir))
+            title_screens = sorted(os.listdir(screenshotsdir))
+            if title_screens:
+                os.rename(os.path.join(screenshotsdir, title_screens[0]), os.path.join(self.path, 'title.png'))
+                shutil.rmtree(screenshotsdir)
+                os.mkdir(screenshotsdir)
+
 
     def download_files(self, autorun=True):
         os.chdir(self.path)
@@ -171,6 +196,8 @@ class Game:
             self.config['metadata']['url'] = '\n'.join(self.url)
         if self.emulator_start:
             self.config['metadata']['emulator_start'] = self.emulator_start
+        if self.dosbox_conf:
+            self.config['metadata']['dosbox_conf'] = self.dosbox_conf
         inifile = os.path.join(self.path, 'metadata.ini')
         with open(inifile, 'w') as f:
             self.config.write(f)
@@ -241,18 +268,10 @@ class GameHandler(StreamRequestHandler):
                     game.hide()
 
             if action == 'start':
-                game.start(autorun=not self.server.edit)
+                game.start(autorun=True)
 
-                if self.server.edit:
-                    if type(game) == DOSMemoriesGame:
-                        os.rename(os.path.join(game.gamedir, 'dosbox.bat'), os.path.join(game.path, 'dosbox.bat'))
-                    if os.listdir(screenshotsdir):
-                        os.system('eog --fullscreen "{}"/*'.format(screenshotsdir))
-                        title_screens = sorted(os.listdir(screenshotsdir))
-                        if title_screens:
-                            os.rename(os.path.join(screenshotsdir, title_screens[0]), os.path.join(game.path, 'title.png'))
-                            shutil.rmtree(screenshotsdir)
-                            os.mkdir(screenshotsdir)
+            if action == 'edit':
+                game.start(autorun=False)
 
             if action == 'rename':
                 while self.rfile.readline().strip():

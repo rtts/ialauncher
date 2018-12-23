@@ -112,6 +112,12 @@
 
           function handle_keydown(e) {
               // console.log('key with code ' + e.keyCode + ' pressed')
+              if (e.altKey && e.keyCode == 13) {
+                  e.preventDefault();
+                  DO(document.activeElement, 'edit');
+                  return;
+              }
+
               switch (e.keyCode) {
                   case 13: // enter key
                       e.preventDefault();
