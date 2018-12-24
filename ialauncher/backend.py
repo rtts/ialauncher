@@ -14,8 +14,9 @@ class Backend(TCPServer):
     allow_reuse_address = True
     games = {}
 
-    def __init__(self, games_dir, letter=None):
+    def __init__(self, games_dir, letter=None, aspect=False):
         self.letter = letter
+        self.aspect = aspect
         self.load_games(games_dir)
         super().__init__(('localhost', 11236), GameHandler)
 
@@ -65,9 +66,11 @@ class GameHandler(StreamRequestHandler):
             self.wfile.write(b'Content-Type: text/html; charset=utf-8\n\n')
             games_list = self.server.get_games()
             initial_grid = 20
+            aspect = self.server.aspect
             self.wfile.write(T.render({
                 'games': games_list,
                 'initial_grid': initial_grid,
+                'aspect': aspect,
             }).encode('utf8'))
 
         else:

@@ -39,7 +39,9 @@
       }
 
       img {
-          //object-fit: contain;
+          {% if aspect %}
+            object-fit: contain;
+          {% endif %}
           display: block;
           image-rendering: crisp-edges;
           width: 100%;

@@ -20,9 +20,10 @@ GitHub!)
 
 parser = argparse.ArgumentParser(description='Play all of the Internet Archive’s MS-DOS games offline!')
 parser.add_argument('-l', '--letter', help='Show only games starting with this letter')
+parser.add_argument('--aspect', action='store_true', help='Preserve aspect ratio of the title screen')
 parser.add_argument('-geometry', help='X Geometry string; see the manual page for X(7)')
 p = parser.parse_args()
-b = Backend(games_dir, letter=p.letter)
+b = Backend(games_dir, letter=p.letter, aspect=p.aspect)
 f = Frontend(p.geometry)
 
 if __name__ == '__main__':
