@@ -1,7 +1,4 @@
 *
-
 !**/
-![0-9]*/metadata.ini
-![0-9]*/title.png
-![A-Z]*/metadata.ini
-![A-Z]*/title.png
+!*/metadata.ini
+!*/title.png
