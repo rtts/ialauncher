@@ -40,14 +40,15 @@ class Game:
 
         if os.path.isfile(self.emulator_start):
             dosbox_run = self.emulator_start
-            open(batfile, 'a').close()
+            with open(batfile, 'w') as f:
+                f.write(self.emulator_start)
         else:
+            dosbox_run = 'dosbox.bat'
             with open(batfile, 'w') as f:
                 if autorun:
                     f.write('@echo off\ncls\n')
                 if self.emulator_start:
                     f.write(self.emulator_start)
-            dosbox_run = 'dosbox.bat'
 
         if autorun:
             dosbox_args.append('-exit')
