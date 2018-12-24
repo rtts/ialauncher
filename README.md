@@ -34,12 +34,18 @@ the following dependencies:
 - WebKit2 (`apt install gir1.2-webkit2-4.0`)
 - Python3 (`apt install python3`)
 
-Finally, use pip to install the Python dependencies:
+Then install the `ialauncher` Python package:
 
-    pip3 install -r requirements.txt
+    git clone https://github.com/rtts/ialauncher
+    cd ialauncher
+    pip3 install .
 
-Launch the interface using the `ialauncher` command. To see the
-available options, type `ialauncher --help`
+Finally, copy or symlink the `games` directory to your home directory
+i.e. `~/games`. (If you now a better way of including the games as
+package data, please let me know!)
+
+You can now launch the interface using the `ialauncher` command. To
+see the available options, type `ialauncher --help`
 
 
 Special Keys
@@ -47,11 +53,12 @@ Special Keys
 
 - Arrow keys: navigate through the games list
 - Enter: launch the selected game
-- Alt-Enter: open DOSBox but don't execute any commands
+- Alt-Enter: open DOSBox without starting the game
   (usefull for debugging, see "Troubleshooting" below)
 - A-Z: Jump to the first game that starts with the letter A-Z
 - Plus key: increase grid size
 - Minus key: decrease grid size
+- Esc key: exit
 
 During gameplay, you should also be familiar with the [DOSBox Special
 Keys](https://www.dosbox.com/wiki/Special_Keys)
@@ -68,7 +75,7 @@ default DOSBox configuration runs nearly all DOS games perfectly out
 of the box. Also, all the games in the `games` directory have custom
 DOSBox configurations (where needed) and startup commands in their
 `metadata.ini` files. However, you will certainly end up in situations
-where you have to reconfigure the game. Try the following:
+where you have to reconfigure a game. Try the following:
 
 - Press Alt-Enter to start DOSBox with the game directory mounted as
   the `C:` drive.
