@@ -79,11 +79,8 @@ where you have to reconfigure a game. Try the following:
 
 - Press Alt-Enter to start DOSBox with the game directory mounted as
   the `C:` drive.
-
 - Use the `dir` command to see which files are present
-
 - Use the `cd` command to change to the game subdirectory, if needed
-
 - Look for a file named `install.{bat,exe,com}`,
   `setsound.{bat,exe,com}` or `setup.{bat,exe,com}` and execute it
 
@@ -91,10 +88,10 @@ Hopefully, the setup utility will allow you to change the sound card
 parameters. DOSBox emulates all kinds of sounds cards, so try the
 following and it will probably work:
 
-- Sound card: Soundblaster or AdLib
-- Address/port: 220
-- IRQ: 7
-- DMA: 1
+Sound card: Soundblaster or AdLib\
+Address/port: 220\
+IRQ: 7\
+DMA: 1
 
 
 ### Help, my game doesn't run at all!
@@ -108,12 +105,9 @@ default settings. In these cases, try the following:
 
 - Press Alt-Enter to start DOSBox with the game directory mounted as
   the `C:` drive.
-
 - Type `mount a .` to mount the game's directory as the floppy drive
   (many games assume they are being installed from a floppy disk)
-
 - Type `a:` to switch to the mounted floppy drive
-
 - Type `install` and follow the installation procedure, accepting all
   the default values
 
@@ -128,13 +122,10 @@ Here is how you can easily change the command(s) that launch a game:
 
 - Press Alt-Enter to start DOSBox with the game directory mounted as
   the `C:` drive.
-
 - (optionally:) Type `echo cd [directoryname] > dosbox.bat` to put the
   `cd` command in the file named `dosbox.bat`
-
 - Type `echo [command that launches the game] >> dosbox.bat` to append
   the command that launches the game to the file `dosbox.bat`
-
 - Execute `dosbox.bat` and verify that your game now launches correctly
 
 When you exit the emulator, IA Launcher will save the contents of
