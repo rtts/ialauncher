@@ -14,26 +14,15 @@ source distribution to your home directory.
 
 (Also, if anyone could enlighten me on The Right Way™ to include the
 games directory in the Python package please submit a pull request on
-GitHub)
+GitHub!)
 '''.format(games_dir))
     exit(1)
 
-parser = argparse.ArgumentParser(
-    description='Play old school DOS games using DOSBox',
-)
-parser.add_argument('-e', '--edit',
-                    action='store_true',
-                    help='Active edit mode, enabling special keystrokes for managing the games',
-)
-parser.add_argument('-l', '--letter',
-                    help='Show only games starting with this letter',
-)
-parser.add_argument('-geometry',
-                    help='X Geometry string; see X(7)',
-)
-
+parser = argparse.ArgumentParser(description='Play all of the Internet Archive’s MS-DOS games offline!')
+parser.add_argument('-l', '--letter', help='Show only games starting with this letter')
+parser.add_argument('-geometry', help='X Geometry string; see the manual page for X(7)')
 p = parser.parse_args()
-b = Backend(games_dir, edit=p.edit, letter=p.letter)
+b = Backend(games_dir, letter=p.letter)
 f = Frontend(p.geometry)
 
 if __name__ == '__main__':

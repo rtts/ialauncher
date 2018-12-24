@@ -14,8 +14,6 @@
           margin: 0;
           padding: 0;
           background: black;
-          color: white;
-          font-family: monospace;
       }
       body::-webkit-scrollbar {
           display: none;
@@ -35,75 +33,32 @@
           border: 10px solid black;
       }
 
-      button.hidden {
-          background: #333;
-      }
-      button.hidden img {
-          display: none;
-      }
-      button.hidden h2 {
-          text-decoration: line-through;
-      }
-      {% if edit %}
-      button.dosmemories:after {
-          content: 'DOS Memories';
-          display: block;
-          position: absolute;
-          background: white;
-          color: black;
-          top: 0;
-          right: 0;
-      }
-      {% endif %}
-
       button:focus {
           opacity: 1;
           border: none;
       }
 
       img {
+          //object-fit: contain;
           display: block;
           image-rendering: crisp-edges;
-          object-fit: contain;
           width: 100%;
           height: 100%;
-      }
-
-      h2 {
-          {% if not edit %}
-          display: none;
-          {% endif %}
-          position: absolute;
-          margin: 0;
-          padding: 5px;
-          box-sizing: border-box;
-          bottom: 0;
-          text-align: center;
-          font-size: 1em;
-          font-weight: normal;
-          background: #00000099;
-          width: 100%;
       }
 
     </style>
   </head>
   <body>
     {% for game in games %}
-      <button data-url="{{game.urlencoded()}}" data-title="{{game.title}}" tabindex="0" ondblclick="start_game(this)" class="{% if game.hidden %}hidden{% endif %}{% if game.dosmemories %} dosmemories{% endif %}">
-        <img src="{{game.urlencoded()}}/title_screen.jpg" draggable="false">
-        <h2>{{game.identifier}}</h2>
+      <button data-url="{{game.urlencoded()}}" data-title="{{game.title}}" tabindex="0">
+        <img src="{{game.urlencoded()}}/title.png" draggable="false">
       </button>
     {% endfor %}
     <script>
-      function DO(game, action) {
+      function get(game, action) {
           var x = new XMLHttpRequest();
           x.open('GET', '\\' + game.dataset.url + '/' + action, true);
           x.send();
-      }
-      function post(game, action, data) {
-          var x = new XMLHttpRequest();
-          x.open('POST', '\\' + game.dataset.url + '/' + action, true);
-          x.send(data + '\n');
       }
 
       document.addEventListener('DOMContentLoaded', function(event) {
@@ -111,17 +66,16 @@
           games[0].focus();
 
           function handle_keydown(e) {
-              // console.log('key with code ' + e.keyCode + ' pressed')
               if (e.altKey && e.keyCode == 13) {
                   e.preventDefault();
-                  DO(document.activeElement, 'edit');
+                  get(document.activeElement, 'edit');
                   return;
               }
 
               switch (e.keyCode) {
                   case 13: // enter key
                       e.preventDefault();
-                      DO(document.activeElement, 'start');
+                      get(document.activeElement, 'start');
                       break;
 
                   case 33: // page up
@@ -167,20 +121,6 @@
                       while (games[i].getBoundingClientRect().left != document.activeElement.getBoundingClientRect().left);
                       games[i].focus();
                       break;
-
-                      {% if edit %}
-                  case 46: // delete
-                      DO(document.activeElement, 'hide');
-                      document.activeElement.classList.toggle('hidden');
-                      break;
-
-                  case 113: // F2
-                      newname = prompt('Rename this game:', document.activeElement.dataset.title);
-                      if (newname) {
-                          post(document.activeElement, 'rename', newname);
-                      }
-                      break;
-                      {% endif %}
               }
           }
 
@@ -188,9 +128,6 @@
           function handle_keypress(e) {
               if (e.ctrlKey) {
                   return;
-              }
-              if (e.key == '.') {
-                  DO(document.activeElement, 'next_song');
               }
               if (e.key == '-') {
                   old_value = document.styleSheets[0].cssRules[0].style.getPropertyValue('width').replace('vw', '');
