@@ -67,6 +67,14 @@
           var games = document.querySelectorAll('button');
           games[0].focus();
 
+          function focus_random_game() {
+              var game = games[Math.floor(Math.random()*games.length)];
+              game.focus();
+          }
+          {% if slideshow %}
+          setInterval(focus_random_game, {{slideshow}});
+          {% endif %}
+
           function handle_keydown(e) {
               if (e.altKey && e.keyCode == 13) {
                   e.preventDefault();
