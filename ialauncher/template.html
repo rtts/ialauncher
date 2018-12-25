@@ -69,17 +69,27 @@
       document.addEventListener('DOMContentLoaded', function(event) {
           var games = document.querySelectorAll('button');
           games[0].focus();
+          inactivity = 0;
 
-          function focus_random_game() {
-              var game = games[Math.floor(Math.random()*games.length)];
-              game.focus();
+          function inactivity_counter() {
+              inactivity += 1000;
           }
+          setInterval(inactivity_counter, 1000);
+
           {% if slideshow %}
-          focus_random_game();
+          function focus_random_game() {
+              if (inactivity > 2 * {{slideshow}}) {
+                  var game = games[Math.floor(Math.random()*games.length)];
+                  game.focus();
+              }
+          }
+          var game = games[Math.floor(Math.random()*games.length)];
+          game.focus();
           setInterval(focus_random_game, {{slideshow}});
           {% endif %}
 
           function handle_keydown(e) {
+              inactivity = 0;
               if (e.altKey && e.keyCode == 13) {
                   e.preventDefault();
                   get(document.activeElement, 'edit');
