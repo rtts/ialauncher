@@ -1,5 +1,5 @@
-Internet Archive games Launcher
-===============================
+Internet Archive Launcher for MS-DOS games
+==========================================
 
 Play all of the Internet Archive's MS-DOS games offline!
 --------------------------------------------------------
