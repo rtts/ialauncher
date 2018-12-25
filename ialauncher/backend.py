@@ -71,6 +71,8 @@ class GameHandler(StreamRequestHandler):
             if self.server.slideshow:
                 slideshow = self.server.slideshow * 1000
                 initial_grid = 100
+            else:
+                slideshow = False
             self.wfile.write(T.render({
                 'games': games_list,
                 'initial_grid': initial_grid,
