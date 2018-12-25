@@ -4,7 +4,7 @@ Internet Archive Launcher for MS-DOS games
 Play all of the Internet Archive's MS-DOS games offline!
 --------------------------------------------------------
 
-[[https://i.imgur.com/rdOlq7w.jpg]]
+![Screenshot of IA Launcher](https://i.imgur.com/rdOlq7w.jpg)
 
 IA Launcher is a graphical games launcher for all those georgeous
 MS-DOS games from yestermillenium. It uses the [Internet
