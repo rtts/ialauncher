@@ -23,6 +23,9 @@
           outline: none;
           background: black;
           opacity: 0.5;
+          {% if slideshow %}
+          opacity: 0;
+          {% endif %}
           float: left;
           padding: 0;
           margin: 0;
@@ -72,6 +75,7 @@
               game.focus();
           }
           {% if slideshow %}
+          focus_random_game();
           setInterval(focus_random_game, {{slideshow}});
           {% endif %}
 
