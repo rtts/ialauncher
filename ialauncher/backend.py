@@ -70,7 +70,6 @@ class GameHandler(StreamRequestHandler):
             aspect = self.server.aspect
             if self.server.slideshow:
                 slideshow = self.server.slideshow * 1000
-                initial_grid = 100
             else:
                 slideshow = False
             self.wfile.write(T.render({

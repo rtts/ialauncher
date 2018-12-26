@@ -23,9 +23,6 @@
           outline: none;
           background: black;
           opacity: 0.5;
-          {% if slideshow %}
-          opacity: 0;
-          {% endif %}
           float: left;
           padding: 0;
           margin: 0;
@@ -33,7 +30,7 @@
           color: white;
           position: relative;
           box-sizing: border-box;
-          border: 10px solid black;
+          border: 5px solid black;
       }
 
       button:focus {
@@ -69,27 +66,26 @@
       document.addEventListener('DOMContentLoaded', function(event) {
           var games = document.querySelectorAll('button');
           games[0].focus();
-          inactivity = 0;
+          inactive = true;
 
-          function inactivity_counter() {
-              inactivity += 1000;
-          }
-          setInterval(inactivity_counter, 1000);
-
-          {% if slideshow %}
           function focus_random_game() {
-              if (inactivity > 2 * {{slideshow}}) {
+              if (inactive) {
                   var game = games[Math.floor(Math.random()*games.length)];
                   game.focus();
+                  document.styleSheets[0].cssRules[0].style.setProperty('width', '100vw');
+                  document.styleSheets[0].cssRules[0].style.setProperty('height', '100vh');
+              }
+              else {
+                  inactive = true;
               }
           }
-          var game = games[Math.floor(Math.random()*games.length)];
-          game.focus();
+          {% if slideshow %}
+          focus_random_game();
           setInterval(focus_random_game, {{slideshow}});
           {% endif %}
 
           function handle_keydown(e) {
-              inactivity = 0;
+              inactive = false;
               if (e.altKey && e.keyCode == 13) {
                   e.preventDefault();
                   get(document.activeElement, 'edit');
