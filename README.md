@@ -42,10 +42,6 @@ Then install the `ialauncher` Python package:
     cd ialauncher
     pip3 install .
 
-Finally, copy or symlink the `games` directory to your home directory
-i.e. `~/games`. (If you now a better way of including the games as
-package data, please let me know!)
-
 You can now launch the interface using the `ialauncher` command. To
 see the available options, type `ialauncher --help`
 

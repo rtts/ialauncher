@@ -15,13 +15,14 @@ setuptools.setup(
     url = 'https://github.com/rtts/ialauncher',
     packages = setuptools.find_packages(),
     scripts = ['bin/ialauncher'],
+    include_package_data = True,
     package_data = {
         'ialauncher': ['*.html'],
     },
     classifiers = [
         'Programming Language :: Python :: 3',
         'License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)',
-        'Operating System :: OS Independent', # except for the hardcoded ~/games path...
+        'Operating System :: OS Independent',
     ],
     install_requires = [
         'jinja2',

@@ -26,6 +26,10 @@ class Backend(TCPServer):
         for entry in os.listdir(games_dir):
             if not os.path.isdir(os.path.join(games_dir, entry)):
                 continue
+            if entry.startswith('.'):
+                continue
+            if entry.startswith('__'):
+                continue
             try:
                 game = Game(os.path.join(games_dir, entry))
                 self.games[game.identifier] = game

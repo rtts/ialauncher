@@ -4,18 +4,10 @@ import argparse
 from ialauncher.backend import Backend
 from ialauncher.frontend import Frontend
 
-games_dir= os.path.join(os.path.expanduser("~"), 'games')
+import games
+games_dir= os.path.dirname(games.__file__)
 if not os.path.isdir(games_dir):
-    print('''
-Error: the games directory could not be found at {}
-
-Please copy (or symlink) the directory `games` from the IA Launcher
-source distribution to your home directory.
-
-(Also, if anyone could enlighten me on The Right Way™ to include the
-games directory in the Python package please submit a pull request on
-GitHub!)
-'''.format(games_dir))
+    print('Error: the games directory could not be found at {}'.format(games_dir))
     exit(1)
 
 parser = argparse.ArgumentParser(description='Play all of the Internet Archive’s MS-DOS games offline!')
