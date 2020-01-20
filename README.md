@@ -38,9 +38,7 @@ the following dependencies:
 
 Then install the `ialauncher` Python package:
 
-    git clone https://github.com/rtts/ialauncher
-    cd ialauncher
-    pip3 install .
+    pip3 install git+https://github.com/rtts/ialauncher
 
 You can now launch the interface using the `ialauncher` command. To
 see the available options, type `ialauncher --help`
