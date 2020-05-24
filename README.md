@@ -31,10 +31,18 @@ Installation
 First of all, get yourself a snazzy retro looking PC. Then, install
 the following dependencies:
 
-- [DOSBox](https://www.dosbox.com/) (on Debian-based systems: `apt
-  install dosbox`)
-- WebKit2 (`apt install gir1.2-webkit2-4.0`)
-- Python3 (`apt install python3`)
+* Python 3
+* [DOSBox](https://www.dosbox.com/)
+* WebKit and PyGObject dependencies:
+    - gir1.2-webkit2-4.0
+    - libcairo2-dev
+    - libgirepository1.0-dev
+
+Using the apt package manager, you can install all of these dependencies
+with the following command:
+
+    apt install python3-pip dosbox gir1.2-webkit2-4.0 \
+                libcairo2-dev libgirepository1.0-dev
 
 Then install the `ialauncher` Python package:
 
@@ -57,7 +65,9 @@ Special Keys
 - Esc key: exit
 
 During gameplay, you should also be familiar with the [DOSBox Special
-Keys](https://www.dosbox.com/wiki/Special_Keys)
+Keys](https://www.dosbox.com/wiki/Special_Keys). The most important
+one is probably `Ctrl-F9`, which immediately exits DOSBox and
+returns to the games menu.
 
 
 Troubleshooting
