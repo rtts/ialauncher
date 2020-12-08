@@ -24,6 +24,33 @@ class Game:
             self.url = self.url.split()
 
     def start(self, autorun=True):
+        """
+        Start the game in one of two modes:
+
+        1. autorun=True
+
+            Paste the contents of `emulator_start` into dosbox.bat, and
+            run it. Dosbox will exit when the game ends.
+
+        2. autorun=False
+
+            Do as above, but don't run dosbox.bat and don't exit Dosbox.
+            Any changes made to dosbox.bat will be save as the
+            `emulator_start` variable in metadata.ini.
+
+        The frontend allows starting the game in the second mode by pressing
+        Alt-Enter. This allows the user to do the following from within dosbox:
+
+            C:\> echo MYGAME.BAT >> dosbox.bat
+            C:\> exit
+
+        These changes will then be preserved for the next time the game
+        is run normally. Make sure to commit any useful additions!
+
+        There is also some magic going on for capturing screenshots,
+        which is currently undocumented.
+
+        """
         if not os.path.isdir(self.gamedir):
             self.download_files()
         os.chdir(self.gamedir)
@@ -38,17 +65,23 @@ class Game:
             dosbox_args.append('-userconf')
             dosbox_args.append('-conf dosbox.conf')
 
-        if os.path.isfile(self.emulator_start):
-            dosbox_run = self.emulator_start
-            with open(batfile, 'w') as f:
-                f.write(self.emulator_start)
-        else:
-            dosbox_run = 'dosbox.bat'
-            with open(batfile, 'w') as f:
-                if autorun:
+        if self.emulator_start:
+            if os.path.isfile(self.emulator_start):
+
+                # Special case for many games that currently only
+                # contain the name of the executable
+                dosbox_run = self.emulator_start
+
+            else:
+                dosbox_run = 'dosbox.bat'
+                with open(batfile, 'w') as f:
                     f.write('@echo off\ncls\n')
-                if self.emulator_start:
                     f.write(self.emulator_start)
+
+        elif not autorun:
+            # Make sure dosbox.bat exists so the user can edit it
+            with open(batfile, 'w') as f:
+                f.write('@echo off\ncls\n')
 
         if autorun:
             dosbox_args.append('-exit')
@@ -64,7 +97,7 @@ class Game:
                     if self.emulator_start:
                         self.write_metadata()
 
-            if os.listdir(screenshotsdir):
+            if os.path.exists(screenshotsdir) and os.listdir(screenshotsdir):
                 os.system('eog --fullscreen "{}"/*'.format(screenshotsdir))
                 title_screens = sorted(os.listdir(screenshotsdir))
                 if title_screens:
