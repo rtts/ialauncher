@@ -1,37 +1,47 @@
-Internet Archive Launcher for MS-DOS games
-==========================================
+IA Launcher
+===========
 
-![Screenshot of IA Launcher](https://i.imgur.com/WQhGrQy.jpg)
-
-Play all of the Internet Archive's MS-DOS games offline!
---------------------------------------------------------
+***A DOSBox frontend for the [Internet Archive MS-DOS games
+collection](https://archive.org/details/softwarelibrary_msdos_games)***
 
 IA Launcher is a graphical games launcher for all those georgeous
 MS-DOS games from yestermillenium. It uses the [Internet
 Archive](https://archive.org/) to download games on-the-fly
-and [DOSBox](https://www.dosbox.com/) to play them.
+and [DOSBox](https://www.dosbox.com/) to play them offline.
+
+![Screenshot of IA Launcher](https://i.imgur.com/WQhGrQy.jpg)
+
 
 Features:
 ---------
 
 - Batteries included! Thousands of games playable out-of-the-box
 - Graphical user interface for quickly browsing through title screens
-- Easily add new games to the list (if you do, send me a pull request!)
+- Easily add new games to the list (if you do, please send me a pull request!)
 - Automatically downloads game data from archive.org
 - Saves state such as savegames and settings for each game
+
 
 Installation
 ------------
 
-First of all, get yourself a snazzy retro looking PC. Then, install
-the following dependencies:
+First of all, get yourself a snazzy retro looking PC. Or just use your
+current computer running your operating system of choice. Start by
+installing the following dependencies:
 
-* Python 3
-* [DOSBox](https://www.dosbox.com/)
+* [Python](https://www.python.org/) version 3.8 or higher
+* [DOSBox](https://www.dosbox.com/) version 0.74 or higher
 
-Then install the `ialauncher` Python package:
+Now you can install IA Launcher using `pip`. Open a command-line
+window and type the following command:
 
-    pip3 install ialauncher
+    pip install ialauncher
+
+Depending on your system, you might have to use `sudo` and/or the
+`pip3` command instead of `pip`. If the previous command didn't work,
+try this one:
+
+    sudo pip3 install ialauncher
 
 You can now launch the interface using the `ialauncher` command. To
 see the available options, type `ialauncher --help`
@@ -44,6 +54,7 @@ Special Keys
 - Enter: launch the selected game
 - Alt-Enter: open DOSBox without starting the game
   (usefull for debugging, see "Troubleshooting" below)
+- Space: jump to a random game
 - A-Z: Jump to the first game that starts with the letter A-Z
 - Esc key: exit
 

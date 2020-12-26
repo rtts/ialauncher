@@ -6,10 +6,10 @@ with open('README.md', 'r') as fh:
 
 setuptools.setup(
     name = 'ialauncher',
-    version = '2.0',
+    version = '2.0.1',
     author = 'Jaap Joris Vens',
     author_email = 'jj@rtts.eu',
-    description = 'Play all of the Internet Archive’s MS-DOS games offline!',
+    description = 'DOSBox frontend for the Internet Archive MS-DOS games collection',
     long_description = long_description,
     long_description_content_type = 'text/markdown',
     url = 'https://github.com/rtts/ialauncher',
