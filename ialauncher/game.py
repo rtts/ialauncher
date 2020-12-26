@@ -1,5 +1,6 @@
 import os
 import shutil
+import subprocess
 from zipfile import ZipFile
 from urllib import request
 from urllib.parse import quote, unquote
@@ -62,33 +63,38 @@ class Game:
         if self.dosbox_conf:
             with open(conffile, 'w') as f:
                 f.write(self.dosbox_conf)
-            dosbox_args.append('-userconf')
-            dosbox_args.append('-conf dosbox.conf')
+            dosbox_args.extend(['-userconf', '-conf', 'dosbox.conf'])
 
         if self.emulator_start:
-            if os.path.isfile(self.emulator_start):
+            if autorun:
+                if os.path.isfile(self.emulator_start):
 
-                # Special case for many games that currently only
-                # contain the name of the executable
-                dosbox_run = self.emulator_start
+                    # Special case for many games that currently only
+                    # contain the name of the executable
+                    dosbox_run = self.emulator_start
+
+                else:
+                    dosbox_run = 'dosbox.bat'
+                    with open(batfile, 'w') as f:
+                        f.write('@echo off\ncls\n')
+                        f.write(self.emulator_start)
 
             else:
-                dosbox_run = 'dosbox.bat'
                 with open(batfile, 'w') as f:
-                    f.write('@echo off\ncls\n')
                     f.write(self.emulator_start)
 
-        elif not autorun:
-            # Make sure dosbox.bat exists so the user can edit it
-            with open(batfile, 'w') as f:
-                f.write('\n')
+        else:
+            autorun = False
+            if not os.path.isfile(batfile):
+                with open(batfile, 'w') as f:
+                    f.write('\n')
 
         if autorun:
             dosbox_args.append('-exit')
         else:
             dosbox_run = '.'
 
-        os.system('dosbox {} {}'.format(dosbox_run, ' '.join(dosbox_args)))
+        subprocess.run(['dosbox', dosbox_run] + dosbox_args)
 
         if not autorun:
             if os.path.isfile(batfile):
