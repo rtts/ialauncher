@@ -6,7 +6,7 @@ with open('README.md', 'r') as fh:
 
 setuptools.setup(
     name = 'ialauncher',
-    version = '1.0',
+    version = '2.0',
     author = 'Jaap Joris Vens',
     author_email = 'jj@rtts.eu',
     description = 'Play all of the Internet Archive’s MS-DOS games offline!',
@@ -16,17 +16,12 @@ setuptools.setup(
     packages = setuptools.find_packages(),
     scripts = ['bin/ialauncher'],
     include_package_data = True,
-    package_data = {
-        'ialauncher': ['*.html'],
-    },
     classifiers = [
         'Programming Language :: Python :: 3',
         'License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)',
         'Operating System :: OS Independent',
     ],
     install_requires = [
-        'jinja2',
-        'PyGObject',
-        'natsort',
+        'pygame',
     ],
 )

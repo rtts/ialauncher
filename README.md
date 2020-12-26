@@ -11,19 +11,14 @@ MS-DOS games from yestermillenium. It uses the [Internet
 Archive](https://archive.org/) to download games on-the-fly
 and [DOSBox](https://www.dosbox.com/) to play them.
 
-IA Launcher currently runs on GNU/Linux operating systems but should
-easily be portable to other platforms.
-
-
 Features:
 ---------
 
 - Batteries included! Thousands of games playable out-of-the-box
-- Graphical user interface showing the title screens of all games
+- Graphical user interface for quickly browsing through title screens
 - Easily add new games to the list (if you do, send me a pull request!)
 - Automatically downloads game data from archive.org
 - Saves state such as savegames and settings for each game
-
 
 Installation
 ------------
@@ -33,16 +28,6 @@ the following dependencies:
 
 * Python 3
 * [DOSBox](https://www.dosbox.com/)
-* WebKit and PyGObject dependencies:
-    - gir1.2-webkit2-4.0
-    - libcairo2-dev
-    - libgirepository1.0-dev
-
-Using the apt package manager, you can install all of these dependencies
-with the following command:
-
-    apt install python3-pip dosbox gir1.2-webkit2-4.0 \
-                libcairo2-dev libgirepository1.0-dev
 
 Then install the `ialauncher` Python package:
 
@@ -60,8 +45,6 @@ Special Keys
 - Alt-Enter: open DOSBox without starting the game
   (usefull for debugging, see "Troubleshooting" below)
 - A-Z: Jump to the first game that starts with the letter A-Z
-- Plus key: increase grid size
-- Minus key: decrease grid size
 - Esc key: exit
 
 During gameplay, you should also be familiar with the [DOSBox Special
