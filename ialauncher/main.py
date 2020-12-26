@@ -3,7 +3,7 @@
 import os, sys, random, argparse, subprocess
 import games as gd
 import pygame as pg
-from ialauncher import Game
+from .game import Game
 
 
 def main():
@@ -158,7 +158,3 @@ def show_ui(games, args):
 
         screen.blit(scaled_image, rect)
         pg.display.flip()
-
-
-if __name__ == '__main__':
-    main()

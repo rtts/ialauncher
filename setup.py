@@ -6,7 +6,7 @@ with open('README.md', 'r') as fh:
 
 setuptools.setup(
     name = 'ialauncher',
-    version = '2.0.5',
+    version = '2.0.6',
     author = 'Jaap Joris Vens',
     author_email = 'jj@rtts.eu',
     description = 'DOSBox frontend for the Internet Archive MS-DOS games collection',
@@ -14,7 +14,9 @@ setuptools.setup(
     long_description_content_type = 'text/markdown',
     url = 'https://github.com/rtts/ialauncher',
     packages = setuptools.find_packages(),
-    scripts = ['bin/ialauncher'],
+    entry_points = {
+        'console_scripts': ['ialauncher=ialauncher.main:main'],
+    },
     include_package_data = True,
     classifiers = [
         'Programming Language :: Python :: 3',
