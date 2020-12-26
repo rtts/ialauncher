@@ -1,13 +1,12 @@
-IA Launcher
-===========
+Internet Archive Launcher
+=========================
 
-***A DOSBox frontend for the [Internet Archive MS-DOS games
-collection](https://archive.org/details/softwarelibrary_msdos_games)***
+**A DOSBox frontend for the [Internet Archive MS-DOS games
+collection](https://archive.org/details/softwarelibrary_msdos_games)**
 
-IA Launcher is a graphical games launcher for all those georgeous
-MS-DOS games from yestermillenium. It uses the [Internet
-Archive](https://archive.org/) to download games on-the-fly
-and [DOSBox](https://www.dosbox.com/) to play them offline.
+*IA Launcher* is a graphical games launcher for all those georgeous
+MS-DOS games from yestermillenium. It uses the Internet Archive to
+download games on-the-fly and DOSBox to play them offline.
 
 ![Screenshot of IA Launcher](https://i.imgur.com/WQhGrQy.jpg)
 
