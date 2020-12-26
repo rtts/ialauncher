@@ -48,6 +48,7 @@ def show_ui(games, slideshow=0):
     info = pg.display.Info()
     size = info.current_w, info.current_h
     screen = pg.display.set_mode(size, flags=pg.RESIZABLE|pg.WINDOWMAXIMIZED)
+    pg.display.set_caption('IA Launcher')
     current_game = random.randrange(len(games)) if slideshow else 0
     image = pg.image.load(games[current_game].get_titlescreen())
     scaled_image = image.copy()
