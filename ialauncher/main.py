@@ -51,6 +51,7 @@ def show_ui(games, args):
     pg.init()
     ADVANCE = pg.event.custom_type()
     pg.key.set_repeat(250, 25)
+    pg.mouse.set_visible(False)
     if args.slideshow:
         pg.time.set_timer(ADVANCE, args.slideshow * 1000)
     info = pg.display.Info()
