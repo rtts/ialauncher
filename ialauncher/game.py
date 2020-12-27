@@ -77,7 +77,7 @@ class Game:
 
                     # Special case for many games that currently only
                     # contain the name of the executable
-                    dosbox_run = os.path.join(self.gamedir, self.emulator_start)
+                    dosbox_run = os.path.join(self.gamedir, os.path.normpath(self.emulator_start))
 
                 else:
                     dosbox_run = os.path.join(self.gamedir, 'dosbox.bat')
