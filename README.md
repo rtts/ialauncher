@@ -53,10 +53,9 @@ try this one:
 You can now launch the interface using the `ialauncher` command. To
 see the available options, type `ialauncher --help`.
 
-*One option that I personally use all the time is `--slideshow` which
-turns IA Launcher into an awesome screensaver, displaying a new DOS
-title screen every few seconds. Whenever I'm bored, I walk over to my
-dedicated DOS gaming PC and press `Enter` to play a game.*
+*A useful option is`--slideshow` which turns IA Launcher into an
+awesome screensaver, displaying a new DOS game title screen every few
+seconds.*
 
 
 Special Keys
@@ -66,8 +65,6 @@ Special Keys
 - Enter: launch the selected game
 - Alt-Enter: open DOSBox without starting the game
   (useful for debugging, see "Troubleshooting" below)
-- Shift-Enter: Force re-downloading a game before starting it
-  (useful if a previous download failed, or to reset the game)
 - Space: jump to a random game
 - A-Z: Jump to the first game that starts with the letter A-Z
 - Esc key: exit
