@@ -53,12 +53,13 @@ def show_ui(games, args):
     pg.key.set_repeat(250, 25)
     if args.slideshow:
         pg.time.set_timer(ADVANCE, args.slideshow * 1000)
-    size = 640, 480
+    info = pg.display.Info()
+    size = info.current_w, info.current_h
     if args.fullscreen:
         # Note that SDL fullscreen is currently broken in Xmonad
         screen = pg.display.set_mode(size, flags=pg.FULLSCREEN)
     else:
-        screen = pg.display.set_mode(size, flags=pg.RESIZABLE)
+        screen = pg.display.set_mode((640,480), flags=pg.RESIZABLE)
     pg.display.set_caption('IA Launcher')
     current_game = random.randrange(len(games)) if args.slideshow else 0
     image = pg.image.load(games[current_game].get_titlescreen())
