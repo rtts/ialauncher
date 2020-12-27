@@ -88,7 +88,7 @@ def show_ui(games, args):
                 else:
                     games[current_game].start()
 
-                # DOSBox is finished, reset everything to working order
+                # DOSBox has started, reset everything to working order
                 pg.event.clear()
                 if args.fullscreen:
                     screen = pg.display.set_mode(size, flags=pg.FULLSCREEN)

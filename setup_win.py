@@ -23,7 +23,7 @@ if __name__ == '__main__':
 
 setup(
     name='ialauncher',
-    version = '2.0.6',
+    version = '2.1.0',
     description = 'A DOSBox frontend for the Internet Archive MS-DOS games collection',
     executables = [Executable('temp.py', targetName = 'ialauncher.exe')],
 )

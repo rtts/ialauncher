@@ -98,9 +98,10 @@ class Game:
         else:
             dosbox_run = '.'
 
-        subprocess.run([DOSBOX, dosbox_run] + dosbox_args)
+        child_process = subprocess.Popen([DOSBOX, dosbox_run] + dosbox_args)
 
         if not autorun:
+            child_process.wait()
             if os.path.isfile(batfile):
                 with open(batfile, 'r') as f:
                     self.emulator_start = f.read()
