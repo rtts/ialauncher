@@ -171,18 +171,19 @@ class Download(Process):
         for u in self.urls:
             filename = unquote(u.split('/')[-1])
             dest = os.path.join(os.path.dirname(self.gamedir), filename)
-            print(f'Downloading {u}...', end='', flush=True)
-            request.urlretrieve(u, dest)
-            print('done!')
+            if not os.path.isfile(dest):
+                print(f'Downloading {u}...', end='', flush=True)
+                request.urlretrieve(u, dest)
+                print('done!')
             if filename.endswith('zip') or filename.endswith('ZIP') or filename.endswith('play'):
                 print(f'Extracting {filename}...', end='', flush=True)
                 self.unzip(dest)
                 print('done!')
             else:
+                os.makedirs(self.gamedir, exist_ok=True)
                 shutil.copy(filename, self.gamedir)
         self.q.put("Done!")
 
     def unzip(self, zipfile):
-        os.makedirs(self.gamedir, exist_ok=True)
         with ZipFile(zipfile, 'r') as f:
             f.extractall(self.gamedir)
