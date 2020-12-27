@@ -195,7 +195,7 @@ def drawText(surface, text, color, rect, font, aa=False, bkg=None):
     fontHeight = font.size("Tg")[1]
 
     while text:
-        i = 1
+        i = 0
 
         # determine if the row of text will be outside our area
         if y + fontHeight > rect.bottom:
