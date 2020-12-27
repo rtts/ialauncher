@@ -1,4 +1,4 @@
-import os
+import os, sys
 import shutil
 import subprocess
 from zipfile import ZipFile
@@ -73,7 +73,7 @@ class Game:
 
         if self.emulator_start:
             if autorun:
-                if os.path.isfile(os.path.join(self.gamedir, self.emulator_start)):
+                if os.path.isfile(os.path.join(self.gamedir, os.normpath(self.emulator_start))):
 
                     # Special case for many games that currently only
                     # contain the name of the executable
