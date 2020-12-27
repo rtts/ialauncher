@@ -132,7 +132,8 @@ Here is how you can easily change the command(s) that launch a game:
 When you exit the emulator, IA Launcher will save the contents of
 `dosbox.bat` to the `emulator_start` variable inside the game's
 `metadata.ini`. The next time you launch the game, the `dosbox.bat`
-file will be run automatically.
+file will be run automatically. (Note: This feature has been disabled
+on Windows because it hangs the interface...)
 
 More advanced logic can be created with batch file syntax. As an
 example, here is the contents of `emulator_start` for the game SimCity

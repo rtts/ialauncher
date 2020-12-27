@@ -101,7 +101,9 @@ class Game:
         command = [DOSBOX, dosbox_run] + dosbox_args
         child_process = subprocess.Popen(command)
 
-        if not autorun:
+        if not autorun and sys.platform != 'win32':
+            # The wait() function will make Windows spawn new
+            # instances of DOSBox over and over...
             child_process.wait()
             if os.path.isfile(batfile):
                 with open(batfile, 'r') as f:
