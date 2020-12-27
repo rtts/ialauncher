@@ -15,7 +15,7 @@ def main():
 def parse_args():
     parser = argparse.ArgumentParser(description='DOSBox frontend for the Internet Archive MS-DOS games collection')
     parser.add_argument('--slideshow', type=int, metavar='X', help='Focus on a random title screen every X seconds')
-    parser.add_argument('--fullscreen', action='store_true', help='Start in fullscreen mode')
+    parser.add_argument('--no-fullscreen', dest='fullscreen', action='store_false', help='Don’t start in fullscreen mode')
     return parser.parse_args()
 
 
@@ -53,13 +53,12 @@ def show_ui(games, args):
     pg.key.set_repeat(250, 25)
     if args.slideshow:
         pg.time.set_timer(ADVANCE, args.slideshow * 1000)
-    info = pg.display.Info()
-    size = info.current_w, info.current_h
+    size = 640, 480
     if args.fullscreen:
         # Note that SDL fullscreen is currently broken in Xmonad
         screen = pg.display.set_mode(size, flags=pg.FULLSCREEN)
     else:
-        screen = pg.display.set_mode(size, flags=pg.RESIZABLE|pg.WINDOWMAXIMIZED)
+        screen = pg.display.set_mode(size, flags=pg.RESIZABLE)
     pg.display.set_caption('IA Launcher')
     current_game = random.randrange(len(games)) if args.slideshow else 0
     image = pg.image.load(games[current_game].get_titlescreen())
