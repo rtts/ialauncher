@@ -61,11 +61,10 @@ class Game:
         if hasattr(self, 'autorun'):
             autorun = self.autorun
 
-        os.chdir(self.gamedir)
         batfile = os.path.join(self.gamedir, 'dosbox.bat')
         conffile = os.path.join(self.gamedir, 'dosbox.conf')
         dosbox_args = ['-fullscreen']
-        dosbox_run = '.'
+        dosbox_run = self.gamedir
 
         if self.dosbox_conf:
             with open(conffile, 'w') as f:
@@ -74,14 +73,14 @@ class Game:
 
         if self.emulator_start:
             if autorun:
-                if os.path.isfile(self.emulator_start):
+                if os.path.isfile(os.path.join(self.gamedir, self.emulator_start)):
 
                     # Special case for many games that currently only
                     # contain the name of the executable
-                    dosbox_run = self.emulator_start
+                    dosbox_run = os.path.join(self.gamedir, self.emulator_start)
 
                 else:
-                    dosbox_run = 'dosbox.bat'
+                    dosbox_run = os.path.join(self.gamedir, 'dosbox.bat')
                     with open(batfile, 'w') as f:
                         f.write('@echo off\ncls\n')
                         f.write(self.emulator_start)
@@ -98,10 +97,9 @@ class Game:
 
         if autorun:
             dosbox_args.append('-exit')
-        else:
-            dosbox_run = '.'
 
-        child_process = subprocess.Popen([DOSBOX, dosbox_run] + dosbox_args)
+        command = [DOSBOX, dosbox_run] + dosbox_args
+        child_process = subprocess.Popen(command)
 
         if not autorun:
             child_process.wait()
