@@ -16,8 +16,10 @@ from cx_Freeze import setup, Executable
 # Provide an executable that will run from the current directory:
 with open('temp.py', 'w') as f:
     f.write('''
+import multiprocessing
 from ialauncher.main import main
 if __name__ == '__main__':
+    multiprocessing.freeze_support()
     main()
 ''')
 
