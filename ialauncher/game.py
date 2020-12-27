@@ -181,7 +181,7 @@ class Download(Process):
                 print('done!')
             else:
                 os.makedirs(self.gamedir, exist_ok=True)
-                shutil.copy(filename, self.gamedir)
+                shutil.copy(dest, self.gamedir)
         self.q.put("Done!")
 
     def unzip(self, zipfile):
