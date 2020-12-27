@@ -8,19 +8,13 @@ collection](https://archive.org/details/softwarelibrary_msdos_games)**
 MS-DOS games from yestermillenium. It uses the Internet Archive to
 download games on-the-fly and DOSBox to play them offline.
 
-{% note %}
-
-Hurrah! The latest release 2.1.0 now has its own Windows Installer!
-
+**Hurrah! The latest release 2.1.0 now has its own Windows Installer!
 You can download the Windows Installer here:
 [ialauncher-2.1.0-amd64.msi](https://rtts.eu/download/ialauncher-2.1.0-amd64.msi)
-
-Note: you will have to install [DOSBox](https://www.dosbox.com/) separately.
+Note: you will have to install [DOSBox](https://www.dosbox.com/) separately.**
 
 (You can also install IA Launcher using `pip install ialauncher` on
 any operating system, continue reading for detailed instructions.)
-
-{% endnote %}
 
 ![Screenshot of IA Launcher](https://i.imgur.com/WQhGrQy.jpg)
 
