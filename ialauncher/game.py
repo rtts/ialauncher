@@ -6,6 +6,10 @@ from urllib import request
 from urllib.parse import quote, unquote
 from configparser import RawConfigParser
 
+from .dosbox import get_dosbox_path
+
+DOSBOX = get_dosbox_path()
+
 class Game:
     def __init__(self, path):
         self.path = path
@@ -94,7 +98,7 @@ class Game:
         else:
             dosbox_run = '.'
 
-        subprocess.run(['dosbox', dosbox_run] + dosbox_args)
+        subprocess.run([DOSBOX, dosbox_run] + dosbox_args)
 
         if not autorun:
             if os.path.isfile(batfile):
