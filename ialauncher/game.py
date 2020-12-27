@@ -140,7 +140,10 @@ class Game:
         return sum(os.path.getsize(os.path.join(self.path, f)) for f in os.listdir(self.path) if os.path.isfile(os.path.join(self.path, f)))/1000000
 
     def reset(self):
-        shutil.rmtree(self.gamedir)
+        try:
+            shutil.rmtree(self.gamedir)
+        except:
+            pass
 
     def download(self):
         self.finished = False
@@ -151,7 +154,7 @@ class Game:
         if self.finished:
             return True
         try:
-            self.q.get()
+            self.q.get(block=False, timeout=1)
             self.finished = True
             return True
         except Empty:
