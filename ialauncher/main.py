@@ -86,7 +86,8 @@ def show_ui(games, args):
                 if event.mod & pg.KMOD_ALT:
                     games[current_game].start(autorun=False)
                 else:
-                    games[current_game].start()
+                    #games[current_game].start()
+                    games[current_game].download()
 
                 # DOSBox has started, reset everything to working order
                 pg.event.clear()

@@ -5,6 +5,7 @@ from zipfile import ZipFile
 from urllib import request
 from urllib.parse import quote, unquote
 from configparser import RawConfigParser
+from multiprocessing import Process
 
 from .dosbox import get_dosbox_path
 
@@ -22,8 +23,8 @@ class Game:
         self.emulator_start = c['metadata'].get('emulator_start')
         self.dosbox_conf = c['metadata'].get('dosbox_conf')
         self.url = c['metadata'].get('url')
-        if self.url:
-            self.url = self.url.split()
+        if not os.path.isdir(self.gamedir):
+            os.makedirs(self.gamedir)
 
     def __gt__(self, other):
         return self.identifier > other.identifier
@@ -56,8 +57,6 @@ class Game:
         is run normally. Make sure to commit any useful additions!
 
         """
-        if not os.path.isdir(self.gamedir):
-            self.download_files()
         os.chdir(self.gamedir)
         batfile = os.path.join(self.gamedir, 'dosbox.bat')
         conffile = os.path.join(self.gamedir, 'dosbox.conf')
@@ -108,26 +107,6 @@ class Game:
                     if self.emulator_start:
                         self.write_metadata()
 
-    def download_files(self, autorun=True):
-        os.chdir(self.path)
-        for u in self.url:
-            filename = unquote(u.split('/')[-1])
-            if not os.path.isfile(filename):
-                print('Downloading', filename)
-                request.urlretrieve(u, filename)
-            if filename.endswith('zip') or filename.endswith('ZIP') or filename.endswith('play'):
-                print('Extracting', filename)
-                self.extract_file(filename)
-            else:
-                os.makedirs(self.gamedir, exist_ok=True)
-                shutil.copy(filename, self.gamedir)
-
-    def extract_file(self, zipfile):
-        with ZipFile(zipfile, 'r') as f:
-            f.extractall(self.gamedir)
-        if os.path.isfile(os.path.join(self.gamedir, 'dosbox.conf')):
-            os.remove(os.path.join(self.gamedir, 'dosbox.conf'))
-
     def write_metadata(self):
         if self.title:
             self.config['metadata']['title'] = self.title
@@ -150,5 +129,35 @@ class Game:
         else:
             return None
 
-    def urlencoded(self):
-        return quote(self.identifier)
+    def download(self):
+        proc = Download(self.url, self.gamedir)
+        proc.start()
+
+class Download(Process):
+    def __init__(self, url, gamedir):
+        super().__init__()
+        self.urls = url.split()
+        self.gamedir = gamedir
+
+    def run(self):
+        for u in self.urls:
+            filename = unquote(u.split('/')[-1])
+            dest = os.path.join(os.path.dirname(self.gamedir), filename)
+            if not os.path.isfile(dest):
+                print(f'Downloading {u}...', end='', flush=True)
+                request.urlretrieve(u, dest)
+                print('done!')
+            if filename.endswith('zip') or filename.endswith('ZIP') or filename.endswith('play'):
+                print(f'Extracting {filename}...', end='', flush=True)
+                self.unzip(dest)
+                print('done!')
+            else:
+                shutil.copy(filename, self.gamedir)
+
+        # FIXME: Just launch Dosbox
+        os.chdir(self.gamedir)
+        subprocess.Popen([DOSBOX, '.'])
+
+    def unzip(self, zipfile):
+        with ZipFile(zipfile, 'r') as f:
+            f.extractall(self.gamedir)
