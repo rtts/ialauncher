@@ -52,7 +52,9 @@ Special Keys
 - Arrow keys: navigate through the games list
 - Enter: launch the selected game
 - Alt-Enter: open DOSBox without starting the game
-  (usefull for debugging, see "Troubleshooting" below)
+  (useful for debugging, see "Troubleshooting" below)
+- Shift-Enter: Force re-downloading a game before starting it
+  (useful if a previous download failed, or to reset the game)
 - Space: jump to a random game
 - A-Z: Jump to the first game that starts with the letter A-Z
 - Esc key: exit

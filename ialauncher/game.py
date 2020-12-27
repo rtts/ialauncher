@@ -5,7 +5,8 @@ from zipfile import ZipFile
 from urllib import request
 from urllib.parse import quote, unquote
 from configparser import RawConfigParser
-from multiprocessing import Process
+from multiprocessing import Process, Queue
+from queue import Empty
 
 from .dosbox import get_dosbox_path
 
@@ -22,9 +23,7 @@ class Game:
         self.year = c['metadata'].get('year')
         self.emulator_start = c['metadata'].get('emulator_start')
         self.dosbox_conf = c['metadata'].get('dosbox_conf')
-        self.url = c['metadata'].get('url')
-        if not os.path.isdir(self.gamedir):
-            os.makedirs(self.gamedir)
+        self.urls = c['metadata'].get('url').split()
 
     def __gt__(self, other):
         return self.identifier > other.identifier
@@ -57,6 +56,11 @@ class Game:
         is run normally. Make sure to commit any useful additions!
 
         """
+
+        # Optionally, set the `autorun` attribute before starting the game
+        if hasattr(self, 'autorun'):
+            autorun = self.autorun
+
         os.chdir(self.gamedir)
         batfile = os.path.join(self.gamedir, 'dosbox.bat')
         conffile = os.path.join(self.gamedir, 'dosbox.conf')
@@ -112,8 +116,8 @@ class Game:
             self.config['metadata']['title'] = self.title
         if self.year:
             self.config['metadata']['year'] = self.year
-        if self.url:
-            self.config['metadata']['url'] = '\n'.join(self.url)
+        if self.urls:
+            self.config['metadata']['url'] = '\n'.join(self.urls)
         if self.emulator_start:
             self.config['metadata']['emulator_start'] = self.emulator_start
         if self.dosbox_conf:
@@ -129,35 +133,53 @@ class Game:
         else:
             return None
 
+    def is_ready(self):
+        return os.path.isdir(self.gamedir)
+
+    def get_size(self):
+        return sum(os.path.getsize(os.path.join(self.path, f)) for f in os.listdir(self.path) if os.path.isfile(os.path.join(self.path, f)))/1000000
+
+    def reset(self):
+        shutil.rmtree(self.gamedir)
+
     def download(self):
-        proc = Download(self.url, self.gamedir)
-        proc.start()
+        self.finished = False
+        self.q = Queue()
+        Download(self.urls, self.gamedir, self.q).start()
+
+    def download_completed(self):
+        if self.finished:
+            return True
+        try:
+            self.q.get()
+            self.finished = True
+            return True
+        except Empty:
+            return False
 
 class Download(Process):
-    def __init__(self, url, gamedir):
+    def __init__(self, urls, gamedir, q):
         super().__init__()
-        self.urls = url.split()
+        self.urls = urls
         self.gamedir = gamedir
+        self.q = q
 
     def run(self):
         for u in self.urls:
             filename = unquote(u.split('/')[-1])
             dest = os.path.join(os.path.dirname(self.gamedir), filename)
-            if not os.path.isfile(dest):
-                print(f'Downloading {u}...', end='', flush=True)
-                request.urlretrieve(u, dest)
-                print('done!')
+            print(f'Downloading {u}...', end='', flush=True)
+            request.urlretrieve(u, dest)
+            print('done!')
             if filename.endswith('zip') or filename.endswith('ZIP') or filename.endswith('play'):
                 print(f'Extracting {filename}...', end='', flush=True)
                 self.unzip(dest)
                 print('done!')
             else:
                 shutil.copy(filename, self.gamedir)
-
-        # FIXME: Just launch Dosbox
-        os.chdir(self.gamedir)
-        subprocess.Popen([DOSBOX, '.'])
+        self.q.put("Done!")
 
     def unzip(self, zipfile):
+        os.makedirs(self.gamedir, exist_ok=True)
         with ZipFile(zipfile, 'r') as f:
             f.extractall(self.gamedir)
