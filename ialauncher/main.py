@@ -85,7 +85,12 @@ def show_ui(games, args):
                     games[current_game].start(autorun=False)
                 else:
                     games[current_game].start()
+
+                # DOSBox is finished, reset everything to working order
                 pg.event.clear()
+                if args.fullscreen:
+                    screen = pg.display.set_mode(size, flags=pg.FULLSCREEN)
+
             elif event.key == pg.K_DOWN:
 
                 # Jump to the next game with different letter
