@@ -4,9 +4,23 @@ Internet Archive Launcher
 **A DOSBox frontend for the [Internet Archive MS-DOS games
 collection](https://archive.org/details/softwarelibrary_msdos_games)**
 
-*IA Launcher* is a graphical games launcher for all those georgeous
+**IA Launcher** is a graphical games launcher for all those georgeous
 MS-DOS games from yestermillenium. It uses the Internet Archive to
 download games on-the-fly and DOSBox to play them offline.
+
+{% note %}
+
+Hurrah! The latest release 2.1.0 now has its own Windows Installer!
+
+You can download the Windows Installer here:
+[ialauncher-2.1.0-amd64.msi](https://rtts.eu/download/ialauncher-2.1.0-amd64.msi)
+
+Note: you will have to install [DOSBox](https://www.dosbox.com/) separately.
+
+(You can also install IA Launcher using `pip install ialauncher` on
+any operating system, continue reading for detailed instructions.)
+
+{% endnote %}
 
 ![Screenshot of IA Launcher](https://i.imgur.com/WQhGrQy.jpg)
 
@@ -43,7 +57,12 @@ try this one:
     sudo pip3 install ialauncher
 
 You can now launch the interface using the `ialauncher` command. To
-see the available options, type `ialauncher --help`
+see the available options, type `ialauncher --help`.
+
+*One option that I personally use all the time is `--slideshow` which
+turns IA Launcher into an awesome screensaver, displaying a new DOS
+title screen every few seconds. Whenever I'm bored, I walk over to my
+dedicated DOS gaming PC and press `Enter` to play a game.*
 
 
 Special Keys
