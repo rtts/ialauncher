@@ -28,9 +28,9 @@
               <TD><IMG SRC=waiting.gif></TD>
               <TD><P>
                 This page shows all the 2971 games that are currently
-                playable with IA Launcher. My sincere apologies for the
-                loading time of this webpage. If you have a limited
-                internet connection, HIT ESCAPE NOW!
+                playable with IA Launcher. The list is long, so be
+                patient. Clicking on a game will directly download the
+                ZIP file from Archive.org.
               </P></TD>
             </TR>
           </TABLE>
@@ -3013,7 +3013,6 @@
             function search() {
                 var query = document.getElementById('query').value;
                 for (i=0; i<games.length; i++) {
-                    console.log(i);
                     document.getElementById(i).hidden = games[i].toLowerCase().indexOf(query.toLowerCase()) == -1;
                 }
             }
