@@ -1,16 +1,24 @@
 import os, sys, glob, subprocess
 
+def try_path(path):
+    subprocess.run([path, '--version'], capture_output=True).check_returncode()
+    return path
+
 def get_dosbox_path():
     try:
-        subprocess.run(['dosbox', '--version'], capture_output=True).check_returncode()
-        return 'dosbox'
+        return try_path('dosbox')
     except:
         pass
     try:
+        # Special case for macOS
+        return try_path('/Applications/dosbox.app/Contents/MacOS/DOSBox')
+    except:
+        pass
+    try:
+        # Special case for Windows
         pf = os.environ['ProgramFiles(x86)']
         path = glob.glob(f'{pf}\dosbox*\dosbox.exe')[0]
-        subprocess.run([path, '--version'], capture_output=True).check_returncode()
-        return path
+        return try_path(path)
     except:
         pass
 
