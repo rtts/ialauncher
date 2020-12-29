@@ -22,7 +22,7 @@ if __name__ == '__main__':
 ''')
 
 setup(
-    name='IA launcher',
+    name='IA Launcher',
     version = '2.1.4',
     description = 'A DOSBox frontend for the Internet Archive MS-DOS games collection',
     executables = [Executable(
