@@ -33,12 +33,6 @@ setup(
         shortcutDir='ProgramMenuFolder',
         icon='ia.ico',
     )],
-    options = {
-        'bdist_msi': {
-            'initial_target_dir': 'C:\Program Files\IA Launcher',
-            'all_users': True,
-        }
-    },
 )
 
 # Remove temporary executable
