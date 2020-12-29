@@ -4,12 +4,12 @@ Internet Archive Launcher
 **A DOSBox frontend for the [Internet Archive MS-DOS games
 collection](https://archive.org/details/softwarelibrary_msdos_games)**
 
-**IA Launcher** is a graphical games launcher for all those georgeous
+IA Launcher is a graphical games launcher for all those georgeous
 MS-DOS games from yestermillenium. It uses the Internet Archive to
 download games on-the-fly and DOSBox to play them offline.
 
 **Hurrah! IA Launcher now has its own Windows installer! You can
-download it [here](https://rtts.eu/download/IA%20Launcher-2.1.4-amd64.msi).
+download it [here](https://rtts.eu/download/IA%20Launcher-2.1.4-amd64.msi).**
 
 You can also install IA Launcher using `pip3 install ialauncher` on
 any operating system. Continue reading for detailed instructions.
