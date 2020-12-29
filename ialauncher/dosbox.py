@@ -15,6 +15,11 @@ def get_dosbox_path():
     except:
         pass
     try:
+        # Another special case for macOS
+        return try_path('open -a DOSBox')
+    except:
+        pass
+    try:
         # Special case for Windows
         pf = os.environ['ProgramFiles(x86)']
         path = glob.glob(f'{pf}\dosbox*\dosbox.exe')[0]
@@ -22,13 +27,20 @@ def get_dosbox_path():
     except:
         pass
 
-    print("""
+    error = """
 Uh-oh! The program DOSBox could not be found on your system.
 IA Launcher acts as a frontend for DOSBox: when you select a game,
 it starts DOSBox with the right arguments to play that game.
 
 Please visit https://www.dosbox.com/ to learn more about DOSBox and
 download the correct installer for your operating system.
-""")
-    input("Press any key to exit...")
+"""
+    try:
+        print(error)
+        input("Press any key to exit...")
+    except:
+        class DosBOXNotFound(Exception):
+            pass
+        raise DosBOXNotFound(error)
+
     sys.exit(1)
