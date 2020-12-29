@@ -10,7 +10,7 @@ download games on-the-fly and DOSBox to play them offline.
 
 **Hurrah! IA Launcher now has its own Windows installer! You can
 download it here:
-[`ialauncher-2.1.2-amd64.msi`](https://rtts.eu/download/ialauncher-2.1.2-amd64.msi).
+[`IA launcher-2.1.4-amd64.msi`](https://rtts.eu/download/IA%20Launcher-2.1.4-amd64.msi).
 Note: you will have to install [DOSBox](https://www.dosbox.com/)
 separately.**
 

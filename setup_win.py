@@ -22,8 +22,8 @@ if __name__ == '__main__':
 ''')
 
 setup(
-    name='ialauncher',
-    version = '2.1.3',
+    name='IA launcher',
+    version = '2.1.4',
     description = 'A DOSBox frontend for the Internet Archive MS-DOS games collection',
     executables = [Executable(
         'temp.py',

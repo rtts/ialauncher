@@ -1,6 +1,7 @@
 import os, sys, glob, subprocess
 
 error = """
+
 Uh-oh! The program DOSBox could not be found on your system. IA Launcher acts as a frontend for DOSBox: when you select a game, it starts DOSBox with the right arguments to play that game.
 
 Please visit https://www.dosbox.com/ to learn more about DOSBox and download the correct installer for your operating system.
