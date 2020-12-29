@@ -28,15 +28,15 @@ setup(
     executables = [Executable(
         'temp.py',
         targetName='ialauncher.exe',
-        base='Win32GUI'
+        base='Win32GUI',
         shortcutName='IA Launcher',
         shortcutDir='ProgramMenuFolder',
-        # shortcutDir='DesktopFolder',
+        icon='ia.ico',
     )],
     options = {
         'bdist_msi': {
             'initial_target_dir': 'C:\Program Files\IA Launcher',
-            # 'all_users': True,
+            'all_users': True,
         }
     },
 )
