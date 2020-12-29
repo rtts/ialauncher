@@ -9,8 +9,7 @@ MS-DOS games from yestermillenium. It uses the Internet Archive to
 download games on-the-fly and DOSBox to play them offline.
 
 **Hurrah! IA Launcher now has its own Windows installer! You can
-download it here:
-[`IA launcher-2.1.4-amd64.msi`](https://rtts.eu/download/IA%20Launcher-2.1.4-amd64.msi).
+download it [here](https://rtts.eu/download/IA%20Launcher-2.1.4-amd64.msi).
 Note: you will have to install [DOSBox](https://www.dosbox.com/)
 separately.**
 
