@@ -23,9 +23,22 @@ if __name__ == '__main__':
 
 setup(
     name='ialauncher',
-    version = '2.1.2',
+    version = '2.1.3',
     description = 'A DOSBox frontend for the Internet Archive MS-DOS games collection',
-    executables = [Executable('temp.py', targetName='ialauncher.exe', base='Win32GUI')],
+    executables = [Executable(
+        'temp.py',
+        targetName='ialauncher.exe',
+        base='Win32GUI'
+        shortcutName='IA Launcher',
+        shortcutDir='ProgramMenuFolder',
+        # shortcutDir='DesktopFolder',
+    )],
+    options = {
+        'bdist_msi': {
+            'initial_target_dir': 'C:\Program Files\IA Launcher',
+            # 'all_users': True,
+        }
+    },
 )
 
 # Remove temporary executable
