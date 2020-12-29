@@ -2,12 +2,10 @@
 This is an alternative setup script which uses cx_Freeze to build a
 Windows-native executable. Call it like this:
 
-    C:\ialauncher>python setup_win.py build
+    C:\ialauncher>python setup_win.py bdist_msi
 
-This will generate a working application beneath the build/ directory.
-
-I am still figuring out how to build an MSI installer, because the
-command ``bdist_msi`` currently fails...
+This will generate a working application beneath the build/ directory
+and an MSI installer in the dist/ directory.
 
 '''
 import os
@@ -25,7 +23,7 @@ if __name__ == '__main__':
 
 setup(
     name='ialauncher',
-    version = '2.1.0',
+    version = '2.1.2',
     description = 'A DOSBox frontend for the Internet Archive MS-DOS games collection',
     executables = [Executable('temp.py', targetName='ialauncher.exe', base='Win32GUI')],
 )

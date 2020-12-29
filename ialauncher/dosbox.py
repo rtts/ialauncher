@@ -1,5 +1,11 @@
 import os, sys, glob, subprocess
 
+error = """
+Uh-oh! The program DOSBox could not be found on your system. IA Launcher acts as a frontend for DOSBox: when you select a game, it starts DOSBox with the right arguments to play that game.
+
+Please visit https://www.dosbox.com/ to learn more about DOSBox and download the correct installer for your operating system.
+"""
+
 def try_path(path):
     subprocess.run([path, '--version'], capture_output=True).check_returncode()
     return path
@@ -27,20 +33,14 @@ def get_dosbox_path():
     except:
         pass
 
-    error = """
-Uh-oh! The program DOSBox could not be found on your system.
-IA Launcher acts as a frontend for DOSBox: when you select a game,
-it starts DOSBox with the right arguments to play that game.
-
-Please visit https://www.dosbox.com/ to learn more about DOSBox and
-download the correct installer for your operating system.
-"""
     try:
         print(error)
-        input("Press any key to exit...")
+        input("Press any key to exit...") # fails on Windows
     except:
-        class DosBOXNotFound(Exception):
+        class DOSBoxNotFound(Exception):
             pass
-        raise DosBOXNotFound(error)
+
+        # This will show the error in a popup window. Ugly, but sufficient.
+        raise DOSBoxNotFound(error)
 
     sys.exit(1)
