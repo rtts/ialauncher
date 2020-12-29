@@ -34,7 +34,8 @@
             </TR>
           </TABLE>
 
-          <SCRIPT>
+          <SCRIPT LANGUAGE="JavaScript1.1">
+            <!--
             var games = [
                 '1000 Miglia',
                 '10th Frame',
@@ -3007,17 +3008,21 @@
                 'Zool 2',
                 'Zoop',
                 'Zorro',
-            ];
+            ]
 
             function search() {
-                var query = document.getElementById('query').value;
+                var query = document.getElementById('query').value
                 for (i=0; i<games.length; i++) {
-                    document.getElementById(i).hidden = games[i].toLowerCase().indexOf(query.toLowerCase()) == -1;
+                    document.getElementById(i).hidden = games[i].toLowerCase().indexOf(query.toLowerCase()) == -1
                 }
             }
+            // -->
           </SCRIPT>
 
-          <FORM ONSUBMIT="search(); return false"><INPUT ID=query TYPE=TEXT>&nbsp;<INPUT TYPE=SUBMIT VALUE="Search"></FORM>
+          <FORM ONSUBMIT="search(); return false">
+            <INPUT ID=query TYPE=TEXT>
+            <INPUT TYPE=SUBMIT VALUE="Search">
+          </FORM>
 
           <A ID=0 TITLE="1000 Miglia" HREF="https://archive.org/download/DOS.Memories.Project.1980-2003/DOS.Memories.Project.1980-2003.zip/1000%20Miglia%20%281991%29%28Simulmondo%29.zip"><IMG BORDER=0 SRC="https://raw.githubusercontent.com/rtts/ialauncher/master/games/1000%20Miglia/title.png" WIDTH=80 HEIGHT=60 ALT="1000 Miglia"></A>
           <A ID=1 TITLE="10th Frame" HREF="https://archive.org/download/DOS.Memories.Project.1980-2003/DOS.Memories.Project.1980-2003.zip/10th%20Frame%20%281986%29%28Access%20Software%20Inc%29.zip"><IMG BORDER=0 SRC="https://raw.githubusercontent.com/rtts/ialauncher/master/games/10th%20Frame/title.png" WIDTH=80 HEIGHT=60 ALT="10th Frame"></A>

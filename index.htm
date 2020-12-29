@@ -21,18 +21,26 @@
             <IMG SRC=pixel.gif HEIGHT=10>
             <H1><BLINK><MARQUEE>IA Launcher</MARQUEE></BLINK></H1>
             <IMG SRC=line.gif WIDTH="100%" HEIGHT=10>
-            <H2>An <I>hommage</I> to the MS-DOS games of the 1990s</H2>
+            <H2>
+              <SCRIPT LANGUAGE="JavaScript1.1">
+                <!--
+                Math.random() < 0.5 ? document.write('A ')     : document.write('An ')
+                Math.random() < 0.5 ? document.write('Homage') : document.write('Hommage')
+                // -->
+              </SCRIPT><NOSCRIPT>A Homage</NOSCRIPT>
+              to the MS-DOS games of the 1990s
+            </H2>
           </FONT>
+
           <P>
             <B><FONT FACE=ARIAL>The year is
-
-              <SCRIPT>
-                var date = new Date();
-                // var year = date.getYear() + 1900;
-                var year = date.getFullYear();
-                document.write(year);
-              </SCRIPT>,
-
+              <SCRIPT LANGUAGE="JavaScript1.1">
+                <!--
+                var date = new Date()
+                var year = date.getYear() + 1900
+                document.write(year)
+                // -->
+              </SCRIPT><NOSCRIPT>Y2K+</NOSCRIPT>,
               but let's travel back to the glory days of the 1990s, the
               heyday of DOS gaming. IA Launcher is a Windows/macOS/Linux
               program that runs on modern machines and allows you to
