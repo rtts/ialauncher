@@ -26,10 +26,10 @@ class Game:
         self.urls = c['metadata'].get('url').split()
 
     def __gt__(self, other):
-        return self.identifier > other.identifier
+        return self.identifier.lower() > other.identifier.lower()
 
     def __lt__(self, other):
-        return self.identifier < other.identifier
+        return self.identifier.lower() < other.identifier.lower()
 
     def start(self, autorun=True):
         """
