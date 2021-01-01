@@ -6,7 +6,7 @@ with open('README.md', 'r') as fh:
 
 setuptools.setup(
     name = 'ialauncher',
-    version = '2.1.5',
+    version = '2.2.0',
     author = 'Jaap Joris Vens',
     author_email = 'jj@rtts.eu',
     description = 'A DOSBox frontend for the Internet Archive',
@@ -15,7 +15,7 @@ setuptools.setup(
     url = 'https://github.com/rtts/ialauncher',
     packages = setuptools.find_packages(),
     entry_points = {
-        'console_scripts': ['ialauncher=ialauncher.main:main'],
+        'console_scripts': ['ialauncher=ialauncher.__main__:main'],
     },
     include_package_data = True,
     classifiers = [

@@ -4,7 +4,8 @@ from .framework import Main
 from .scenes import Loading
 from . import options
 
-if __name__ == '__main__':
+
+def main():
     parser = argparse.ArgumentParser(description='DOSBox frontend for the Internet Archive MS-DOS games collection')
     parser.add_argument('--slideshow', type=int, metavar='X', help='Focus on a random title screen every X seconds')
     parser.add_argument('--fullscreen', dest='fullscreen', action='store_true', help='Start in fullscreen mode')
@@ -16,3 +17,7 @@ if __name__ == '__main__':
     options.slideshow = args.slideshow or options.slideshow
 
     Main(Loading(), title='IA Launcher', fullscreen=options.fullscreen)
+
+
+if __name__ == '__main__':
+    main()
