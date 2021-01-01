@@ -6,19 +6,18 @@ from .game import Game
 
 class GameList:
     games = []
-
-    def __init__(self, slideshow=0):
-        self.slideshow = slideshow
+    current_game = 0
 
     def add(self, game_dir):
         try:
             self.games.append(Game(game_dir))
-            self.current_game = random.randrange(len(self.games)) if self.slideshow else 0
         except:
             print('Error loading', os.path.basename(game_dir))
 
-    def sort(self):
+    def sort(self, slideshow):
         self.games.sort()
+        if slideshow:
+            self.current_game = random.randrange(len(self.games))
 
     def get_image(self):
         game = self.get_current_game()

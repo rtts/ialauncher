@@ -98,7 +98,7 @@ class Game:
         if autorun:
             dosbox_args.append('-exit')
 
-        command = [DOSBOX, dosbox_run] + dosbox_args
+        command = DOSBOX + [dosbox_run] + dosbox_args
         child_process = subprocess.Popen(command)
 
         if not autorun and sys.platform != 'win32':
