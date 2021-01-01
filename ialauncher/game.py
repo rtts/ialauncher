@@ -42,9 +42,10 @@ class Game:
 
         2. autorun=False
 
-            Do as above, but don't run dosbox.bat and don't exit Dosbox.
-            Any changes made to dosbox.bat will be save as the
-            `emulator_start` variable in metadata.ini.
+            Do as above, but don't run dosbox.bat and don't exit
+            Dosbox. When Dosbox finishes, any changes made to
+            dosbox.bat will be saved to the `emulator_start` variable
+            in metadata.ini.
 
         The frontend allows starting the game in the second mode by pressing
         Alt-Enter. This allows the user to do the following from within dosbox:
@@ -53,18 +54,12 @@ class Game:
             C:\> exit
 
         These changes will then be preserved for the next time the game
-        is run normally. Make sure to commit any useful additions!
+        is run normally.
 
         """
-
-        # Optionally, set the `autorun` attribute before starting the game
-        if hasattr(self, 'autorun'):
-            autorun = self.autorun
-
         batfile = os.path.join(self.gamedir, 'dosbox.bat')
         conffile = os.path.join(self.gamedir, 'dosbox.conf')
-        dosbox_args = ['-fullscreen']
-        dosbox_run = self.gamedir
+        dosbox_args = [self.gamedir, '-fullscreen']
 
         if self.dosbox_conf:
             with open(conffile, 'w') as f:
@@ -73,17 +68,18 @@ class Game:
 
         if self.emulator_start:
             if autorun:
-                if os.path.isfile(os.path.join(self.gamedir, os.path.normpath(self.emulator_start))):
+                dosbox_args[0] = os.path.join(self.gamedir, 'dosbox.bat')
+                with open(batfile, 'w') as f:
+                    f.write('@echo off\ncls\n')
+                    f.write(self.emulator_start)
 
-                    # Special case for many games that currently only
-                    # contain the name of the executable
-                    dosbox_run = os.path.join(self.gamedir, os.path.normpath(self.emulator_start))
+                if not '\n' in self.emulator_start:
+                    startfile = os.path.join(self.gamedir, os.path.normpath(self.emulator_start))
+                    if os.path.isfile(startfile):
 
-                else:
-                    dosbox_run = os.path.join(self.gamedir, 'dosbox.bat')
-                    with open(batfile, 'w') as f:
-                        f.write('@echo off\ncls\n')
-                        f.write(self.emulator_start)
+                        # Special case for many games that currently only
+                        # contain the name of the executable
+                        dosbox_args[0] = startfile
 
             else:
                 with open(batfile, 'w') as f:
@@ -92,24 +88,21 @@ class Game:
         else:
             autorun = False
             if not os.path.isfile(batfile):
+
+                # Provide empty dosbox.bat for easy autocomplete
+                # (and correct filename capitalization!)
                 with open(batfile, 'w') as f:
                     f.write('\n')
 
         if autorun:
             dosbox_args.append('-exit')
 
-        command = DOSBOX + [dosbox_run] + dosbox_args
-        child_process = subprocess.Popen(command)
+        # Save our work and hand the game over to the Dosbox process
+        self.batfile = batfile
+        self.autorun = autorun
+        self.dosbox_args = dosbox_args
+        DOSBox(self).start()
 
-        if not autorun and sys.platform != 'win32':
-            # The wait() function will make Windows spawn new
-            # instances of DOSBox over and over...
-            child_process.wait()
-            if os.path.isfile(batfile):
-                with open(batfile, 'r') as f:
-                    self.emulator_start = f.read()
-                    if self.emulator_start:
-                        self.write_metadata()
 
     def write_metadata(self):
         if self.title:
@@ -146,26 +139,37 @@ class Game:
             pass
 
     def download(self):
-        self.finished = False
-        self.q = Queue()
-        Download(self.urls, self.gamedir, self.q).start()
+        self.download_process = Download(self.urls, self.gamedir)
+        self.download_process.start()
 
     def download_completed(self):
-        if self.finished:
-            return True
-        try:
-            self.q.get(block=False, timeout=1)
-            self.finished = True
-            return True
-        except Empty:
-            return False
+        return not self.download_process.is_alive()
+
+
+class DOSBox(Process):
+    def __init__(self, game):
+        super().__init__()
+        self.game = game
+
+    def run(self):
+        game = self.game
+        command = DOSBOX + game.dosbox_args
+        print('Executing:', ' '.join(command))
+        subprocess.run(command, capture_output=True)
+
+        if not game.autorun:
+            if os.path.isfile(game.batfile):
+                with open(game.batfile, 'r') as f:
+                    game.emulator_start = f.read()
+                    if game.emulator_start:
+                        game.write_metadata()
+
 
 class Download(Process):
-    def __init__(self, urls, gamedir, q):
+    def __init__(self, urls, gamedir):
         super().__init__()
         self.urls = urls
         self.gamedir = gamedir
-        self.q = q
 
     def run(self):
         for u in self.urls:
@@ -185,7 +189,6 @@ class Download(Process):
             else:
                 os.makedirs(self.gamedir, exist_ok=True)
                 shutil.copy(dest, self.gamedir)
-        self.q.put("Done!")
 
     def unzip(self, zipfile):
         with ZipFile(zipfile, 'r') as f:

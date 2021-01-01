@@ -77,7 +77,6 @@ class Browse(Scene):
                 self.games.letter(event.unicode)
             if event.key == pg.K_RETURN:
                 game = self.games.get_current_game()
-                game.autorun = not event.mod & pg.KMOD_ALT
                 if event.mod & pg.KMOD_SHIFT:
                     game.reset()
                 if not game.is_ready():
@@ -85,7 +84,7 @@ class Browse(Scene):
                 if game.is_ready():
 
                     # Start playing (spawns a new process)
-                    game.start()
+                    game.start(autorun=not event.mod & pg.KMOD_ALT)
 
     def update(self, screen):
         image = self.games.get_image()
@@ -132,7 +131,7 @@ def draw(surface, text, margin=15, font_size=24, line_height=1.25, font_family='
             i = 0
 
             # Determine maximum width of line
-            while font.size(line[:i])[0] < rect.width and i < len(line):
+            while font.size(line[:i])[0] + 2*margin < rect.width and i < len(line):
                 i += 1
 
             # Render the line and blit it to the surface
