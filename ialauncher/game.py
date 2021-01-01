@@ -177,8 +177,11 @@ class Download(Process):
                 print('done!')
             if filename.endswith('zip') or filename.endswith('ZIP') or filename.endswith('play'):
                 print(f'Extracting {filename}...', end='', flush=True)
-                self.unzip(dest)
-                print('done!')
+                try:
+                    self.unzip(dest)
+                    print('done!')
+                except:
+                    print('failed.')
             else:
                 os.makedirs(self.gamedir, exist_ok=True)
                 shutil.copy(dest, self.gamedir)
