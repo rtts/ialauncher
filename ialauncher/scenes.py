@@ -5,7 +5,7 @@ import games as gd
 
 from .game import Game
 from .gamelist import GameList
-from .framework import Scene
+from .engine import Scene, draw
 from . import options
 
 ADVANCE = pg.event.custom_type()
@@ -111,34 +111,3 @@ class Download(Scene):
             return False
         self.screen.fill((0,0,0))
         draw(screen, f'Downloading {self.game.urls[0]} ({self.game.get_size():.1f} MB)')
-
-
-def draw(surface, text, margin=15, font_size=24, line_height=1.25, font_family='monospace', color=(255,255,255)):
-    '''
-    Simple text drawing routine, adapted from
-    https://www.pygame.org/wiki/TextWrap
-
-    '''
-    font = pg.font.SysFont(font_family, font_size)
-    rect = surface.get_rect()
-    ypos = margin
-    yinc = int(line_height * font_size)
-
-    for line in text.split('\n'):
-        if ypos + yinc > rect.bottom:
-            break
-        while line:
-            i = 0
-
-            # Determine maximum width of line
-            while font.size(line[:i])[0] + 2*margin < rect.width and i < len(line):
-                i += 1
-
-            # Render the line and blit it to the surface
-            image = font.render(line[:i], True, color)
-            surface.blit(image, (margin, ypos))
-            ypos += yinc
-
-            # Remove the text we just blitted
-            line = line[i:]
-

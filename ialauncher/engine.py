@@ -1,5 +1,5 @@
 '''
-This is a _very_ simple framework for building pygame games. There
+This is a _very_ simple engine for building pygame games. There
 are two classes: Main and Scene. The latter one is meant to be
 subclassed by your own custom scenes. Example usage:
 
@@ -25,9 +25,7 @@ import pygame as pg
 
 class Main:
     '''
-    Initialize pygame and start the game using the given scene. Will
-    continue running until the scenes run out, probably because the
-    game is finished or the user chose to exit.
+    Initialize pygame and start the game using the given scene.
 
     '''
 
@@ -52,8 +50,8 @@ class Main:
 
 class Scene:
     '''
-    Base class for scenes. Subclasses are meant to at least override
-    the handle() and update() methods.
+    Base class for scenes. Subclasses are meant to override the
+    handle() and update() methods.
 
     '''
 
@@ -73,7 +71,7 @@ class Scene:
     def run(self, screen):
         '''
         Run this scene's main event loop. Return either the next scene or
-        None, at which point the game should end.
+        None, at which point Main ends.
 
         '''
         self.screen = screen
@@ -87,3 +85,33 @@ class Scene:
                 next_scene = self.handle(event)
 
         return next_scene
+
+
+def draw(surface, text, margin=15, font_size=24, line_height=1.25, font_family='monospace', color=(255,255,255)):
+    '''
+    Simple text drawing routine, adapted from
+    https://www.pygame.org/wiki/TextWrap
+
+    '''
+    font = pg.font.SysFont(font_family, font_size)
+    rect = surface.get_rect()
+    ypos = margin
+    yinc = int(line_height * font_size)
+
+    for line in text.split('\n'):
+        if ypos + yinc > rect.bottom:
+            break
+        while line:
+            i = 0
+
+            # Determine maximum width of line
+            while font.size(line[:i])[0] + 2*margin < rect.width and i < len(line):
+                i += 1
+
+            # Render the line and blit it to the surface
+            image = font.render(line[:i], True, color)
+            surface.blit(image, (margin, ypos))
+            ypos += yinc
+
+            # Remove the text we just blitted
+            line = line[i:]
