@@ -147,8 +147,8 @@ class Game:
 
 class DOSBox(Thread):
     def __init__(self, game):
-        super().__init__()
         self.game = game
+        super().__init__(daemon=True)
 
     def run(self):
         game = self.game
@@ -166,9 +166,9 @@ class DOSBox(Thread):
 
 class Download(Thread):
     def __init__(self, urls, gamedir):
-        super().__init__()
         self.urls = urls
         self.gamedir = gamedir
+        super().__init__(daemon=True)
 
     def run(self):
         for u in self.urls:
