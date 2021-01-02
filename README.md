@@ -7,7 +7,7 @@ collection](https://archive.org/details/softwarelibrary_msdos_games)**
 IA Launcher is a graphical games launcher for all those georgeous
 MS-DOS games from yestermillenium. It uses the Internet Archive to
 download games on-the-fly and DOSBox to play them offline. [Visit the
-IA Launcher website](http://ialauncher.created.today/) to see a list of
+IA Launcher website](https://ialauncher.created.today/) to see a list of
 all the included games.
 
 **Hurrah! IA Launcher now has its own Windows installer! You can
