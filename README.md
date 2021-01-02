@@ -53,7 +53,7 @@ try this one:
 You can now launch the interface using the `ialauncher` command. To
 see the available options, type `ialauncher --help`.
 
-*A useful option is`--slideshow X` which turns IA Launcher into an
+*A useful option is `--slideshow X` which turns IA Launcher into an
 awesome screensaver, displaying a new DOS game title screen every X
 seconds!*
 
