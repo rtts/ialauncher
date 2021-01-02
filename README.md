@@ -1,12 +1,14 @@
-Internet Archive Launcher
-=========================
+IA Launcher
+===========
 
 **A DOSBox frontend for the [Internet Archive MS-DOS games
 collection](https://archive.org/details/softwarelibrary_msdos_games)**
 
 IA Launcher is a graphical games launcher for all those georgeous
 MS-DOS games from yestermillenium. It uses the Internet Archive to
-download games on-the-fly and DOSBox to play them offline.
+download games on-the-fly and DOSBox to play them offline. [Visit the
+IA Launcher website](http://ialauncher.created.today/) to see a list of
+all the included games.
 
 **Hurrah! IA Launcher now has its own Windows installer! You can
 download it [here](https://rtts.eu/download/IA%20Launcher-2.2.0-amd64.msi).**
@@ -140,8 +142,7 @@ Here is how you can easily change the command(s) that launch a game:
 When you exit the emulator, IA Launcher will save the contents of
 `dosbox.bat` to the `emulator_start` variable inside the game's
 `metadata.ini`. The next time you launch the game, the `dosbox.bat`
-file will be run automatically. (Note: This feature has been disabled
-on Windows because it hangs the interface...)
+file will be run automatically.
 
 More advanced logic can be created with batch file syntax. As an
 example, here is the contents of `emulator_start` for the game SimCity
