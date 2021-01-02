@@ -21,7 +21,7 @@ if __name__ == '__main__':
 
 setup(
     name='IA Launcher',
-    version = '2.2.0',
+    version = '2.2.1',
     description = 'A DOSBox frontend for the Internet Archive',
     executables = [Executable(
         'temp.py',

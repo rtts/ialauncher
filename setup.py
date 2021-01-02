@@ -6,13 +6,13 @@ with open('README.md', 'r') as fh:
 
 setuptools.setup(
     name = 'ialauncher',
-    version = '2.2.0',
+    version = '2.2.1',
     author = 'Jaap Joris Vens',
-    author_email = 'jj@rtts.eu',
+    author_email = 'jj+ialauncher@rtts.eu',
     description = 'A DOSBox frontend for the Internet Archive',
     long_description = long_description,
     long_description_content_type = 'text/markdown',
-    url = 'https://github.com/rtts/ialauncher',
+    url = 'https://ialauncher.created.today/',
     packages = setuptools.find_packages(),
     entry_points = {
         'console_scripts': ['ialauncher=ialauncher.__main__:main'],
