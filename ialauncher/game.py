@@ -3,10 +3,9 @@ import shutil
 import subprocess
 from zipfile import ZipFile
 from urllib import request
-from urllib.parse import quote, unquote
+from urllib.parse import unquote
 from configparser import RawConfigParser
-from multiprocessing import Process, Queue
-from queue import Empty
+from threading import Thread
 
 from .dosbox import get_dosbox_path
 
@@ -97,7 +96,7 @@ class Game:
         if autorun:
             dosbox_args.append('-exit')
 
-        # Save our work and hand the game over to the Dosbox process
+        # Save our work and hand the game over to the Dosbox thread
         self.batfile = batfile
         self.autorun = autorun
         self.dosbox_args = dosbox_args
@@ -139,14 +138,14 @@ class Game:
             pass
 
     def download(self):
-        self.download_process = Download(self.urls, self.gamedir)
-        self.download_process.start()
+        self.download_thread = Download(self.urls, self.gamedir)
+        self.download_thread.start()
 
     def download_completed(self):
-        return not self.download_process.is_alive()
+        return not self.download_thread.is_alive()
 
 
-class DOSBox(Process):
+class DOSBox(Thread):
     def __init__(self, game):
         super().__init__()
         self.game = game
@@ -165,7 +164,7 @@ class DOSBox(Process):
                         game.write_metadata()
 
 
-class Download(Process):
+class Download(Thread):
     def __init__(self, urls, gamedir):
         super().__init__()
         self.urls = urls

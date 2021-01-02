@@ -83,7 +83,7 @@ class Browse(Scene):
                     Download(game).run(self.screen)
                 if game.is_ready():
 
-                    # Start playing (spawns a new process)
+                    # Start playing (spawns a new thread)
                     game.start(autorun=not event.mod & pg.KMOD_ALT)
 
     def update(self, screen):
@@ -98,7 +98,7 @@ class Download(Scene):
         self.game = game
         super().__init__()
 
-        # Start downloading (spawns a new process)
+        # Start downloading (spawns a new thread)
         self.game.download()
 
     def handle(self, event):
