@@ -17,6 +17,7 @@ class Game:
         self.gamedir = os.path.join(self.path, 'dosbox_drive_c')
         self.identifier = os.path.basename(path)
         self.configured = False
+        self.download_thread = None
 
     def configure(self):
         self.config = c = RawConfigParser()
@@ -131,7 +132,10 @@ class Game:
 
     def is_ready(self):
         if not self.configured:
-            self.configure()
+            try:
+                self.configure()
+            except:
+                return False
         return os.path.isdir(self.gamedir)
 
     def get_size(self):
@@ -144,11 +148,16 @@ class Game:
             pass
 
     def download(self):
-        self.download_thread = Download(self.urls, self.gamedir)
-        self.download_thread.start()
+        if self.configured:
+            self.download_thread = Download(self.urls, self.gamedir)
+            self.download_thread.start()
+
+    def download_in_progress(self):
+        if self.configured and self.download_thread:
+            return self.download_thread.is_alive()
 
     def download_completed(self):
-        return not self.download_thread.is_alive()
+        return not self.download_in_progress()
 
 
 class DOSBox(Thread):
