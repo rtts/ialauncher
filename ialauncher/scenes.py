@@ -3,7 +3,6 @@ import random
 import pygame as pg
 import games as gd
 
-from .game import Game
 from .gamelist import GameList
 from .engine import Scene
 from . import options
@@ -14,7 +13,8 @@ ADVANCE = pg.event.custom_type()
 class Loading(Scene):
     counter = 0
 
-    def __init__(self):
+    def __init__(self, slurp_mode=False):
+        self.slurp_mode = slurp_mode
         self.games_dir = os.path.dirname(gd.__file__)
         self.todo = [
             os.path.join(self.games_dir, entry) for entry in os.listdir(self.games_dir)
@@ -30,6 +30,19 @@ class Loading(Scene):
         if event.type == pg.KEYDOWN and event.key == pg.K_ESCAPE:
             return self.done()
 
+    def load_games(self, number_of_games):
+        while self.todo and number_of_games:
+            path = self.todo.pop()
+            self.games.add(path)
+            self.counter += 1
+            number_of_games -= 1
+
+    def download_game(self):
+        path = self.todo.pop()
+        self.games.add(path)
+        Download(self.games.games[-1]).run(self.screen)
+        self.counter += 1
+
     def done(self):
         self.games.sort(slideshow=options.slideshow)
         return Browse(self.games)
@@ -37,12 +50,10 @@ class Loading(Scene):
     def update(self, screen):
         if not self.todo:
             return self.done()
-        load_games = 10
-        while self.todo and load_games:
-            path = self.todo.pop()
-            self.games.add(path)
-            self.counter += 1
-            load_games -= 1
+        if self.slurp_mode:
+            self.download_game()
+        else:
+            self.load_games(10)
         screen.fill((0,0,0))
         self.draw(screen, f'''
 Welcome to IA Launcher!
@@ -112,5 +123,5 @@ class Download(Scene):
     def update(self, screen):
         if self.game.download_completed():
             return False
-        self.screen.fill((0,0,0))
+        screen.fill((0,0,0))
         self.draw(screen, f'Downloading {self.game.urls[0]} ({self.game.get_size():.1f} MB)')

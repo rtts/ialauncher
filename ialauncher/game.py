@@ -148,9 +148,13 @@ class Game:
             pass
 
     def download(self):
-        if self.configured:
-            self.download_thread = Download(self.urls, self.gamedir)
-            self.download_thread.start()
+        if not self.configured:
+            try:
+                self.configure()
+            except:
+                return
+        self.download_thread = Download(self.urls, self.gamedir)
+        self.download_thread.start()
 
     def download_in_progress(self):
         if self.configured and self.download_thread:
