@@ -16,13 +16,17 @@ class Game:
         self.path = path
         self.gamedir = os.path.join(self.path, 'dosbox_drive_c')
         self.identifier = os.path.basename(path)
+        self.configured = False
+
+    def configure(self):
         self.config = c = RawConfigParser()
-        c.read(os.path.join(path, 'metadata.ini'))
+        c.read(os.path.join(self.path, 'metadata.ini'))
         self.title = c['metadata'].get('title')
         self.year = c['metadata'].get('year')
         self.emulator_start = c['metadata'].get('emulator_start')
         self.dosbox_conf = c['metadata'].get('dosbox_conf')
         self.urls = c['metadata'].get('url').split()
+        self.configured = True
 
     def __gt__(self, other):
         return self.identifier.lower() > other.identifier.lower()
@@ -126,6 +130,8 @@ class Game:
             return None
 
     def is_ready(self):
+        if not self.configured:
+            self.configure()
         return os.path.isdir(self.gamedir)
 
     def get_size(self):

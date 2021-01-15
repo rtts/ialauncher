@@ -5,7 +5,7 @@ import games as gd
 
 from .game import Game
 from .gamelist import GameList
-from .engine import Scene, draw
+from .engine import Scene
 from . import options
 
 ADVANCE = pg.event.custom_type()
@@ -37,11 +37,14 @@ class Loading(Scene):
     def update(self, screen):
         if not self.todo:
             return self.done()
-        path = self.todo.pop()
-        self.games.add(path)
-        self.counter += 1
+        load_games = 10
+        while self.todo and load_games:
+            path = self.todo.pop()
+            self.games.add(path)
+            self.counter += 1
+            load_games -= 1
         screen.fill((0,0,0))
-        draw(screen, f'''
+        self.draw(screen, f'''
 Welcome to IA Launcher!
 Found games directory at: {self.games_dir}
 Loading games... {self.counter}
@@ -110,4 +113,4 @@ class Download(Scene):
         if self.game.download_completed():
             return False
         self.screen.fill((0,0,0))
-        draw(screen, f'Downloading {self.game.urls[0]} ({self.game.get_size():.1f} MB)')
+        self.draw(screen, f'Downloading {self.game.urls[0]} ({self.game.get_size():.1f} MB)')

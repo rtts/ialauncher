@@ -86,32 +86,32 @@ class Scene:
 
         return next_scene
 
+    def draw(self, surface, text, margin=15, font_size=24, line_height=1.25, font_family='monospace', color=(255,255,255)):
+        '''
+        Simple text drawing routine, adapted from
+        https://www.pygame.org/wiki/TextWrap
 
-def draw(surface, text, margin=15, font_size=24, line_height=1.25, font_family='monospace', color=(255,255,255)):
-    '''
-    Simple text drawing routine, adapted from
-    https://www.pygame.org/wiki/TextWrap
+        '''
+        if not hasattr(self, 'font'):
+            self.font = pg.font.SysFont(font_family, font_size)
+        rect = surface.get_rect()
+        ypos = margin
+        yinc = int(line_height * font_size)
 
-    '''
-    font = pg.font.SysFont(font_family, font_size)
-    rect = surface.get_rect()
-    ypos = margin
-    yinc = int(line_height * font_size)
+        for line in text.split('\n'):
+            if ypos + yinc > rect.bottom:
+                break
+            while line:
+                i = 0
 
-    for line in text.split('\n'):
-        if ypos + yinc > rect.bottom:
-            break
-        while line:
-            i = 0
+                # Determine maximum width of line
+                while self.font.size(line[:i])[0] + 2*margin < rect.width and i < len(line):
+                    i += 1
 
-            # Determine maximum width of line
-            while font.size(line[:i])[0] + 2*margin < rect.width and i < len(line):
-                i += 1
+                # Render the line and blit it to the surface
+                image = self.font.render(line[:i], True, color)
+                surface.blit(image, (margin, ypos))
+                ypos += yinc
 
-            # Render the line and blit it to the surface
-            image = font.render(line[:i], True, color)
-            surface.blit(image, (margin, ypos))
-            ypos += yinc
-
-            # Remove the text we just blitted
-            line = line[i:]
+                # Remove the text we just blitted
+                line = line[i:]
