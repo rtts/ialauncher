@@ -1,0 +1,64 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+  <HEAD>
+    <TITLE>IA Launcher: A DOSBox frontend for the Internet Archive</TITLE>
+  </HEAD>
+  <BODY BGCOLOR=NAVY BACKGROUND=backgrnd.gif TEXT=WHITE LINK=WHITE ALINK=WHITE VLINK=WHITE>
+    <TABLE BORDER=0 WIDTH=760 CELLSPACING=0 CELLPADDING=0>
+      <TR>
+        <TD VALIGN=TOP WIDTH="22%">
+          <TABLE BORDER=0 CELLSPACING=10 CELLPADDING=0>
+            <TR><TD><IMG SRC=ia.gif WIDTH=125 HEIGHT=125 ALT="IA Launcher"></TD></TR>
+            <TR><TD><A HREF=index.htm><FONT FACE=ARIAL SIZE=3 COLOR=AQUA><B>HOME</B></FONT></A></TD></TR>
+            <TR><TD><A HREF=download.htm><FONT FACE=ARIAL SIZE=3 COLOR=AQUA><B>DOWNLOAD</B></FONT></A></TD></TR>
+            <TR><TD><A HREF=games.htm><FONT FACE=ARIAL SIZE=3 COLOR=FUCHSIA><B>GAMES</B></FONT></A></TD></TR>
+            <TR><TD><A HREF=about.htm><FONT FACE=ARIAL SIZE=3 COLOR=AQUA><B>ABOUT</B></FONT></A></TD></TR>
+          </TABLE>
+        </TD>
+        <TD VALIGN=TOP>
+          <FONT FACE=ARIAL SIZE=3>
+            <IMG SRC=pixel.gif HEIGHT=10>
+            <H1>Included games</H1>
+            <IMG SRC=line.gif WIDTH="100%" HEIGHT=10>
+          </FONT>
+
+          <TABLE BORDER=0 CELLSPACING=25 CELLPADDING=0>
+            <TR>
+              <TD><IMG SRC=waiting.gif></TD>
+              <TD><P>
+                This page shows all the {{ games | length }} games that are currently
+                playable with IA Launcher. The list is long, so be
+                patient. Clicking on a game will directly download the
+                ZIP file from Archive.org.
+              </P></TD>
+            </TR>
+          </TABLE>
+
+          <SCRIPT LANGUAGE="JavaScript1.1">
+            <!--
+            var games = [
+                {% for game in games %}
+                '{{ game.identifier | replace("'", "")}}',{% endfor %}
+            ]
+
+            function search() {
+                var query = document.getElementById('query').value
+                for (i=0; i<games.length; i++) {
+                    document.getElementById(i).hidden = games[i].toLowerCase().indexOf(query.toLowerCase()) == -1
+                }
+            }
+            // -->
+          </SCRIPT>
+
+          <FORM ONSUBMIT="search(); return false">
+            <INPUT ID=query TYPE=TEXT>
+            <INPUT TYPE=SUBMIT VALUE="Search">
+          </FORM>
+          {% for game in games %}
+          <A ID={{ loop.index0}} TITLE="{{ game.identifier }}" HREF="{{ game.urls.0 }}"><IMG BORDER=0 SRC="https://raw.githubusercontent.com/rtts/ialauncher/master/games/{{ game.identifier | urlencode }}/title.png" WIDTH=80 HEIGHT=60 ALT="{{ game.identifier }}"></A>
+          {% endfor %}
+        </TD>
+      </TR>
+    </TABLE>
+  </BODY>
+</HTML>
