@@ -191,7 +191,7 @@ class Download(Thread):
 
     def run(self):
         for u in self.urls:
-            filename = unquote(u.split('/')[-1])
+            filename = unquote(u.split('/')[-1]).split('/')[-1]
             dest = os.path.join(os.path.dirname(self.gamedir), filename)
             if not os.path.isfile(dest):
                 print(f'Downloading {u}...', end='', flush=True)
