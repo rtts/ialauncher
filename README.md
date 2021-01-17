@@ -11,7 +11,7 @@ IA Launcher website](https://ialauncher.created.today/) to see a list of
 all the included games.
 
 **Hurrah! IA Launcher now has its own Windows installer! You can
-download it [here](https://rtts.eu/download/IA%20Launcher-2.2.0-amd64.msi).**
+download it [here](https://rtts.eu/download/IA%20Launcher-2.2.1-amd64.msi).**
 
 You can also install IA Launcher using `pip3 install ialauncher` on
 any operating system. Continue reading for detailed instructions.
@@ -65,6 +65,8 @@ Special Keys
 - Enter: launch the selected game
 - Alt-Enter: open DOSBox without starting the game
   (useful for debugging, see "Troubleshooting" below)
+- Shift-Enter: reset game state before starting game
+  (warning: you will lose your save files!)
 - Space: jump to a random game
 - A-Z: Jump to the first game that starts with the letter A-Z
 - Esc key: exit
