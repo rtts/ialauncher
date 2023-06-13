@@ -1,4 +1,5 @@
 import os, sys
+import platform
 import shutil
 import subprocess
 from zipfile import ZipFile
@@ -6,6 +7,9 @@ from urllib import request
 from urllib.parse import unquote
 from configparser import RawConfigParser
 from threading import Thread
+
+if platform.system() == 'Linux':
+    import xdg.BaseDirectory
 
 from .dosbox import get_dosbox_path
 
@@ -18,6 +22,10 @@ class Game:
         self.identifier = os.path.basename(path)
         self.configured = False
         self.download_thread = None
+
+        self.cachedir = self.gamedir
+        if platform.system() == "Linux":
+            self.cachedir = xdg.BaseDirectory.save_cache_path(os.path.join('ialauncher', self.identifier, 'dosbox_drive_c'))
 
     def configure(self):
         self.config = c = RawConfigParser()
@@ -61,9 +69,9 @@ class Game:
         is run normally.
 
         """
-        batfile = os.path.join(self.gamedir, 'dosbox.bat')
-        conffile = os.path.join(self.gamedir, 'dosbox.conf')
-        dosbox_args = [self.gamedir, '-fullscreen']
+        batfile = os.path.join(self.cachedir, 'dosbox.bat')
+        conffile = os.path.join(self.cachedir, 'dosbox.conf')
+        dosbox_args = [self.cachedir, '-fullscreen']
 
         if self.dosbox_conf:
             with open(conffile, 'w') as f:
@@ -72,13 +80,13 @@ class Game:
 
         if self.emulator_start:
             if autorun:
-                dosbox_args[0] = os.path.join(self.gamedir, 'dosbox.bat')
+                dosbox_args[0] = os.path.join(self.cachedir, 'dosbox.bat')
                 with open(batfile, 'w') as f:
                     f.write('@echo off\ncls\n')
                     f.write(self.emulator_start)
 
                 if not '\n' in self.emulator_start:
-                    startfile = os.path.join(self.gamedir, os.path.normpath(self.emulator_start))
+                    startfile = os.path.join(self.cachedir, os.path.normpath(self.emulator_start))
                     if os.path.isfile(startfile):
 
                         # Special case for many games that currently only
@@ -136,14 +144,14 @@ class Game:
                 self.configure()
             except:
                 return False
-        return os.path.isdir(self.gamedir)
+        return os.path.isdir(self.cachedir)
 
     def get_size(self):
         return sum(os.path.getsize(os.path.join(self.path, f)) for f in os.listdir(self.path) if os.path.isfile(os.path.join(self.path, f)))/1000000
 
     def reset(self):
         try:
-            shutil.rmtree(self.gamedir)
+            shutil.rmtree(self.cachedir)
         except:
             pass
 
@@ -153,7 +161,7 @@ class Game:
                 self.configure()
             except:
                 return
-        self.download_thread = Download(self.urls, self.gamedir)
+        self.download_thread = Download(self.urls, self.cachedir)
         self.download_thread.start()
 
     def download_in_progress(self):
