@@ -63,12 +63,12 @@ class Game:
         """
         batfile = os.path.join(self.gamedir, 'dosbox.bat')
         conffile = os.path.join(self.gamedir, 'dosbox.conf')
-        dosbox_args = [".", '-fullscreen']
+        dosbox_args = [".", '-userconf']  # Use --nolocalconf for DOSBox Staging
 
         if self.dosbox_conf:
             with open(conffile, 'w') as f:
                 f.write(self.dosbox_conf)
-            dosbox_args.extend(['-userconf', '-conf', 'dosbox.conf'])
+            dosbox_args.extend(['-conf', 'dosbox.conf'])
 
         if self.emulator_start:
             if autorun:
