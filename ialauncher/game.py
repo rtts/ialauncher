@@ -63,7 +63,7 @@ class Game:
         """
         batfile = os.path.join(self.gamedir, 'dosbox.bat')
         conffile = os.path.join(self.gamedir, 'dosbox.conf')
-        dosbox_args = [self.gamedir, '-fullscreen']
+        dosbox_args = [".", '-fullscreen']
 
         if self.dosbox_conf:
             with open(conffile, 'w') as f:
@@ -72,18 +72,17 @@ class Game:
 
         if self.emulator_start:
             if autorun:
-                dosbox_args[0] = os.path.join(self.gamedir, 'dosbox.bat')
+                dosbox_args[0] = os.path.join('dosbox.bat')
                 with open(batfile, 'w') as f:
                     f.write('@echo off\ncls\n')
                     f.write(self.emulator_start)
 
                 if not '\n' in self.emulator_start:
-                    startfile = os.path.join(self.gamedir, os.path.normpath(self.emulator_start))
-                    if os.path.isfile(startfile):
+                    if os.path.isfile(os.path.join(self.gamedir, os.path.normpath(self.emulator_start))):
 
                         # Special case for many games that currently only
                         # contain the name of the executable
-                        dosbox_args[0] = startfile
+                        dosbox_args[0] = self.emulator_start
 
             else:
                 with open(batfile, 'w') as f:
@@ -173,7 +172,7 @@ class DOSBox(Thread):
         game = self.game
         command = DOSBOX + game.dosbox_args
         print('Executing:', ' '.join(command))
-        subprocess.run(command, capture_output=True)
+        subprocess.run(command, cwd=game.gamedir, capture_output=True)
 
         if not game.autorun:
             if os.path.isfile(game.batfile):
