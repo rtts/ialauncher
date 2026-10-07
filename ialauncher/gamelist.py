@@ -16,8 +16,7 @@ class GameList:
 
     def sort(self, slideshow):
         self.games.sort()
-        if slideshow:
-            self.current_game = random.randrange(len(self.games))
+        self.current_game = random.randrange(len(self.games))
 
     def get_image(self):
         game = self.get_current_game()
