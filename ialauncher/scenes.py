@@ -156,4 +156,4 @@ class Download(Scene):
         if self.game.download_completed():
             return False
         screen.fill((0,0,0))
-        self.draw(screen, f'Downloading {self.game.urls[0]} ({self.game.get_size():.1f} MB)')
+        self.draw(screen, self.game.download_thread.status)

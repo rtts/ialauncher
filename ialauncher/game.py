@@ -137,9 +137,6 @@ class Game:
                 return False
         return os.path.isdir(self.gamedir)
 
-    def get_size(self):
-        return sum(os.path.getsize(os.path.join(self.path, f)) for f in os.listdir(self.path) if os.path.isfile(os.path.join(self.path, f)))/1000000
-
     def reset(self):
         try:
             shutil.rmtree(self.gamedir)
@@ -186,20 +183,22 @@ class Download(Thread):
     def __init__(self, urls, gamedir):
         self.urls = urls
         self.gamedir = gamedir
+        self.status = ''
         super().__init__(daemon=True)
 
     def run(self):
-        for u in self.urls:
+        for i, u in enumerate(self.urls, 1):
             filename = unquote(u.split('/')[-1]).split('/')[-1]
             dest = os.path.join(os.path.dirname(self.gamedir), filename)
+            prefix = f'[{i}/{len(self.urls)}] ' if len(self.urls) > 1 else ''
             if not os.path.isfile(dest):
                 print(f'Downloading {u}...', end='', flush=True)
-                request.urlretrieve(u, dest)
+                request.urlretrieve(u, dest, lambda blocks, size, total: self.report(f'{prefix}Downloading {filename}', blocks * size, total))
                 print('done!')
-            if filename.endswith('zip') or filename.endswith('ZIP') or filename.endswith('play'):
-                print(f'Extracting {filename}...', end='', flush=True)
+            if filename.lower().endswith(('.zip', '.play')):
+                print(f'Unzipping {filename}...', end='', flush=True)
                 try:
-                    self.unzip(dest)
+                    self.unzip(dest, f'{prefix}Unzipping {filename}')
                     print('done!')
                 except:
                     print('failed.')
@@ -207,6 +206,19 @@ class Download(Thread):
                 os.makedirs(self.gamedir, exist_ok=True)
                 shutil.copy(dest, self.gamedir)
 
-    def unzip(self, zipfile):
+    def report(self, action: str, done: int, total: int) -> None:
+        if total > 0:
+            done = min(done, total)
+            self.status = f'{action} ({done / 1e6:.1f} / {total / 1e6:.1f} MB, {done * 100 // total}%)'
+        else:
+            self.status = f'{action} ({done / 1e6:.1f} MB)'
+
+    def unzip(self, zipfile: str, action: str) -> None:
         with ZipFile(zipfile, 'r') as f:
-            f.extractall(self.gamedir)
+            members = f.infolist()
+            total = sum(m.file_size for m in members)
+            done = 0
+            for m in members:
+                self.report(action, done, total)
+                f.extract(m, self.gamedir)
+                done += m.file_size
