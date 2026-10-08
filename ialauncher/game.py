@@ -193,7 +193,9 @@ class Download(Thread):
             prefix = f'[{i}/{len(self.urls)}] ' if len(self.urls) > 1 else ''
             if not os.path.isfile(dest):
                 print(f'Downloading {u}...', end='', flush=True)
-                request.urlretrieve(u, dest, lambda blocks, size, total: self.report(f'{prefix}Downloading {filename}', blocks * size, total))
+                action = f'{prefix}Downloading {filename}'
+                self.report(action, 0, 0)
+                request.urlretrieve(u, dest, lambda blocks, size, total: self.report(action, blocks * size, total))
                 print('done!')
             if filename.lower().endswith(('.zip', '.play')):
                 print(f'Unzipping {filename}...', end='', flush=True)
