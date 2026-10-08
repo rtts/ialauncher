@@ -72,7 +72,7 @@ class Game:
 
         if self.emulator_start:
             if autorun:
-                dosbox_args[0] = os.path.join('dosbox.bat')
+                dosbox_args[0] = 'dosbox.bat'
                 with open(batfile, 'w') as f:
                     f.write('@echo off\ncls\n')
                     f.write(self.emulator_start)
@@ -174,7 +174,7 @@ class DOSBox(Thread):
         if not game.autorun:
             if os.path.isfile(game.batfile):
                 with open(game.batfile, 'r') as f:
-                    game.emulator_start = f.read()
+                    game.emulator_start = f.read().rstrip('\r\n')
                     if game.emulator_start:
                         game.write_metadata()
 
