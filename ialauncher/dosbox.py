@@ -28,7 +28,7 @@ def get_dosbox_path():
     try:
         # Special case for Windows
         pf = os.environ['ProgramFiles(x86)']
-        path = glob.glob(f'{pf}\dosbox*\dosbox.exe')[0]
+        path = glob.glob(f'{pf}\\dosbox*\\dosbox.exe')[0]
         return try_command([path])
     except:
         pass

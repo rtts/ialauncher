@@ -54,8 +54,8 @@ class Game:
         The frontend allows starting the game in the second mode by pressing
         Alt-Enter. This allows the user to do the following from within dosbox:
 
-            C:\> echo MYGAME.BAT >> dosbox.bat
-            C:\> exit
+            C:\\> echo MYGAME.BAT >> dosbox.bat
+            C:\\> exit
 
         These changes will then be preserved for the next time the game
         is run normally.
