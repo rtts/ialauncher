@@ -213,7 +213,7 @@ class Download(Thread):
             done = min(done, total)
             self.status = f'{action} ({done / 1e6:.1f} / {total / 1e6:.1f} MB, {done * 100 // total}%)'
         else:
-            self.status = f'{action} ({done / 1e6:.1f} MB)'
+            self.status = action
 
     def unzip(self, zipfile: str, action: str) -> None:
         with ZipFile(zipfile, 'r') as f:
