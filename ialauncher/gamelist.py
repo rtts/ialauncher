@@ -4,9 +4,13 @@ import pygame as pg
 
 from .game import Game
 
+SEARCH_TIMEOUT = 1000
+
 class GameList:
     games = []
     current_game = 0
+    query = ''
+    last_keypress = 0
 
     def add(self, game_dir):
         try:
@@ -54,9 +58,29 @@ class GameList:
     def random_game(self):
         self.current_game = random.randrange(len(self.games))
 
-    def letter(self, letter):
-        '''Jump to specific letter'''
+    def is_searching(self) -> bool:
+        return bool(self.query) and pg.time.get_ticks() - self.last_keypress <= SEARCH_TIMEOUT
+
+    def reset_search(self) -> None:
+        self.query = ''
+
+    def search(self, char: str) -> None:
+        if not self.is_searching():
+            self.reset_search()
+        self.last_keypress = pg.time.get_ticks()
+        self.find(self.query + char)
+
+    def backspace(self) -> None:
+        if not self.is_searching():
+            return self.reset_search()
+        self.last_keypress = pg.time.get_ticks()
+        self.query = self.query[:-1]
+        if self.query:
+            self.find(self.query)
+
+    def find(self, query: str) -> None:
         for i, game in enumerate(self.games):
-            if game.identifier.lower().startswith(letter):
+            if game.identifier.lower().startswith(query.lower()):
                 self.current_game = i
+                self.query = query
                 break

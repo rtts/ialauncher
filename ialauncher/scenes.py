@@ -3,11 +3,12 @@ import random
 import pygame as pg
 import games as gd
 
-from .gamelist import GameList
+from .gamelist import GameList, SEARCH_TIMEOUT
 from .engine import Scene
 from . import options
 
 ADVANCE = pg.event.custom_type()
+SEARCH_EXPIRED = pg.event.custom_type()
 
 
 class Loading(Scene):
@@ -81,15 +82,28 @@ class Browse(Scene):
 
     def handle(self, event):
         if event.type == ADVANCE:
+            self.games.reset_search()
             self.games.random_game()
+        if event.type == SEARCH_EXPIRED:
+            self.games.reset_search()
         if event.type == pg.KEYDOWN:
             if event.key == pg.K_ESCAPE:
                 return False
-            if handler := self.handlers.get(event.key):
+            if event.key == pg.K_SPACE and self.games.is_searching():
+                self.games.search(' ')
+            elif event.key == pg.K_BACKSPACE:
+                self.games.backspace()
+            elif handler := self.handlers.get(event.key):
+                self.games.reset_search()
                 handler()
-            if event.unicode:
-                self.games.letter(event.unicode)
+            elif event.unicode.isprintable() and event.unicode:
+                self.games.search(event.unicode)
+
+            # (Re)start the timer that removes the query from the screen
+            if self.games.query:
+                pg.time.set_timer(SEARCH_EXPIRED, SEARCH_TIMEOUT, loops=1)
             if event.key == pg.K_RETURN:
+                self.games.reset_search()
                 game = self.games.get_current_game()
                 if event.mod & pg.KMOD_SHIFT:
                     game.reset()
@@ -105,6 +119,17 @@ class Browse(Scene):
         rect = screen.get_rect()
         scaled_image = pg.transform.scale(image, rect.size)
         screen.blit(scaled_image, rect)
+        if self.games.query:
+            self.draw_query(screen)
+
+    def draw_query(self, screen, margin=15, padding=8):
+        if not hasattr(self, 'font'):
+            self.font = pg.font.SysFont('monospace', 24)
+        image = self.font.render(self.games.query, True, (255,255,255))
+        rect = image.get_rect().inflate(2*padding, 2*padding)
+        rect.topleft = (margin, margin)
+        screen.fill((0,0,0), rect)
+        screen.blit(image, image.get_rect(center=rect.center))
 
 
 class Download(Scene):
