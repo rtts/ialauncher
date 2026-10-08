@@ -66,7 +66,7 @@ Loading games... {self.counter}
 class Browse(Scene):
     def __init__(self, games):
         self.games = games
-        self.interval = options.slideshow or 10
+        self.slideshow = options.slideshow
         self.set_slideshow(bool(options.slideshow))
         self.handlers = {
             pg.K_RIGHT: self.games.next_game,
@@ -78,8 +78,7 @@ class Browse(Scene):
         super().__init__()
 
     def set_slideshow(self, enabled: bool) -> None:
-        self.slideshow = enabled
-        pg.time.set_timer(ADVANCE, self.interval * 1000 if enabled else 0)
+        pg.time.set_timer(ADVANCE, self.slideshow * 1000 if enabled else 0)
 
     def get_events(self):
         return [pg.event.wait()]

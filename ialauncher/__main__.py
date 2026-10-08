@@ -15,7 +15,8 @@ def main():
 
     if args.fullscreen ^ args.no_fullscreen:
         options.fullscreen = args.fullscreen or not args.no_fullscreen
-    options.slideshow = args.slideshow or options.slideshow
+    if args.slideshow is not None:
+        options.slideshow = args.slideshow
 
     Main(Loading(slurp_mode=args.slurp_mode), title='IA Launcher', fullscreen=options.fullscreen)
 

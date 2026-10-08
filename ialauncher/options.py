@@ -4,4 +4,4 @@ command-line arguments.
 
 '''
 fullscreen = True
-slideshow = 0
+slideshow = 10
