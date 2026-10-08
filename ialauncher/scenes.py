@@ -66,8 +66,8 @@ Loading games... {self.counter}
 class Browse(Scene):
     def __init__(self, games):
         self.games = games
-        if options.slideshow:
-            pg.time.set_timer(ADVANCE, options.slideshow * 1000)
+        self.interval = options.slideshow or 10
+        self.set_slideshow(bool(options.slideshow))
         self.handlers = {
             pg.K_RIGHT: self.games.next_game,
             pg.K_LEFT: self.games.previous_game,
@@ -76,6 +76,10 @@ class Browse(Scene):
             pg.K_SPACE: self.games.random_game,
         }
         super().__init__()
+
+    def set_slideshow(self, enabled: bool) -> None:
+        self.slideshow = enabled
+        pg.time.set_timer(ADVANCE, self.interval * 1000 if enabled else 0)
 
     def get_events(self):
         return [pg.event.wait()]
@@ -89,6 +93,10 @@ class Browse(Scene):
         if event.type == pg.KEYDOWN:
             if event.key == pg.K_ESCAPE:
                 return False
+            if event.key != pg.K_SPACE:
+                self.set_slideshow(False)
+            elif not self.games.is_searching():
+                self.set_slideshow(True)
             if event.key == pg.K_SPACE and self.games.is_searching():
                 self.games.search(' ')
             elif event.key == pg.K_BACKSPACE:
