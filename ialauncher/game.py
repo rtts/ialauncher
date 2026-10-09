@@ -77,13 +77,6 @@ class Game:
                     f.write('@echo off\ncls\n')
                     f.write(self.emulator_start)
 
-                if not '\n' in self.emulator_start:
-                    if os.path.isfile(os.path.join(self.gamedir, os.path.normpath(self.emulator_start))):
-
-                        # Special case for many games that currently only
-                        # contain the name of the executable
-                        dosbox_args[0] = self.emulator_start
-
             else:
                 with open(batfile, 'w') as f:
                     f.write(self.emulator_start)
