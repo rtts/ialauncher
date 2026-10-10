@@ -9,13 +9,16 @@ from configparser import RawConfigParser
 from threading import Thread
 
 from .dosbox import get_dosbox_path
+from .scummvm import get_scummvm_path, ScummVMNotFound
+from .iso import ISOFile
+from . import options
 
 DOSBOX = get_dosbox_path()
+SCUMMVM = None
 
 class Game:
     def __init__(self, path):
         self.path = path
-        self.gamedir = os.path.join(self.path, 'dosbox_drive_c')
         self.identifier = os.path.basename(path)
         self.configured = False
         self.download_thread = None
@@ -25,6 +28,11 @@ class Game:
         c.read(os.path.join(self.path, 'metadata.ini'))
         self.title = c['metadata'].get('title')
         self.year = c['metadata'].get('year')
+        self.engine = c['metadata'].get('engine', 'dosbox')
+        self.scummvm_game = c['metadata'].get('scummvm_game')
+        self.scummvm_args = (c['metadata'].get('scummvm_args') or '').split()
+        datadir = 'scummvm_data' if self.engine == 'scummvm' else 'dosbox_drive_c'
+        self.gamedir = os.path.join(self.path, datadir)
         self.emulator_start = c['metadata'].get('emulator_start')
         self.dosbox_conf = c['metadata'].get('dosbox_conf')
         self.urls = c['metadata'].get('url').split()
@@ -62,6 +70,9 @@ class Game:
         is run normally.
 
         """
+        if self.engine == 'scummvm':
+            return self.start_scummvm(autorun)
+
         batfile = os.path.join(self.gamedir, 'dosbox.bat')
         conffile = os.path.join(self.gamedir, 'dosbox.conf')
         dosbox_args = [".", '-userconf']  # Use --nolocalconf for DOSBox Staging
@@ -97,12 +108,37 @@ class Game:
         # Save our work and hand the game over to the Dosbox thread
         self.batfile = batfile
         self.autorun = autorun
-        self.dosbox_args = dosbox_args
-        self.dosbox_thread = DOSBox(self)
-        self.dosbox_thread.start()
+        self.emulator_args = dosbox_args
+        self.emulator_thread = DOSBox(self)
+        self.emulator_thread.start()
+
+    def start_scummvm(self, autorun=True):
+        """
+        Start the game with ScummVM, using `scummvm_game` as the
+        target. Savegames are stored in the game directory. With
+        autorun=False, the ScummVM launcher is opened instead.
+
+        """
+        global SCUMMVM
+        if SCUMMVM is None:
+            try:
+                SCUMMVM = get_scummvm_path()
+            except ScummVMNotFound as e:
+                print(e)
+                return
+
+        captures_dir = os.path.expanduser(options.captures_dir)
+        os.makedirs(captures_dir, exist_ok=True)
+        args = ['--path=.', '--savepath=.', f'--screenshotpath={captures_dir}']
+        if autorun and self.scummvm_game:
+            args.extend(self.scummvm_args + [self.scummvm_game])
+
+        self.emulator_args = args
+        self.emulator_thread = Emulator(self, SCUMMVM)
+        self.emulator_thread.start()
 
     def is_running(self):
-        return bool(getattr(self, 'dosbox_thread', None)) and self.dosbox_thread.is_alive()
+        return bool(getattr(self, 'emulator_thread', None)) and self.emulator_thread.is_alive()
 
 
     def write_metadata(self):
@@ -136,6 +172,8 @@ class Game:
         return os.path.isdir(self.gamedir)
 
     def reset(self):
+        if not self.is_ready():
+            return
         try:
             shutil.rmtree(self.gamedir)
         except:
@@ -147,7 +185,10 @@ class Game:
                 self.configure()
             except:
                 return
-        self.download_thread = Download(self.urls, self.gamedir, unzip)
+        # ScummVM can't read disc images, so extract them. DOSBox games
+        # mount their disc images themselves.
+        extract = self.engine == 'scummvm'
+        self.download_thread = Download(self.urls, self.gamedir, unzip, extract)
         self.download_thread.start()
 
     def download_in_progress(self):
@@ -158,16 +199,26 @@ class Game:
         return not self.download_in_progress()
 
 
-class DOSBox(Thread):
-    def __init__(self, game):
+class Emulator(Thread):
+    def __init__(self, game, executable):
         self.game = game
+        self.executable = executable
         super().__init__(daemon=True)
 
     def run(self):
         game = self.game
-        command = DOSBOX + game.dosbox_args
+        command = self.executable + game.emulator_args
         print('Executing:', ' '.join(command))
         subprocess.run(command, cwd=game.gamedir, capture_output=True)
+
+
+class DOSBox(Emulator):
+    def __init__(self, game):
+        super().__init__(game, DOSBOX)
+
+    def run(self):
+        super().run()
+        game = self.game
 
         if not game.autorun:
             if os.path.isfile(game.batfile):
@@ -178,10 +229,11 @@ class DOSBox(Thread):
 
 
 class Download(Thread):
-    def __init__(self, urls, gamedir, unzip: bool = True):
+    def __init__(self, urls, gamedir, unzip: bool = True, extract: bool = False):
         self.urls = urls
         self.gamedir = gamedir
         self.should_unzip = unzip
+        self.should_extract = extract
         self.status = ''
         super().__init__(daemon=True)
 
@@ -198,7 +250,14 @@ class Download(Thread):
                 print('done!')
             if not self.should_unzip:
                 continue
-            if filename.lower().endswith(('.zip', '.play')):
+            if self.should_extract and filename.lower().endswith(('.iso', '.bin')):
+                print(f'Extracting {filename}... ', end='', flush=True)
+                try:
+                    self.extract_iso(dest, f'{prefix}Extracting {filename}')
+                    print('done!')
+                except:
+                    print('failed.')
+            elif filename.lower().endswith(('.zip', '.play')):
                 print(f'Unzipping {filename}... ', end='', flush=True)
                 try:
                     self.unzip(dest, f'{prefix}Unzipping {filename}')
@@ -241,3 +300,15 @@ class Download(Thread):
                 self.report(action, done, total)
                 f.extract(m, self.gamedir)
                 done += m.file_size
+
+    def extract_iso(self, isofile: str, action: str) -> None:
+        with ISOFile(isofile) as iso:
+            members = list(iso.walk())
+            total = sum(size for _, _, size in members)
+            done = 0
+            def progress(n):
+                nonlocal done
+                done += n
+                self.report(action, done, total)
+            for path, sector, size in members:
+                iso.extract(sector, size, os.path.join(self.gamedir, path), progress)
