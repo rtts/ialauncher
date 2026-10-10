@@ -98,7 +98,11 @@ class Game:
         self.batfile = batfile
         self.autorun = autorun
         self.dosbox_args = dosbox_args
-        DOSBox(self).start()
+        self.dosbox_thread = DOSBox(self)
+        self.dosbox_thread.start()
+
+    def is_running(self):
+        return bool(getattr(self, 'dosbox_thread', None)) and self.dosbox_thread.is_alive()
 
 
     def write_metadata(self):

@@ -5,3 +5,4 @@ command-line arguments.
 '''
 fullscreen = True
 slideshow = 10
+captures_dir = '~/.dosbox/capture'
