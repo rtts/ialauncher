@@ -3,6 +3,7 @@ import shutil
 import subprocess
 from zipfile import ZipFile
 from urllib import request
+from urllib.error import ContentTooShortError
 from urllib.parse import unquote
 from configparser import RawConfigParser
 from threading import Thread
@@ -136,13 +137,13 @@ class Game:
         except:
             pass
 
-    def download(self):
+    def download(self, unzip: bool = True):
         if not self.configured:
             try:
                 self.configure()
             except:
                 return
-        self.download_thread = Download(self.urls, self.gamedir)
+        self.download_thread = Download(self.urls, self.gamedir, unzip)
         self.download_thread.start()
 
     def download_in_progress(self):
@@ -173,9 +174,10 @@ class DOSBox(Thread):
 
 
 class Download(Thread):
-    def __init__(self, urls, gamedir):
+    def __init__(self, urls, gamedir, unzip: bool = True):
         self.urls = urls
         self.gamedir = gamedir
+        self.should_unzip = unzip
         self.status = ''
         super().__init__(daemon=True)
 
@@ -185,13 +187,15 @@ class Download(Thread):
             dest = os.path.join(os.path.dirname(self.gamedir), filename)
             prefix = f'[{i}/{len(self.urls)}] ' if len(self.urls) > 1 else ''
             if not os.path.isfile(dest):
-                print(f'Downloading {u}...', end='', flush=True)
+                print(f'Downloading {u}... ', end='', flush=True)
                 action = f'{prefix}Downloading {filename}'
                 self.report(action, 0, 0)
-                request.urlretrieve(u, dest, lambda blocks, size, total: self.report(action, blocks * size, total))
+                self.request(u, dest, action)
                 print('done!')
+            if not self.should_unzip:
+                continue
             if filename.lower().endswith(('.zip', '.play')):
-                print(f'Unzipping {filename}...', end='', flush=True)
+                print(f'Unzipping {filename}... ', end='', flush=True)
                 try:
                     self.unzip(dest, f'{prefix}Unzipping {filename}')
                     print('done!')
@@ -200,6 +204,22 @@ class Download(Thread):
             else:
                 os.makedirs(self.gamedir, exist_ok=True)
                 shutil.copy(dest, self.gamedir)
+
+    def request(self, url: str, dest: str, action: str) -> None:
+        try:
+            with request.urlopen(url, timeout=60) as response, open(dest, 'wb') as f:
+                total = int(response.headers.get('Content-Length') or 0)
+                done = 0
+                while block := response.read(1024*8):
+                    f.write(block)
+                    done += len(block)
+                    self.report(action, done, total)
+            if done < total:
+                raise ContentTooShortError(f'Download failed: got only {done} out of {total} bytes', None)
+        except BaseException:
+            if os.path.isfile(dest):
+                os.remove(dest)
+            raise
 
     def report(self, action: str, done: int, total: int) -> None:
         if total > 0:

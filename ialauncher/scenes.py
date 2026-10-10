@@ -41,7 +41,7 @@ class Loading(Scene):
     def download_game(self):
         path = self.todo.pop()
         self.games.add(path)
-        Download(self.games.games[-1]).run(self.screen)
+        Download(self.games.games[-1], unzip=False).run(self.screen)
         self.counter += 1
 
     def done(self):
@@ -140,12 +140,12 @@ class Browse(Scene):
 
 
 class Download(Scene):
-    def __init__(self, game):
+    def __init__(self, game, unzip: bool = True):
         self.game = game
         super().__init__()
 
         # Start downloading (spawns a new thread)
-        self.game.download()
+        self.game.download(unzip)
 
     def handle(self, event):
         if event.type == pg.KEYDOWN:
