@@ -70,6 +70,8 @@ Loading games... {self.counter}
 class Browse(Scene):
     def __init__(self, games):
         self.games = games
+        self.games.games = [game for game in games.games if game.get_titlescreen()]
+        self.games.random_game()
         self.slideshow = options.slideshow
         self.set_slideshow(bool(options.slideshow))
         self.handlers = {
