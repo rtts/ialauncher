@@ -50,6 +50,14 @@ class Loading(Scene):
             return False
         return None
 
+    @override
+    def run(self, screen: pg.Surface) -> NextScene:
+        try:
+            return super().run(screen)
+        finally:
+            if self.downloading and (thread := self.downloading.download_thread):
+                thread.cancel()
+
     def load_games(self, number_of_games: int) -> None:
         while self.todo and number_of_games:
             path = self.todo.pop()
@@ -334,6 +342,14 @@ class Download(Scene):
 
         # Start downloading (spawns a new thread)
         self.game.download(unzip)
+
+    @override
+    def run(self, screen: pg.Surface) -> NextScene:
+        try:
+            return super().run(screen)
+        finally:
+            if thread := self.game.download_thread:
+                thread.cancel()
 
     @override
     def handle(self, event: pg.event.Event) -> NextScene:

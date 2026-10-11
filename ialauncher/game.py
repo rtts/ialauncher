@@ -3,7 +3,7 @@ import shutil
 import subprocess
 import sys
 from configparser import RawConfigParser
-from threading import Thread
+from threading import Event, Thread
 from typing import override
 from urllib import request
 from urllib.error import ContentTooShortError
@@ -239,10 +239,23 @@ class Download(Thread):
         self.should_unzip = unzip
         self.should_extract = extract
         self.status = ""
+        self.cancelled = Event()
         super().__init__(daemon=True)
+
+    def cancel(self) -> None:
+        self.cancelled.set()
+        self.join()
 
     @override
     def run(self) -> None:
+        try:
+            self.download()
+        except InterruptedError:
+            # Remove the partially unzipped or extracted game
+            print("cancelled.")
+            shutil.rmtree(self.gamedir, ignore_errors=True)
+
+    def download(self) -> None:
         for i, u in enumerate(self.urls, 1):
             filename = unquote(u.split("/")[-1]).split("/")[-1]
             dest = os.path.join(os.path.dirname(self.gamedir), filename)
@@ -260,6 +273,8 @@ class Download(Thread):
                 try:
                     self.extract_iso(dest, f"{prefix}Extracting {filename}")
                     print("done!")
+                except InterruptedError:
+                    raise
                 except:
                     print("failed.")
             elif filename.lower().endswith((".zip", ".play")):
@@ -267,6 +282,8 @@ class Download(Thread):
                 try:
                     self.unzip(dest, f"{prefix}Unzipping {filename}")
                     print("done!")
+                except InterruptedError:
+                    raise
                 except:
                     print("failed.")
             else:
@@ -293,6 +310,8 @@ class Download(Thread):
             raise
 
     def report(self, action: str, done: int, total: int) -> None:
+        if self.cancelled.is_set():
+            raise InterruptedError("Download cancelled")
         if total > 0:
             done = min(done, total)
             self.status = f"{action} ({done / 1e6:.1f} / {total / 1e6:.1f} MB, {done * 100 // total}%)"
