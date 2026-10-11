@@ -3,10 +3,11 @@ import shutil
 import subprocess
 import sys
 from configparser import RawConfigParser
+from http.client import RemoteDisconnected
 from threading import Event, Thread
 from typing import override
 from urllib import request
-from urllib.error import ContentTooShortError
+from urllib.error import ContentTooShortError, HTTPError, URLError
 from urllib.parse import unquote
 from zipfile import ZipFile
 
@@ -251,9 +252,22 @@ class Download(Thread):
         try:
             self.download()
         except InterruptedError:
-            # Remove the partially unzipped or extracted game
             print(" cancelled.")
-            shutil.rmtree(self.gamedir, ignore_errors=True)
+        except TimeoutError:
+            print(" timed out :(")
+        except HTTPError as e:
+            print(f" {e.code} {e.reason} :(")
+        except ContentTooShortError:
+            print(" incomplete :(")
+        except URLError as e:
+            print(f" {e.reason} :(")
+        except RemoteDisconnected:
+            print(" no answer :(")
+        else:
+            return
+
+        # Remove the partially unzipped or extracted game
+        shutil.rmtree(self.gamedir, ignore_errors=True)
 
     def download(self) -> None:
         for u in self.urls:
