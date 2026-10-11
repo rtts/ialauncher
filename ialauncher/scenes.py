@@ -95,7 +95,9 @@ class Loading(TitleScreen):
             self.downloading = self.games.games[-1]
             self.downloading.download(unzip=False)
 
-    def done(self) -> Scene:
+    def done(self) -> NextScene:
+        if self.slurp_mode:
+            return False
         self.games.sort(slideshow=options.slideshow)
         if self.capture_mode:
             return Capture(self.games)
