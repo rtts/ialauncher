@@ -1,34 +1,36 @@
-import os, glob, subprocess
+import glob
+import os
+import subprocess
 
 
 class DOSBoxNotFound(Exception):
     pass
 
 
-def try_command(command):
-    subprocess.run(command + ['--version'], capture_output=True).check_returncode()
+def try_command(command: list[str]) -> list[str]:
+    subprocess.run(command + ["--version"], capture_output=True).check_returncode()
     return command
 
 
-def get_dosbox_path():
+def get_dosbox_path() -> list[str]:
     try:
-        return try_command(['dosbox'])
+        return try_command(["dosbox"])
     except:
         pass
     try:
         # Proper way to do it on macOS
-        return try_command(['open', '-a', 'DOSBox', '--args'])
+        return try_command(["open", "-a", "DOSBox", "--args"])
     except:
         pass
     try:
         # Fallback to hardcoded path on macOS
-        return try_command(['/Applications/dosbox.app/Contents/MacOS/DOSBox'])
+        return try_command(["/Applications/dosbox.app/Contents/MacOS/DOSBox"])
     except:
         pass
     try:
         # Special case for Windows
-        pf = os.environ['ProgramFiles(x86)']
-        path = glob.glob(f'{pf}\\dosbox*\\dosbox.exe')[0]
+        pf = os.environ["ProgramFiles(x86)"]
+        path = glob.glob(f"{pf}\\dosbox*\\dosbox.exe")[0]
         return try_command([path])
     except:
         pass

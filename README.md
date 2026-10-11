@@ -36,7 +36,7 @@ First of all, get yourself a snazzy retro looking PC. Or just use your
 current computer running your operating system of choice. Start by
 installing the following dependencies:
 
-* [Python](https://www.python.org/) version 3.8 or higher
+* [Python](https://www.python.org/) version 3.12 or higher
 * [DOSBox](https://www.dosbox.com/) version 0.74 or higher
 
 Now you can install IA Launcher using `pip`. Open a command-line

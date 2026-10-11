@@ -1,18 +1,49 @@
 import argparse
 
+from . import options
 from .engine import Main
 from .scenes import Loading
-from . import options
 
 
-def main():
-    parser = argparse.ArgumentParser(description='DOSBox frontend for the Internet Archive MS-DOS games collection')
-    parser.add_argument('--slideshow', type=int, metavar='X', help='Focus on a random title screen every X seconds')
-    parser.add_argument('--fullscreen', dest='fullscreen', action='store_true', help='Start in fullscreen mode (default)')
-    parser.add_argument('--no-fullscreen', dest='no_fullscreen', action='store_true', help='Don’t start in fullscreen mode')
-    parser.add_argument('--slurp-mode', dest='slurp_mode', action='store_true', help='Slurp mode: downloads ALL games from the Internet Archive, one by one. This will take days to finish. Please don’t do this for no reason; the Internet Archive has limited bandwith. Also, consider donating first.')
-    parser.add_argument('--capture-mode', dest='capture_mode', action='store_true', help='Capture mode: lists all games without a title screen. While a game is running, each screenshot that appears in the captures directory is moved to its title.png.')
-    parser.add_argument('--captures-dir', metavar='DIR', help=f'Directory where DOSBox and ScummVM save screenshots (default: {options.captures_dir})')
+def main() -> None:
+    parser = argparse.ArgumentParser(
+        description="DOSBox frontend for the Internet Archive MS-DOS games collection"
+    )
+    parser.add_argument(
+        "--slideshow",
+        type=int,
+        metavar="X",
+        help="Focus on a random title screen every X seconds",
+    )
+    parser.add_argument(
+        "--fullscreen",
+        dest="fullscreen",
+        action="store_true",
+        help="Start in fullscreen mode (default)",
+    )
+    parser.add_argument(
+        "--no-fullscreen",
+        dest="no_fullscreen",
+        action="store_true",
+        help="Don’t start in fullscreen mode",
+    )
+    parser.add_argument(
+        "--slurp-mode",
+        dest="slurp_mode",
+        action="store_true",
+        help="Slurp mode: downloads ALL games from the Internet Archive, one by one. This will take days to finish. Please don’t do this for no reason; the Internet Archive has limited bandwith. Also, consider donating first.",
+    )
+    parser.add_argument(
+        "--capture-mode",
+        dest="capture_mode",
+        action="store_true",
+        help="Capture mode: lists all games without a title screen. While a game is running, each screenshot that appears in the captures directory is moved to its title.png.",
+    )
+    parser.add_argument(
+        "--captures-dir",
+        metavar="DIR",
+        help=f"Directory where DOSBox and ScummVM save screenshots (default: {options.captures_dir})",
+    )
     args = parser.parse_args()
 
     if args.fullscreen ^ args.no_fullscreen:
@@ -22,8 +53,12 @@ def main():
     if args.captures_dir is not None:
         options.captures_dir = args.captures_dir
 
-    Main(Loading(slurp_mode=args.slurp_mode, capture_mode=args.capture_mode), title='IA Launcher', fullscreen=options.fullscreen)
+    Main(
+        Loading(slurp_mode=args.slurp_mode, capture_mode=args.capture_mode),
+        title="IA Launcher",
+        fullscreen=options.fullscreen,
+    )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
