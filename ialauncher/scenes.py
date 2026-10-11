@@ -13,12 +13,15 @@ from .engine import NextScene, Scene
 from .game import Game
 from .gamelist import SEARCH_TIMEOUT, GameList
 
+CYAN = (0, 204, 255)
+MAGENTA = (255, 0, 204)
 ADVANCE = pg.event.custom_type()
 SEARCH_EXPIRED = pg.event.custom_type()
 
 
 class Loading(Scene):
-    counter = 0
+    RESOLUTION = 320, 200
+    BAR = pg.Rect(103, 171, 113, 8)
 
     def __init__(self, slurp_mode: bool = False, capture_mode: bool = False) -> None:
         self.slurp_mode = slurp_mode
@@ -29,7 +32,11 @@ class Loading(Scene):
             for entry in os.listdir(self.games_dir)
             if os.path.exists(os.path.join(self.games_dir, entry, "metadata.ini"))
         ]
+        self.total = len(self.todo)
         self.games = GameList()
+        self.canvas = pg.Surface(self.RESOLUTION)
+        self.title = pg.image.load(os.path.join(os.path.dirname(__file__), "title.png"))
+        self.gradient = gradient(self.BAR.size, MAGENTA, CYAN)
         super().__init__()
 
     @override
@@ -39,21 +46,19 @@ class Loading(Scene):
     @override
     def handle(self, event: pg.event.Event) -> NextScene:
         if event.type == pg.KEYDOWN and event.key == pg.K_ESCAPE:
-            return self.done()
+            return False
         return None
 
     def load_games(self, number_of_games: int) -> None:
         while self.todo and number_of_games:
             path = self.todo.pop()
             self.games.add(path)
-            self.counter += 1
             number_of_games -= 1
 
     def download_game(self) -> None:
         path = self.todo.pop()
         self.games.add(path)
         Download(self.games.games[-1], unzip=False).run(self.screen)
-        self.counter += 1
 
     def done(self) -> Scene:
         self.games.sort(slideshow=options.slideshow)
@@ -69,15 +74,12 @@ class Loading(Scene):
             self.download_game()
         else:
             self.load_games(10)
-        screen.fill((0, 0, 0))
-        self.draw(
-            screen,
-            f"""
-Welcome to IA Launcher!
-Found games directory at: {self.games_dir}
-Loading games... {self.counter}
-""",
-        )
+        canvas = self.canvas
+        canvas.blit(self.title, (0, 0))
+        progress = self.gradient.get_rect()
+        progress.width = progress.width * (self.total - len(self.todo)) // self.total
+        canvas.blit(self.gradient, self.BAR, progress)
+        pg.transform.scale(canvas, screen.get_size(), screen)
         return None
 
 
@@ -329,3 +331,14 @@ class Download(Scene):
         screen.fill((0, 0, 0))
         self.draw(screen, thread.status)
         return None
+
+
+def gradient(
+    size: tuple[int, int], start: tuple[int, int, int], end: tuple[int, int, int]
+) -> pg.Surface:
+    width, height = size
+    surface = pg.Surface(size)
+    for x in range(width):
+        color = pg.Color(start).lerp(end, x / max(width - 1, 1))
+        pg.draw.line(surface, color, (x, 0), (x, height - 1))
+    return surface

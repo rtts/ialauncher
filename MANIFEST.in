@@ -1,1 +1,2 @@
 recursive-include games *
+include ialauncher/title.png
