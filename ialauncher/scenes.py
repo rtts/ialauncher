@@ -19,10 +19,26 @@ ADVANCE = pg.event.custom_type()
 SEARCH_EXPIRED = pg.event.custom_type()
 
 
-class Loading(Scene):
+class TitleScreen(Scene):
     RESOLUTION = 320, 200
     BAR = pg.Rect(103, 171, 113, 8)
 
+    def __init__(self) -> None:
+        self.canvas = pg.Surface(self.RESOLUTION)
+        self.title = pg.image.load(os.path.join(os.path.dirname(__file__), "title.png"))
+        self.gradient = gradient(self.BAR.size, MAGENTA, CYAN)
+        super().__init__()
+
+    def draw_progress(self, screen: pg.Surface, fraction: float) -> None:
+        canvas = self.canvas
+        canvas.blit(self.title, (0, 0))
+        progress = self.gradient.get_rect()
+        progress.width = int(progress.width * fraction)
+        canvas.blit(self.gradient, self.BAR, progress)
+        pg.transform.scale(canvas, screen.get_size(), screen)
+
+
+class Loading(TitleScreen):
     def __init__(self, slurp_mode: bool = False, capture_mode: bool = False) -> None:
         self.slurp_mode = slurp_mode
         self.capture_mode = capture_mode
@@ -35,9 +51,6 @@ class Loading(Scene):
         self.total = len(self.todo)
         self.downloading: Game | None = None
         self.games = GameList()
-        self.canvas = pg.Surface(self.RESOLUTION)
-        self.title = pg.image.load(os.path.join(os.path.dirname(__file__), "title.png"))
-        self.gradient = gradient(self.BAR.size, MAGENTA, CYAN)
         super().__init__()
 
     @override
@@ -98,15 +111,7 @@ class Loading(Scene):
         if not self.todo and not self.downloading:
             return self.done()
         finished = self.total - len(self.todo) - bool(self.downloading)
-        canvas = self.canvas
-        canvas.blit(self.title, (0, 0))
-        progress = self.gradient.get_rect()
-        progress.width = progress.width * finished // self.total
-        canvas.blit(self.gradient, self.BAR, progress)
-        pg.transform.scale(canvas, screen.get_size(), screen)
-        if self.downloading and (thread := self.downloading.download_thread):
-            status = f"[{finished + 1}/{self.total}] {self.downloading.identifier}"
-            self.draw(screen, f"{status}\n{thread.status}")
+        self.draw_progress(screen, finished / self.total)
         return None
 
 
@@ -335,7 +340,7 @@ class Capture(Scene):
             screen.blit(image, image.get_rect(midtop=area.midtop))
 
 
-class Download(Scene):
+class Download(TitleScreen):
     def __init__(self, game: Game, unzip: bool = True) -> None:
         self.game = game
         super().__init__()
@@ -363,8 +368,7 @@ class Download(Scene):
         thread = self.game.download_thread
         if thread is None or not thread.is_alive():
             return False
-        screen.fill((0, 0, 0))
-        self.draw(screen, thread.status)
+        self.draw_progress(screen, thread.progress)
         return None
 
 

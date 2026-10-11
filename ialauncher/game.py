@@ -238,7 +238,7 @@ class Download(Thread):
         self.gamedir = gamedir
         self.should_unzip = unzip
         self.should_extract = extract
-        self.status = ""
+        self.progress = 0.0
         self.cancelled = Event()
         super().__init__(daemon=True)
 
@@ -252,53 +252,58 @@ class Download(Thread):
             self.download()
         except InterruptedError:
             # Remove the partially unzipped or extracted game
-            print("cancelled.")
+            print(" cancelled.")
             shutil.rmtree(self.gamedir, ignore_errors=True)
 
     def download(self) -> None:
-        for i, u in enumerate(self.urls, 1):
+        for u in self.urls:
             filename = unquote(u.split("/")[-1]).split("/")[-1]
             dest = os.path.join(os.path.dirname(self.gamedir), filename)
-            prefix = f"[{i}/{len(self.urls)}] " if len(self.urls) > 1 else ""
             if not os.path.isfile(dest):
-                print(f"Downloading {u}... ", end="", flush=True)
-                action = f"{prefix}Downloading {filename}"
-                self.report(action, 0, 0)
-                self.request(u, dest, action)
-                print("done!")
+                print(f"Downloading {u}", end="", flush=True)
+                self.report(0, 0)
+                self.request(u, dest)
+                print(" done!")
             if not self.should_unzip:
                 continue
             if self.should_extract and filename.lower().endswith((".iso", ".bin")):
-                print(f"Extracting {filename}... ", end="", flush=True)
+                print(f"Extracting {filename}...", end="", flush=True)
                 try:
-                    self.extract_iso(dest, f"{prefix}Extracting {filename}")
-                    print("done!")
+                    self.extract_iso(dest)
+                    print(" done!")
                 except InterruptedError:
                     raise
                 except:
-                    print("failed.")
+                    print(" failed.")
             elif filename.lower().endswith((".zip", ".play")):
-                print(f"Unzipping {filename}... ", end="", flush=True)
+                print(f"Unzipping {filename}...", end="", flush=True)
                 try:
-                    self.unzip(dest, f"{prefix}Unzipping {filename}")
-                    print("done!")
+                    self.unzip(dest)
+                    print(" done!")
                 except InterruptedError:
                     raise
                 except:
-                    print("failed.")
+                    print(" failed.")
             else:
                 os.makedirs(self.gamedir, exist_ok=True)
                 shutil.copy(dest, self.gamedir)
 
-    def request(self, url: str, dest: str, action: str) -> None:
+    def request(self, url: str, dest: str) -> None:
         try:
             with request.urlopen(url, timeout=60) as response, open(dest, "wb") as f:
                 total = int(response.headers.get("Content-Length") or 0)
-                done = 0
+                if total:
+                    print(f" ({total / 1e6:.1f}MB) ", end="", flush=True)
+                done = dots = 0
                 while block := response.read(1024 * 8):
                     f.write(block)
                     done += len(block)
-                    self.report(action, done, total)
+                    self.report(done, total)
+
+                    # Print one period per 0.1MB
+                    if new_dots := done // 100_000 - dots:
+                        print("." * new_dots, end="", flush=True)
+                        dots += new_dots
             if done < total:
                 raise ContentTooShortError(
                     f"Download failed: got only {done} out of {total} bytes",
@@ -309,26 +314,22 @@ class Download(Thread):
                 os.remove(dest)
             raise
 
-    def report(self, action: str, done: int, total: int) -> None:
+    def report(self, done: int, total: int) -> None:
         if self.cancelled.is_set():
             raise InterruptedError("Download cancelled")
-        if total > 0:
-            done = min(done, total)
-            self.status = f"{action} ({done / 1e6:.1f} / {total / 1e6:.1f} MB, {done * 100 // total}%)"
-        else:
-            self.status = action
+        self.progress = min(done / total, 1.0) if total > 0 else 0.0
 
-    def unzip(self, zipfile: str, action: str) -> None:
+    def unzip(self, zipfile: str) -> None:
         with ZipFile(zipfile, "r") as f:
             members = f.infolist()
             total = sum(m.file_size for m in members)
             done = 0
             for m in members:
-                self.report(action, done, total)
+                self.report(done, total)
                 f.extract(m, self.gamedir)
                 done += m.file_size
 
-    def extract_iso(self, isofile: str, action: str) -> None:
+    def extract_iso(self, isofile: str) -> None:
         with ISOFile(isofile) as iso:
             members = list(iso.walk())
             total = sum(size for _, _, size in members)
@@ -337,7 +338,7 @@ class Download(Thread):
             def progress(n: int) -> None:
                 nonlocal done
                 done += n
-                self.report(action, done, total)
+                self.report(done, total)
 
             for path, sector, size in members:
                 iso.extract(sector, size, os.path.join(self.gamedir, path), progress)
