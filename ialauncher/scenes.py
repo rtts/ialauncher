@@ -33,6 +33,7 @@ class Loading(Scene):
             if os.path.exists(os.path.join(self.games_dir, entry, "metadata.ini"))
         ]
         self.total = len(self.todo)
+        self.downloading: Game | None = None
         self.games = GameList()
         self.canvas = pg.Surface(self.RESOLUTION)
         self.title = pg.image.load(os.path.join(os.path.dirname(__file__), "title.png"))
@@ -56,9 +57,22 @@ class Loading(Scene):
             number_of_games -= 1
 
     def download_game(self) -> None:
-        path = self.todo.pop()
-        self.games.add(path)
-        Download(self.games.games[-1], unzip=False).run(self.screen)
+        """
+        Start downloading the next game once the previous download has
+        finished. Downloads run in a separate thread, so the title screen
+        keeps being redrawn in the meantime.
+        """
+
+        if self.downloading:
+            thread = self.downloading.download_thread
+            if thread is not None and thread.is_alive():
+                return
+            self.downloading = None
+        if self.todo:
+            path = self.todo.pop()
+            self.games.add(path)
+            self.downloading = self.games.games[-1]
+            self.downloading.download(unzip=False)
 
     def done(self) -> Scene:
         self.games.sort(slideshow=options.slideshow)
@@ -68,18 +82,23 @@ class Loading(Scene):
 
     @override
     def update(self, screen: pg.Surface) -> NextScene:
-        if not self.todo:
-            return self.done()
         if self.slurp_mode:
+            self.clock.tick(30)
             self.download_game()
         else:
             self.load_games(10)
+        if not self.todo and not self.downloading:
+            return self.done()
+        finished = self.total - len(self.todo) - bool(self.downloading)
         canvas = self.canvas
         canvas.blit(self.title, (0, 0))
         progress = self.gradient.get_rect()
-        progress.width = progress.width * (self.total - len(self.todo)) // self.total
+        progress.width = progress.width * finished // self.total
         canvas.blit(self.gradient, self.BAR, progress)
         pg.transform.scale(canvas, screen.get_size(), screen)
+        if self.downloading and (thread := self.downloading.download_thread):
+            status = f"[{finished + 1}/{self.total}] {self.downloading.identifier}"
+            self.draw(screen, f"{status}\n{thread.status}")
         return None
 
 
