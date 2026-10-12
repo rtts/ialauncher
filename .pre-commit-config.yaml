@@ -13,4 +13,4 @@ repos:
       - id: mypy
         args: [--strict]
         additional_dependencies: [pygame]
-        exclude: ^setup_win\.py$
+        exclude: ^windows/setup_win\.py$
