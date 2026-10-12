@@ -69,8 +69,8 @@ Special Keys
   (warning: you will lose your save files!)
 - Space: start slideshow
 - A-Z: start searching
-- Minus: decrease grid size
-- Plus: increase grid size
+- Minus: decrease size
+- Plus: increase size
 - Esc key: exit
 
 During gameplay, you should also be familiar with the [DOSBox Special

@@ -201,10 +201,13 @@ class Browse(Scene):
             grid_moves = {pg.K_RIGHT: 1, pg.K_LEFT: -1, pg.K_DOWN: n, pg.K_UP: -n}
             if event.key != pg.K_SPACE:
                 self.set_slideshow(False)
-            elif n == 1 and not self.games.is_searching():
+            elif not self.games.is_searching():
                 self.set_slideshow(True)
             if event.key == pg.K_SPACE and self.games.is_searching():
                 self.games.search(" ")
+            elif event.key == pg.K_SPACE and n > 1:
+                self.resize(1)
+                self.games.random_game()
             elif event.key in GRID_LARGER and not self.games.is_searching():
                 self.resize(n + 1)
             elif event.key in GRID_SMALLER and not self.games.is_searching():
