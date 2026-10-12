@@ -25,7 +25,7 @@ SEARCH_EXPIRED = pg.event.custom_type()
 
 class TitleScreen(Scene):
     RESOLUTION = 320, 200
-    BAR = pg.Rect(103, 171, 113, 8)
+    BAR = pg.Rect(102, 171, 116, 8)
 
     def __init__(self) -> None:
         self.canvas = pg.Surface(self.RESOLUTION)
