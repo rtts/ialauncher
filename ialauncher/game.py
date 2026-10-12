@@ -84,7 +84,11 @@ class Game:
 
         batfile = os.path.join(self.gamedir, "dosbox.bat")
         conffile = os.path.join(self.gamedir, "dosbox.conf")
-        dosbox_args = [".", "-userconf"]  # Use --nolocalconf for DOSBox Staging
+        dosbox_args = [
+            ".",
+            "-fullscreen",
+            "-userconf",
+        ]  # Use --nolocalconf for DOSBox Staging
 
         if self.dosbox_conf:
             with open(conffile, "w") as f:
