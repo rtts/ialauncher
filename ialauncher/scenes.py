@@ -16,6 +16,7 @@ from .gamelist import SEARCH_TIMEOUT, GameList
 CYAN = (0, 204, 255)
 MAGENTA = (255, 0, 204)
 RED = (255, 0, 0)
+GRID_MARGIN = 4
 GRID_LARGER = {pg.K_MINUS, pg.K_KP_MINUS}
 GRID_SMALLER = {pg.K_PLUS, pg.K_EQUALS, pg.K_KP_PLUS}
 ADVANCE = pg.event.custom_type()
@@ -243,28 +244,31 @@ class Browse(Scene):
         games = self.games.games
         cache: dict[tuple[int, tuple[int, int]], pg.Surface] = {}
         selected = None
+        margin = GRID_MARGIN if n > 1 else 0
+        screen.fill((0, 0, 0))
         for i in range(n * n):
             row, col = divmod(i, n)
             x, y = rect.width * col // n, rect.height * row // n
             cell = pg.Rect(
                 x, y, rect.width * (col + 1) // n - x, rect.height * (row + 1) // n - y
             )
+            image_rect = cell.inflate(-2 * margin, -2 * margin)
 
             # Only keep the scaled images that are currently visible
             index = (self.top + i) % len(games)
-            key = index, cell.size
+            key = index, image_rect.size
             image = cache.get(key, self.cache.get(key))
             if image is None:
                 image = pg.transform.scale(
-                    self.games.get_image(games[index]), cell.size
+                    self.games.get_image(games[index]), image_rect.size
                 )
             cache[key] = image
-            screen.blit(image, cell)
+            screen.blit(image, image_rect)
             if self.top + i == self.pos:
                 selected = cell
         self.cache = cache
         if n > 1 and selected is not None:
-            pg.draw.rect(screen, RED, selected, max(3, rect.height // 200))
+            pg.draw.rect(screen, RED, selected, GRID_MARGIN)
         if self.games.query:
             self.draw_query(screen)
 
