@@ -211,7 +211,7 @@ class Emulator(Thread):
         game = self.game
         command = self.executable + game.emulator_args
         print("Executing:", " ".join(command))
-        subprocess.run(command, cwd=game.gamedir, capture_output=True)
+        subprocess.run(command, cwd=game.gamedir)
 
 
 class DOSBox(Emulator):
