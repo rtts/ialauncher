@@ -11,7 +11,7 @@ license = "GPL-3.0-or-later"
 license-files = ["LICENSE"]
 authors = [{ name = "Jaap Joris Vens", email = "ialauncher@jj.rtts.eu" }]
 requires-python = ">=3.12"
-dependencies = ["pygame"]
+dependencies = ["pygame-ce"]
 classifiers = [
     "Programming Language :: Python :: 3",
     "Operating System :: OS Independent",
