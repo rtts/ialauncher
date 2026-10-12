@@ -15,6 +15,9 @@ from .gamelist import SEARCH_TIMEOUT, GameList
 
 CYAN = (0, 204, 255)
 MAGENTA = (255, 0, 204)
+RED = (255, 0, 0)
+GRID_LARGER = {pg.K_MINUS, pg.K_KP_MINUS}
+GRID_SMALLER = {pg.K_PLUS, pg.K_EQUALS, pg.K_KP_PLUS}
 ADVANCE = pg.event.custom_type()
 SEARCH_EXPIRED = pg.event.custom_type()
 
@@ -122,6 +125,13 @@ class Browse(Scene):
         self.games = games
         self.games.games = [game for game in games.games if game.get_titlescreen()]
         self.games.random_game()
+
+        # The grid shows size x size games, starting at position `top`.
+        # Positions are unbounded so the list appears to be infinite;
+        # the game at a position is found by wrapping around the list.
+        self.size = 1
+        self.top = self.pos = self.games.current_game
+        self.cache: dict[tuple[int, tuple[int, int]], pg.Surface] = {}
         self.slideshow = options.slideshow
         self.set_slideshow(bool(options.slideshow))
         self.handlers: dict[int, Callable[[], None]] = {
@@ -135,6 +145,42 @@ class Browse(Scene):
 
     def set_slideshow(self, enabled: bool) -> None:
         pg.time.set_timer(ADVANCE, self.slideshow * 1000 if enabled else 0)
+
+    def rows_to_scroll(self, pos: int) -> int:
+        """Number of rows to scroll (negative is up) to bring pos into view"""
+        n = self.size
+        if pos < self.top:
+            return (pos - self.top) // n
+        if pos >= self.top + n * n:
+            return (pos - self.top) // n - n + 1
+        return 0
+
+    def scroll(self) -> None:
+        self.top += self.rows_to_scroll(self.pos) * self.size
+
+    def resize(self, size: int) -> None:
+        self.size = max(1, size)
+        self.cache = {}
+        self.scroll()
+
+    def move(self, step: int) -> None:
+        self.pos += step
+        self.games.current_game = self.pos % len(self.games.games)
+        self.scroll()
+
+    def follow(self) -> None:
+        """
+        Move the position to the current game (which may have been
+        changed by a jump or search) with the least amount of scrolling.
+        """
+
+        total = len(self.games.games)
+        current = self.games.current_game
+        if self.pos % total == current:
+            return
+        below = self.top + (current - self.top) % total
+        self.pos = min(below, below - total, key=lambda p: abs(self.rows_to_scroll(p)))
+        self.scroll()
 
     @override
     def get_events(self) -> list[pg.event.Event]:
@@ -150,12 +196,21 @@ class Browse(Scene):
         if event.type == pg.KEYDOWN:
             if event.key == pg.K_ESCAPE:
                 return False
+            n = self.size
+            grid_moves = {pg.K_RIGHT: 1, pg.K_LEFT: -1, pg.K_DOWN: n, pg.K_UP: -n}
             if event.key != pg.K_SPACE:
                 self.set_slideshow(False)
-            elif not self.games.is_searching():
+            elif n == 1 and not self.games.is_searching():
                 self.set_slideshow(True)
             if event.key == pg.K_SPACE and self.games.is_searching():
                 self.games.search(" ")
+            elif event.key in GRID_LARGER and not self.games.is_searching():
+                self.resize(n + 1)
+            elif event.key in GRID_SMALLER and not self.games.is_searching():
+                self.resize(n - 1)
+            elif n > 1 and event.key in grid_moves:
+                self.games.reset_search()
+                self.move(grid_moves[event.key])
             elif event.key == pg.K_BACKSPACE:
                 self.games.backspace()
             elif handler := self.handlers.get(event.key):
@@ -178,14 +233,38 @@ class Browse(Scene):
 
                     # Start playing (spawns a new thread)
                     game.start(autorun=not event.mod & pg.KMOD_ALT)
+        self.follow()
         return None
 
     @override
     def update(self, screen: pg.Surface) -> None:
-        image = self.games.get_image()
         rect = screen.get_rect()
-        scaled_image = pg.transform.scale(image, rect.size)
-        screen.blit(scaled_image, rect)
+        n = self.size
+        games = self.games.games
+        cache: dict[tuple[int, tuple[int, int]], pg.Surface] = {}
+        selected = None
+        for i in range(n * n):
+            row, col = divmod(i, n)
+            x, y = rect.width * col // n, rect.height * row // n
+            cell = pg.Rect(
+                x, y, rect.width * (col + 1) // n - x, rect.height * (row + 1) // n - y
+            )
+
+            # Only keep the scaled images that are currently visible
+            index = (self.top + i) % len(games)
+            key = index, cell.size
+            image = cache.get(key, self.cache.get(key))
+            if image is None:
+                image = pg.transform.scale(
+                    self.games.get_image(games[index]), cell.size
+                )
+            cache[key] = image
+            screen.blit(image, cell)
+            if self.top + i == self.pos:
+                selected = cell
+        self.cache = cache
+        if n > 1 and selected is not None:
+            pg.draw.rect(screen, RED, selected, max(3, rect.height // 200))
         if self.games.query:
             self.draw_query(screen)
 

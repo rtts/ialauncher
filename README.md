@@ -67,8 +67,10 @@ Special Keys
   (useful for debugging, see "Troubleshooting" below)
 - Shift-Enter: reset game state before starting game
   (warning: you will lose your save files!)
-- Space: jump to a random game
-- A-Z: Jump to the first game that starts with the letter A-Z
+- Space: start slideshow
+- A-Z: start searching
+- Minus: decrease grid size
+- Plus: increase grid size
 - Esc key: exit
 
 During gameplay, you should also be familiar with the [DOSBox Special

@@ -26,8 +26,9 @@ class GameList:
         self.games.sort()
         self.current_game = random.randrange(len(self.games))
 
-    def get_image(self) -> pg.Surface:
-        game = self.get_current_game()
+    def get_image(self, game: Game | None = None) -> pg.Surface:
+        if game is None:
+            game = self.get_current_game()
         if game.cached_image is None:
             path = game.get_titlescreen()
             assert path is not None, f"{game.identifier} has no title screen"
