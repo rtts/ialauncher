@@ -12,5 +12,5 @@ repos:
     hooks:
       - id: mypy
         args: [--strict]
-        additional_dependencies: [pygame, types-setuptools]
+        additional_dependencies: [pygame]
         exclude: ^setup_win\.py$

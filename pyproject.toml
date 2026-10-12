@@ -1,0 +1,36 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "ialauncher"
+version = "3.0.0"
+description = "A DOSBox frontend for the Internet Archive"
+readme = "README.md"
+license = "GPL-3.0-or-later"
+license-files = ["LICENSE"]
+authors = [{ name = "Jaap Joris Vens", email = "ialauncher@jj.rtts.eu" }]
+requires-python = ">=3.12"
+dependencies = ["pygame"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+Homepage = "https://ialauncher.created.today/"
+
+[project.scripts]
+ialauncher = "ialauncher.__main__:main"
+
+[tool.hatch.build]
+include = [
+    "/ialauncher/*.py",
+    "/ialauncher/title.png",
+    "/games/__init__.py",
+    "/games/*/metadata.ini",
+    "/games/*/title.png",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["ialauncher", "games"]

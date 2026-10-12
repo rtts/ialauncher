@@ -10,8 +10,12 @@ and an MSI installer in the dist/ directory.
 """
 
 import os
+import tomllib
 
 from cx_Freeze import Executable, setup
+
+with open("pyproject.toml", "rb") as f:
+    project = tomllib.load(f)["project"]
 
 # Provide an executable that will run from the current directory:
 with open("temp.py", "w") as f:
@@ -23,8 +27,8 @@ if __name__ == '__main__':
 
 setup(
     name="IA Launcher",
-    version="2.2.1",
-    description="A DOSBox frontend for the Internet Archive",
+    version=project["version"],
+    description=project["description"],
     executables=[
         Executable(
             "temp.py",
