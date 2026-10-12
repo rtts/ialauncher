@@ -26,7 +26,7 @@
             <TR>
               <TD><IMG SRC=waiting.gif></TD>
               <TD><P>
-                This page shows all the {{ games | length }} games that are currently
+                This page shows all {{ games | length }} games that are currently
                 playable with IA Launcher. The list is long, so be patient.
               </P></TD>
             </TR>
@@ -34,27 +34,62 @@
 
           <SCRIPT LANGUAGE="JavaScript1.1">
             <!--
-            var games = [
+            var games = new Array(
                 {% for game in games %}
-                '{{ game | replace("'", "")}}',{% endfor %}
-            ]
+                '{{ game | replace("'", "\\'") }}'{% if not loop.last %},{% endif %}{% endfor %}
+            )
 
-            function search() {
-                var query = document.getElementById('query').value
-                for (i=0; i<games.length; i++) {
-                    document.getElementById(i).hidden = games[i].toLowerCase().indexOf(query.toLowerCase()) == -1
+            function popup(url, n) {
+                var win = window.open('', 'titlescreen', 'toolbar=no,location=no,directories=no,status=no,menubar=no,scrollbars=no,resizable=no,width=640,height=400')
+                if (!win) {
+                    alert('Popup blocked!')
+                    return true
+                }
+                win.document.open()
+                win.document.write('<HTML><HEAD><TITLE>' + games[n] + '</TITLE></HEAD>')
+                win.document.write('<BODY BGCOLOR=BLACK TOPMARGIN=0 LEFTMARGIN=0 MARGINWIDTH=0 MARGINHEIGHT=0 STYLE="margin:0">')
+                win.document.write('<A HREF="javascript:window.close()"><IMG BORDER=0 SRC="' + url + '" WIDTH=640 HEIGHT=400 ALT="' + games[n] + '"></A>')
+                win.document.write('</BODY></HTML>')
+                win.document.close()
+                win.focus()
+                return false
+            }
+
+            function getquery() {
+                var search = location.search
+                var start = search.indexOf('q=')
+                if (start == -1) return ''
+                var end = search.indexOf('&', start)
+                if (end == -1) end = search.length
+                var query = unescape(search.substring(start + 2, end).split('+').join(' '))
+                var bad = '"<>&'
+                for (var i = 0; i < bad.length; i++) {
+                    query = query.split(bad.charAt(i)).join('')
+                }
+                return query
+            }
+
+            var query = getquery()
+            document.write('<FORM ACTION=games.htm METHOD=GET>')
+            document.write('<INPUT NAME=q TYPE=TEXT VALUE="' + query + '"> ')
+            document.write('<INPUT TYPE=SUBMIT VALUE="Search">')
+            document.write('</FORM>')
+            query = query.toLowerCase()
+            for (var i = 0; i < games.length; i++) {
+                if (games[i].toLowerCase().indexOf(query) != -1) {
+                    var url = 'https://raw.githubusercontent.com/rtts/ialauncher/main/games/' + escape(games[i]) + '/title.png'
+                    document.write('<A TITLE="' + games[i] + '" HREF="' + url + '" ONCLICK="return popup(this.href, ' + i + ')">')
+                    document.write('<IMG BORDER=0 SRC="' + url + '" WIDTH=80 HEIGHT=60 ALT="' + games[i] + '"></A>\n')
                 }
             }
             // -->
           </SCRIPT>
 
-          <FORM ONSUBMIT="search(); return false">
-            <INPUT ID=query TYPE=TEXT>
-            <INPUT TYPE=SUBMIT VALUE="Search">
-          </FORM>
+          <NOSCRIPT>
           {% for game in games %}
-          <A ID={{ loop.index0 }} TITLE="{{ game }}" HREF="https://raw.githubusercontent.com/rtts/ialauncher/main/games/{{ game | urlencode }}/title.png"><IMG BORDER=0 SRC="https://raw.githubusercontent.com/rtts/ialauncher/main/games/{{ game | urlencode }}/title.png" WIDTH=80 HEIGHT=60 ALT="{{ game }}"></A>
+          <A TITLE="{{ game }}" HREF="https://raw.githubusercontent.com/rtts/ialauncher/main/games/{{ game | urlencode }}/title.png"><IMG BORDER=0 SRC="https://raw.githubusercontent.com/rtts/ialauncher/main/games/{{ game | urlencode }}/title.png" WIDTH=80 HEIGHT=60 ALT="{{ game }}"></A>
           {% endfor %}
+          </NOSCRIPT>
         </TD>
       </TR>
     </TABLE>
