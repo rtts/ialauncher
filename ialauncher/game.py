@@ -226,8 +226,11 @@ class DOSBox(Emulator):
         if not game.autorun:
             if os.path.isfile(game.batfile):
                 with open(game.batfile, "r") as f:
-                    game.emulator_start = f.read().rstrip("\r\n")
-                    if game.emulator_start:
+                    emulator_start = f.read().rstrip("\r\n")
+                    # Only rewrite metadata.ini if needed, because
+                    # rewriting it discards any comments.
+                    if emulator_start and emulator_start != game.emulator_start:
+                        game.emulator_start = emulator_start
                         game.write_metadata()
 
 
