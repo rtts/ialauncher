@@ -37,7 +37,6 @@ class Main:
     ) -> None:
         pg.init()
         pg.key.set_repeat(250, 25)
-        pg.mouse.set_visible(False)
         pg.display.set_caption(title)
 
         if fullscreen:
@@ -62,6 +61,10 @@ class Scene:
     def __init__(self) -> None:
         self.clock = pg.time.Clock()
 
+    @property
+    def show_mouse(self) -> bool:
+        return False
+
     def handle(self, event: pg.event.Event) -> NextScene:
         raise NotImplementedError()
 
@@ -81,6 +84,7 @@ class Scene:
         self.screen = screen
         next_scene: NextScene = None
         while next_scene is None:
+            pg.mouse.set_visible(self.show_mouse)
             next_scene = self.update(screen)
             pg.display.flip()
             for event in self.get_events():

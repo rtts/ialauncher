@@ -2,7 +2,7 @@ import math
 import os
 import random
 import shutil
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from typing import override
 
 import pygame as pg
@@ -18,7 +18,8 @@ CYAN = (0, 204, 255)
 MAGENTA = (255, 0, 204)
 RED = (255, 0, 0)
 GRID_MARGIN = 5
-ASPECT_RATIO = 16 / 10
+FULLSCREEN_ASPECT_RATIO = 16 / 10
+TILE_ASPECT_RATIO = 3 / 2
 GRID_LARGER = {pg.K_MINUS, pg.K_KP_MINUS}
 GRID_SMALLER = {pg.K_PLUS, pg.K_EQUALS, pg.K_KP_PLUS}
 ADVANCE = pg.event.custom_type()
@@ -139,6 +140,7 @@ class Browse(Scene):
         self.cache: dict[tuple[int, tuple[int, int]], pg.Surface] = {}
         self.slideshow = options.slideshow
         self.set_slideshow(bool(options.slideshow))
+        pg.mouse.set_system_cursor(pg.SYSTEM_CURSOR_HAND)
         self.handlers: dict[int, Callable[[], None]] = {
             pg.K_RIGHT: self.games.next_game,
             pg.K_LEFT: self.games.previous_game,
@@ -160,6 +162,25 @@ class Browse(Scene):
     def rows(self) -> int:
         return grid_rows(self.cols, self.area.size)
 
+    @property
+    @override
+    def show_mouse(self) -> bool:
+        return self.cols > 1 and self.area.collidepoint(pg.mouse.get_pos())
+
+    def cells(self) -> Iterator[tuple[int, pg.Rect]]:
+        rect = self.area
+        rows, cols = self.rows, self.cols
+        for i in range(rows * cols):
+            row, col = divmod(i, cols)
+            x, y = rect.width * col // cols, rect.height * row // rows
+            cell = pg.Rect(
+                x,
+                y,
+                rect.width * (col + 1) // cols - x,
+                rect.height * (row + 1) // rows - y,
+            ).move(rect.topleft)
+            yield self.top + i, cell
+
     def rows_to_scroll(self, pos: int) -> int:
         """Number of rows to scroll (negative is up) to bring pos into view"""
         rows, cols = self.rows, self.cols
@@ -177,10 +198,32 @@ class Browse(Scene):
         self.cache = {}
         self.scroll()
 
-    def move(self, step: int) -> None:
-        self.pos += step
-        self.games.current_game = self.pos % len(self.games.games)
+    def select(self, pos: int) -> None:
+        self.pos = pos
+        self.games.current_game = pos % len(self.games.games)
         self.scroll()
+
+    def point(self, point: tuple[int, int]) -> bool:
+        for pos, cell in self.cells():
+            if cell.collidepoint(point):
+                if pos != self.pos:
+                    self.set_slideshow(False)
+                    self.games.reset_search()
+                    self.select(pos)
+                return True
+        return False
+
+    def play(self, mod: int) -> None:
+        self.games.reset_search()
+        game = self.games.get_current_game()
+        if mod & pg.KMOD_SHIFT:
+            game.reset()
+        if not game.is_ready():
+            Download(game).run(self.screen)
+        if game.is_ready():
+
+            # Start playing (spawns a new thread)
+            game.start(autorun=not mod & pg.KMOD_ALT)
 
     def follow(self) -> None:
         """
@@ -207,6 +250,15 @@ class Browse(Scene):
             self.games.random_game()
         if event.type == SEARCH_EXPIRED:
             self.games.reset_search()
+        if event.type == pg.MOUSEMOTION and self.cols > 1:
+            self.point(event.pos)
+        if (
+            event.type == pg.MOUSEBUTTONDOWN
+            and event.button == pg.BUTTON_LEFT
+            and self.cols > 1
+            and self.point(event.pos)
+        ):
+            self.play(pg.key.get_mods())
         if event.type == pg.KEYDOWN:
             if event.key == pg.K_ESCAPE:
                 return False
@@ -228,7 +280,7 @@ class Browse(Scene):
                 self.resize(cols - 2)
             elif grid and event.key in grid_moves:
                 self.games.reset_search()
-                self.move(grid_moves[event.key])
+                self.select(self.pos + grid_moves[event.key])
             elif event.key == pg.K_BACKSPACE:
                 self.games.backspace()
             elif handler := self.handlers.get(event.key):
@@ -241,45 +293,27 @@ class Browse(Scene):
             if self.games.query:
                 pg.time.set_timer(SEARCH_EXPIRED, SEARCH_TIMEOUT, loops=1)
             if event.key == pg.K_RETURN:
-                self.games.reset_search()
-                game = self.games.get_current_game()
-                if event.mod & pg.KMOD_SHIFT:
-                    game.reset()
-                if not game.is_ready():
-                    Download(game).run(self.screen)
-                if game.is_ready():
-
-                    # Start playing (spawns a new thread)
-                    game.start(autorun=not event.mod & pg.KMOD_ALT)
+                self.play(event.mod)
         self.follow()
         return None
 
     @override
     def update(self, screen: pg.Surface) -> None:
         self.scroll()
-        rect = self.area
-        rows, cols = self.rows, self.cols
+        cols = self.cols
         games = self.games.games
         cache: dict[tuple[int, tuple[int, int]], pg.Surface] = {}
         selected = None
         margin = grid_margin(cols)
         screen.fill((0, 0, 0))
-        for i in range(rows * cols):
-            row, col = divmod(i, cols)
-            x, y = rect.width * col // cols, rect.height * row // rows
-            cell = pg.Rect(
-                x,
-                y,
-                rect.width * (col + 1) // cols - x,
-                rect.height * (row + 1) // rows - y,
-            ).move(rect.topleft)
+        for pos, cell in self.cells():
             if cols > 1:
                 image_rect = cell.inflate(-2 * margin, -2 * margin)
             else:
                 image_rect = letterbox(cell)
 
             # Only keep the scaled images that are currently visible
-            index = (self.top + i) % len(games)
+            index = pos % len(games)
             key = index, image_rect.size
             image = cache.get(key, self.cache.get(key))
             if image is None:
@@ -288,7 +322,7 @@ class Browse(Scene):
                 )
             cache[key] = image
             screen.blit(image, image_rect)
-            if self.top + i == self.pos:
+            if pos == self.pos:
                 selected = image_rect
         self.cache = cache
         if cols > 1 and selected is not None:
@@ -497,16 +531,16 @@ def grid_rows(cols: int, size: tuple[int, int]) -> int:
         tile_height = height / rows - 2 * margin
         if tile_width <= 0 or tile_height <= 0:
             return math.inf
-        return abs(math.log(tile_width / tile_height / ASPECT_RATIO))
+        return abs(math.log(tile_width / tile_height / TILE_ASPECT_RATIO))
 
-    estimate = height * cols * ASPECT_RATIO / width
+    estimate = height * cols * TILE_ASPECT_RATIO / width
     candidates = {max(1, math.floor(estimate)), max(1, math.ceil(estimate))}
     return min(sorted(candidates), key=error)
 
 
 def letterbox(rect: pg.Rect) -> pg.Rect:
-    width = min(rect.width, round(rect.height * ASPECT_RATIO))
-    height = min(rect.height, round(rect.width / ASPECT_RATIO))
+    width = min(rect.width, round(rect.height * FULLSCREEN_ASPECT_RATIO))
+    height = min(rect.height, round(rect.width / FULLSCREEN_ASPECT_RATIO))
     letterboxed = pg.Rect(0, 0, width, height)
     letterboxed.center = rect.center
     return letterboxed
