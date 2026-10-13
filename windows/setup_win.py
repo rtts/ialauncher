@@ -22,6 +22,7 @@ setup(
         "build_exe": {
             "packages": ["ialauncher", "games"],
             "include_msvcr": True,
+            "replace_paths": [("*", ""), (root, "")],
         },
         "bdist_msi": {
             "product_name": "IA Launcher",
