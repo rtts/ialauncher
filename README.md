@@ -4,11 +4,11 @@ IA Launcher
 **A DOSBox frontend for the [Internet Archive MS-DOS games
 collection](https://archive.org/details/softwarelibrary_msdos_games)**
 
-IA Launcher is a graphical games launcher for all those georgeous
+IA Launcher is a graphical games launcher for all those gorgeous
 MS-DOS games from yestermillenium. It uses the Internet Archive to
-download games on-the-fly and DOSBox to play them offline. [Visit the
-IA Launcher website](https://ialauncher.created.today/) to see a list of
-all the included games.
+download games on-the-fly and DOSBox to play them offline. Visit the
+[IA Launcher website](https://ialauncher.created.today/games.htm) for
+a list of all the included games.
 
 **Hurrah! IA Launcher now has its own Windows installer! You can
 download it [here](https://rtts.eu/ialauncher-3.0.0-win64.msi).**
@@ -52,10 +52,6 @@ try this one:
 
 You can now launch the interface using the `ialauncher` command. To
 see the available options, type `ialauncher --help`.
-
-*A useful option is `--slideshow X` which turns IA Launcher into an
-awesome screensaver, displaying a new DOS game title screen every X
-seconds!*
 
 
 Special Keys
@@ -103,7 +99,7 @@ Hopefully, the setup utility will allow you to change the sound card
 parameters. DOSBox emulates all kinds of sounds cards, so try the
 following and it will probably work:
 
-Sound card: Soundblaster or AdLib\
+Sound card: Sound Blaster 16 and/or AdLib\
 Address/port: 220\
 IRQ: 7\
 DMA: 1
