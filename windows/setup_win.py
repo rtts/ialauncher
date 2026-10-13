@@ -28,6 +28,7 @@ setup(
     options={
         "build_exe": {
             "packages": ["ialauncher", "games"],
+            "include_msvcr": True,
         },
         "bdist_msi": {
             "product_name": "IA Launcher",
@@ -35,7 +36,6 @@ setup(
             "upgrade_code": "{5CFBACDE-7A56-4C59-879B-A5B263B5D68A}",
             "all_users": False,
             "install_icon": "windows/ia.ico",
-            # Required for the Start Menu shortcut
             "directories": [("ProgramMenuFolder", "TARGETDIR", ".")],
         },
     },
