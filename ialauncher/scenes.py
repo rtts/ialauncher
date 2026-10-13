@@ -259,6 +259,16 @@ class Browse(Scene):
             and self.point(event.pos)
         ):
             self.play(pg.key.get_mods())
+        if event.type == pg.MOUSEWHEEL and event.y and pg.key.get_mods() & pg.KMOD_CTRL:
+            self.set_slideshow(False)
+            self.games.reset_search()
+            self.resize(self.cols - 2 * event.y)
+        elif event.type == pg.MOUSEWHEEL and event.y and self.show_mouse:
+            self.set_slideshow(False)
+            self.games.reset_search()
+            delta = -event.y * self.cols
+            self.top += delta
+            self.select(self.pos + delta)
         if event.type == pg.KEYDOWN:
             if event.key == pg.K_ESCAPE:
                 return False
