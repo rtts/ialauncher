@@ -1,3 +1,4 @@
+import math
 import os
 import random
 import shutil
@@ -16,7 +17,7 @@ from .gamelist import SEARCH_TIMEOUT, GameList
 CYAN = (0, 204, 255)
 MAGENTA = (255, 0, 204)
 RED = (255, 0, 0)
-GRID_MARGIN = 4
+GRID_MARGIN = 5
 ASPECT_RATIO = 16 / 10
 GRID_LARGER = {pg.K_MINUS, pg.K_KP_MINUS}
 GRID_SMALLER = {pg.K_PLUS, pg.K_EQUALS, pg.K_KP_PLUS}
@@ -130,10 +131,10 @@ class Browse(Scene):
         self.games.games = [game for game in games.games if game.get_titlescreen()]
         self.games.random_game()
 
-        # The grid shows size x size games, starting at position `top`.
+        # The grid shows rows x cols games, starting at position `top`.
         # Positions are unbounded so the list appears to be infinite;
         # the game at a position is found by wrapping around the list.
-        self.size = 1
+        self.cols = 1
         self.top = self.pos = self.games.current_game
         self.cache: dict[tuple[int, tuple[int, int]], pg.Surface] = {}
         self.slideshow = options.slideshow
@@ -150,20 +151,29 @@ class Browse(Scene):
     def set_slideshow(self, enabled: bool) -> None:
         pg.time.set_timer(ADVANCE, self.slideshow * 1000 if enabled else 0)
 
+    @property
+    def area(self) -> pg.Rect:
+        # Leave room for the selection border, which can be wider than the margin
+        return self.screen.get_rect().inflate(-2, -2)
+
+    @property
+    def rows(self) -> int:
+        return grid_rows(self.cols, self.area.size)
+
     def rows_to_scroll(self, pos: int) -> int:
         """Number of rows to scroll (negative is up) to bring pos into view"""
-        n = self.size
+        rows, cols = self.rows, self.cols
         if pos < self.top:
-            return (pos - self.top) // n
-        if pos >= self.top + n * n:
-            return (pos - self.top) // n - n + 1
+            return (pos - self.top) // cols
+        if pos >= self.top + rows * cols:
+            return (pos - self.top) // cols - rows + 1
         return 0
 
     def scroll(self) -> None:
-        self.top += self.rows_to_scroll(self.pos) * self.size
+        self.top += self.rows_to_scroll(self.pos) * self.cols
 
-    def resize(self, size: int) -> None:
-        self.size = max(1, size)
+    def resize(self, cols: int) -> None:
+        self.cols = max(1, cols)
         self.cache = {}
         self.scroll()
 
@@ -200,22 +210,23 @@ class Browse(Scene):
         if event.type == pg.KEYDOWN:
             if event.key == pg.K_ESCAPE:
                 return False
-            n = self.size
-            grid_moves = {pg.K_RIGHT: 1, pg.K_LEFT: -1, pg.K_DOWN: n, pg.K_UP: -n}
+            cols = self.cols
+            grid = cols > 1
+            grid_moves = {pg.K_RIGHT: 1, pg.K_LEFT: -1, pg.K_DOWN: cols, pg.K_UP: -cols}
             if event.key != pg.K_SPACE:
                 self.set_slideshow(False)
             elif not self.games.is_searching():
                 self.set_slideshow(True)
             if event.key == pg.K_SPACE and self.games.is_searching():
                 self.games.search(" ")
-            elif event.key == pg.K_SPACE and n > 1:
+            elif event.key == pg.K_SPACE and grid:
                 self.resize(1)
                 self.games.random_game()
             elif event.key in GRID_LARGER and not self.games.is_searching():
-                self.resize(n + 1)
+                self.resize(cols + 2)
             elif event.key in GRID_SMALLER and not self.games.is_searching():
-                self.resize(n - 1)
-            elif n > 1 and event.key in grid_moves:
+                self.resize(cols - 2)
+            elif grid and event.key in grid_moves:
                 self.games.reset_search()
                 self.move(grid_moves[event.key])
             elif event.key == pg.K_BACKSPACE:
@@ -245,20 +256,25 @@ class Browse(Scene):
 
     @override
     def update(self, screen: pg.Surface) -> None:
-        rect = screen.get_rect()
-        n = self.size
+        self.scroll()
+        rect = self.area
+        rows, cols = self.rows, self.cols
         games = self.games.games
         cache: dict[tuple[int, tuple[int, int]], pg.Surface] = {}
         selected = None
+        margin = grid_margin(cols)
         screen.fill((0, 0, 0))
-        for i in range(n * n):
-            row, col = divmod(i, n)
-            x, y = rect.width * col // n, rect.height * row // n
+        for i in range(rows * cols):
+            row, col = divmod(i, cols)
+            x, y = rect.width * col // cols, rect.height * row // rows
             cell = pg.Rect(
-                x, y, rect.width * (col + 1) // n - x, rect.height * (row + 1) // n - y
-            )
-            if n > 1:
-                image_rect = cell.inflate(-2 * GRID_MARGIN, -2 * GRID_MARGIN)
+                x,
+                y,
+                rect.width * (col + 1) // cols - x,
+                rect.height * (row + 1) // rows - y,
+            ).move(rect.topleft)
+            if cols > 1:
+                image_rect = cell.inflate(-2 * margin, -2 * margin)
             else:
                 image_rect = letterbox(cell)
 
@@ -273,10 +289,11 @@ class Browse(Scene):
             cache[key] = image
             screen.blit(image, image_rect)
             if self.top + i == self.pos:
-                selected = cell
+                selected = image_rect
         self.cache = cache
-        if n > 1 and selected is not None:
-            pg.draw.rect(screen, RED, selected, GRID_MARGIN)
+        if cols > 1 and selected is not None:
+            border = max(2, margin)
+            pg.draw.rect(screen, RED, selected.inflate(2 * border, 2 * border), border)
         if self.games.query:
             self.draw_query(screen)
 
@@ -465,8 +482,29 @@ class Download(TitleScreen):
         return None
 
 
+def grid_margin(cols: int) -> int:
+    return max(1, round(GRID_MARGIN * 3 / cols))
+
+
+def grid_rows(cols: int, size: tuple[int, int]) -> int:
+    if cols == 1:
+        return 1
+    width, height = size
+    margin = grid_margin(cols)
+    tile_width = width / cols - 2 * margin
+
+    def error(rows: int) -> float:
+        tile_height = height / rows - 2 * margin
+        if tile_width <= 0 or tile_height <= 0:
+            return math.inf
+        return abs(math.log(tile_width / tile_height / ASPECT_RATIO))
+
+    estimate = height * cols * ASPECT_RATIO / width
+    candidates = {max(1, math.floor(estimate)), max(1, math.ceil(estimate))}
+    return min(sorted(candidates), key=error)
+
+
 def letterbox(rect: pg.Rect) -> pg.Rect:
-    """Largest rect with a fixed aspect ratio centered within the given rect"""
     width = min(rect.width, round(rect.height * ASPECT_RATIO))
     height = min(rect.height, round(rect.width / ASPECT_RATIO))
     letterboxed = pg.Rect(0, 0, width, height)
