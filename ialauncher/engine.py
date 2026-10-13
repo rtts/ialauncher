@@ -71,6 +71,9 @@ class Scene:
     def update(self, screen: pg.Surface) -> NextScene:
         raise NotImplementedError()
 
+    def intercept(self, event: pg.event.Event) -> bool:
+        return False
+
     def get_events(self) -> list[pg.event.Event]:
         self.clock.tick(60)
         return pg.event.get()
@@ -90,7 +93,8 @@ class Scene:
             for event in self.get_events():
                 if event.type == pg.QUIT:
                     return None
-                next_scene = self.handle(event)
+                if not self.intercept(event):
+                    next_scene = self.handle(event)
 
         return next_scene
 

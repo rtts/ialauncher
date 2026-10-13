@@ -9,8 +9,9 @@ import pygame as pg
 
 import games as gd
 
-from . import options
-from .engine import NextScene, Scene
+from . import engine, options
+from .cga import cga
+from .engine import NextScene
 from .game import Game
 from .gamelist import SEARCH_TIMEOUT, GameList
 
@@ -30,6 +31,12 @@ MENU_ITEMS = [
     ("Reset game state", "Shift-Enter", pg.KMOD_SHIFT),
     ("DOSBox prompt", "Alt-Enter", pg.KMOD_ALT),
 ]
+
+
+class Scene(engine.Scene):
+    @override
+    def intercept(self, event: pg.event.Event) -> bool:
+        return cga.cheat(event)
 
 
 class TitleScreen(Scene):
@@ -143,7 +150,7 @@ class Browse(Scene):
         # the game at a position is found by wrapping around the list.
         self.cols = 1
         self.top = self.pos = self.games.current_game
-        self.cache: dict[tuple[int, tuple[int, int]], pg.Surface] = {}
+        self.cache: dict[tuple[int, tuple[int, int], int | None], pg.Surface] = {}
         self.menu: Menu | None = None
         self.slideshow = options.slideshow
         self.set_slideshow(bool(options.slideshow))
@@ -157,6 +164,16 @@ class Browse(Scene):
             pg.K_SPACE: self.games.random_game,
         }
         super().__init__()
+
+    @override
+    def intercept(self, event: pg.event.Event) -> bool:
+        if not super().intercept(event):
+            return False
+        self.games.reset_search()
+        self.resize(1)
+        self.games.random_game()
+        self.follow()
+        return True
 
     def set_slideshow(self, enabled: bool) -> None:
         pg.time.set_timer(ADVANCE, self.slideshow * 1000 if enabled else 0)
@@ -358,7 +375,7 @@ class Browse(Scene):
             pg.mouse.set_system_cursor(cursor)
         cols = self.cols
         games = self.games.games
-        cache: dict[tuple[int, tuple[int, int]], pg.Surface] = {}
+        cache: dict[tuple[int, tuple[int, int], int | None], pg.Surface] = {}
         selected = None
         margin = grid_margin(cols)
         screen.fill((0, 0, 0))
@@ -370,12 +387,11 @@ class Browse(Scene):
 
             # Only keep the scaled images that are currently visible
             index = pos % len(games)
-            key = index, image_rect.size
+            key = index, image_rect.size, cga.palette
             image = cache.get(key, self.cache.get(key))
             if image is None:
-                image = pg.transform.scale(
-                    self.games.get_image(games[index]), image_rect.size
-                )
+                title = cga.apply(self.games.get_image(games[index]))
+                image = pg.transform.scale(title, image_rect.size)
             cache[key] = image
             screen.blit(image, image_rect)
             if pos == self.pos:
