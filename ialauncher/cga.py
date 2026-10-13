@@ -1,15 +1,17 @@
+from weakref import WeakKeyDictionary
+
 import pygame as pg
 
 # fmt: off
-CHEAT_CODES: tuple[str, str, str, str, str, str, str] = (
-    "dnkroz",       # Duke Nukem 3D
-    "dnstuff",      # Duke Nukem 3D
-    "iddqd",        # Doom
-    "idkfa",        # Doom
-    "ken sent me",  # Leisure Suit Larry
-    "megahit",      # Prince of Persia
-    "xyzzy",        # Colossal Cave Adventure
-)
+CHEAT_CODES: dict[str, int | None] = {
+    "dnkroz": 0,       # Duke Nukem 3D
+    "dnstuff": 1,      # Duke Nukem 3D
+    "iddqd": 2,        # Doom
+    "idkfa": 3,        # Doom
+    "ken sent me": 4,  # Leisure Suit Larry
+    "megahit": 5,      # Prince of Persia
+    "xyzzy": None,     # Colossal Cave Adventure
+}
 # fmt: on
 
 BLACK = (0, 0, 0)
@@ -22,30 +24,43 @@ PALETTES = [
     [BLACK, (255, 85, 85), (85, 255, 255), (255, 255, 255)],
 ]
 
+# Rec. 601
+WEIGHTS = 0.299, 0.587, 0.114
+LUMA = [bytes(int(value * weight) for value in range(256)) for weight in WEIGHTS]
 
-THIRDS = bytes(value // 3 for value in range(256))
+
+def luma(color: tuple[int, int, int]) -> float:
+    return sum(value * weight for value, weight in zip(color, WEIGHTS))
 
 
 class CGA:
     def __init__(self) -> None:
         self.typed = ""
         self.palette: int | None = None
+        self.converted: WeakKeyDictionary[pg.Surface, pg.Surface] = WeakKeyDictionary()
 
     def cheat(self, event: pg.event.Event) -> bool:
         if event.type != pg.KEYDOWN or not event.unicode:
             return False
         longest = max(len(code) for code in CHEAT_CODES)
         self.typed = (self.typed + event.unicode.lower())[-longest:]
-        for i, code in enumerate(CHEAT_CODES):
+        for code, palette in CHEAT_CODES.items():
             if self.typed.endswith(code):
                 self.typed = ""
-                self.palette = (0, 1, 2, 3, 4, 5, None)[i]
+                self.palette = palette
+                self.converted.clear()
                 return True
         return False
 
     def apply(self, image: pg.Surface) -> pg.Surface:
         if self.palette is None:
             return image
+        if (converted := self.converted.get(image)) is None:
+            converted = self.converted[image] = self.convert(image)
+        return converted
+
+    def convert(self, image: pg.Surface) -> pg.Surface:
+        assert self.palette is not None
         colors = PALETTES[self.palette]
         size = image.get_size()
 
@@ -56,17 +71,19 @@ class CGA:
             if used <= set(colors):
                 return image
 
-        # Average the channels into one brightness byte per pixel. Each third
-        # fits in a byte, so the bytes can be added as big integers without
-        # carrying over into their neighbors.
+        # Combine the channels into one brightness byte per pixel.
         rgb = pg.image.tobytes(image, "RGB")
-        thirds = (int.from_bytes(rgb[c::3].translate(THIRDS)) for c in range(3))
-        levels = sum(thirds).to_bytes(len(rgb) // 3)
+        channels = (int.from_bytes(rgb[c::3].translate(LUMA[c])) for c in range(3))
+        levels = sum(channels).to_bytes(len(rgb) // 3)
 
-        # Map the brightness to the colors of the palette (ordered from dark
-        # to bright) in four equal steps.
+        # Map each brightness to the nearest color of the palette.
+        targets = [(luma(color) + 85 * i) / 2 for i, color in enumerate(colors)]
+        nearest = [
+            min(range(4), key=lambda i: abs(targets[i] - level)) for level in range(256)
+        ]
         indexed = pg.image.frombytes(levels, size, "P")
-        indexed.set_palette([colors[level * 4 // 256] for level in range(256)])
+        indexed.set_palette([colors[i] for i in nearest])
+
         return indexed
 
 
