@@ -469,7 +469,9 @@ def letterbox(rect: pg.Rect) -> pg.Rect:
     """Largest rect with a fixed aspect ratio centered within the given rect"""
     width = min(rect.width, round(rect.height * ASPECT_RATIO))
     height = min(rect.height, round(rect.width / ASPECT_RATIO))
-    return pg.Rect(0, 0, width, height).move_to(center=rect.center)
+    letterboxed = pg.Rect(0, 0, width, height)
+    letterboxed.center = rect.center
+    return letterboxed
 
 
 def gradient(
