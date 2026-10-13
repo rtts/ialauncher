@@ -69,6 +69,8 @@ Special Keys
 - Plus: increase size
 - Esc key: exit
 
+*Tip: try some of your favorite cheat codes. They might just work!*
+
 During gameplay, you should also be familiar with the [DOSBox Special
 Keys](https://www.dosbox.com/wiki/Special_Keys). The most important
 one is probably `Ctrl-F9`, which immediately exits DOSBox and
