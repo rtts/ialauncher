@@ -16,7 +16,7 @@ from .gamelist import SEARCH_TIMEOUT, GameList
 
 CYAN = (0, 204, 255)
 MAGENTA = (255, 0, 204)
-RED = (255, 0, 0)
+BLACK = (0, 0, 0)
 GRID_MARGIN = 5
 FULLSCREEN_ASPECT_RATIO = 16 / 10
 TILE_ASPECT_RATIO = 3 / 2
@@ -24,6 +24,12 @@ GRID_LARGER = {pg.K_MINUS, pg.K_KP_MINUS}
 GRID_SMALLER = {pg.K_PLUS, pg.K_EQUALS, pg.K_KP_PLUS}
 ADVANCE = pg.event.custom_type()
 SEARCH_EXPIRED = pg.event.custom_type()
+MENU_FONT = "dejavusans,liberationsans,arial,helvetica,sans"
+MENU_ITEMS = [
+    ("Start game", "Enter", 0),
+    ("Reset game state", "Shift-Enter", pg.KMOD_SHIFT),
+    ("DOSBox prompt", "Alt-Enter", pg.KMOD_ALT),
+]
 
 
 class TitleScreen(Scene):
@@ -138,9 +144,11 @@ class Browse(Scene):
         self.cols = 1
         self.top = self.pos = self.games.current_game
         self.cache: dict[tuple[int, tuple[int, int]], pg.Surface] = {}
+        self.menu: Menu | None = None
         self.slideshow = options.slideshow
         self.set_slideshow(bool(options.slideshow))
-        pg.mouse.set_system_cursor(pg.SYSTEM_CURSOR_HAND)
+        self.cursor = pg.SYSTEM_CURSOR_HAND
+        pg.mouse.set_system_cursor(self.cursor)
         self.handlers: dict[int, Callable[[], None]] = {
             pg.K_RIGHT: self.games.next_game,
             pg.K_LEFT: self.games.previous_game,
@@ -165,6 +173,8 @@ class Browse(Scene):
     @property
     @override
     def show_mouse(self) -> bool:
+        if self.menu:
+            return True
         return self.cols > 1 and self.area.collidepoint(pg.mouse.get_pos())
 
     def cells(self) -> Iterator[tuple[int, pg.Rect]]:
@@ -239,12 +249,27 @@ class Browse(Scene):
         self.pos = min(below, below - total, key=lambda p: abs(self.rows_to_scroll(p)))
         self.scroll()
 
+    def handle_menu(self, menu: "Menu", event: pg.event.Event) -> bool:
+        if event.type == pg.MOUSEMOTION:
+            menu.highlighted = menu.item_at(event.pos)
+            return True
+        if event.type in (pg.KEYDOWN, pg.MOUSEBUTTONDOWN, pg.MOUSEWHEEL, ADVANCE):
+            self.menu = None
+            if event.type == pg.MOUSEBUTTONDOWN and event.button == pg.BUTTON_LEFT:
+                if menu.highlighted is not None:
+                    self.play(MENU_ITEMS[menu.highlighted][2])
+                return True
+            return event.type == pg.KEYDOWN and event.key == pg.K_ESCAPE
+        return False
+
     @override
     def get_events(self) -> list[pg.event.Event]:
         return [pg.event.wait()]
 
     @override
     def handle(self, event: pg.event.Event) -> NextScene:
+        if self.menu and self.handle_menu(self.menu, event):
+            return None
         if event.type == ADVANCE:
             self.games.reset_search()
             self.games.random_game()
@@ -259,6 +284,20 @@ class Browse(Scene):
             and self.point(event.pos)
         ):
             self.play(pg.key.get_mods())
+        if (
+            event.type == pg.MOUSEBUTTONDOWN
+            and event.button == pg.BUTTON_RIGHT
+            and self.cols > 1
+            and self.point(event.pos)
+        ):
+            if not hasattr(self, "menu_font"):
+                self.menu_font = pg.font.SysFont(MENU_FONT, 12)
+            self.menu = Menu(
+                self.menu_font,
+                self.games.get_current_game(),
+                event.pos,
+                self.screen.get_rect(),
+            )
         if event.type == pg.MOUSEWHEEL and event.y and pg.key.get_mods() & pg.KMOD_CTRL:
             self.set_slideshow(False)
             self.games.reset_search()
@@ -310,6 +349,13 @@ class Browse(Scene):
     @override
     def update(self, screen: pg.Surface) -> None:
         self.scroll()
+        if self.menu and self.menu.highlighted is None:
+            cursor = pg.SYSTEM_CURSOR_ARROW
+        else:
+            cursor = pg.SYSTEM_CURSOR_HAND
+        if cursor != self.cursor:
+            self.cursor = cursor
+            pg.mouse.set_system_cursor(cursor)
         cols = self.cols
         games = self.games.games
         cache: dict[tuple[int, tuple[int, int]], pg.Surface] = {}
@@ -337,9 +383,13 @@ class Browse(Scene):
         self.cache = cache
         if cols > 1 and selected is not None:
             border = max(2, margin)
-            pg.draw.rect(screen, RED, selected.inflate(2 * border, 2 * border), border)
+            pg.draw.rect(
+                screen, MAGENTA, selected.inflate(2 * border, 2 * border), border
+            )
         if self.games.query:
             self.draw_query(screen)
+        if self.menu:
+            self.menu.draw(screen)
 
     def draw_query(
         self, screen: pg.Surface, margin: int = 15, padding: int = 8
@@ -351,6 +401,63 @@ class Browse(Scene):
         rect.topleft = (margin, margin)
         screen.fill((0, 0, 0), rect)
         screen.blit(image, image.get_rect(center=rect.center))
+
+
+class Menu:
+    PADDING = 10
+    GAP = 20
+    TITLE_BACKGROUND = MAGENTA
+    TITLE_FOREGROUND = BLACK
+    BACKGROUND = MAGENTA
+    FOREGROUND = BLACK
+    HIGHLIGHT_BACKGROUND = CYAN
+    HIGHLIGHT_FOREGROUND = BLACK
+
+    def __init__(
+        self, font: pg.font.Font, game: Game, pos: tuple[int, int], bounds: pg.Rect
+    ) -> None:
+        self.font = font
+        self.highlighted: int | None = None
+        if not game.configured:
+            game.configure()
+        font.bold = True
+        self.title = font.render(
+            f"{game.title} ({game.year})", True, self.TITLE_FOREGROUND
+        )
+        font.bold = False
+        labels = max(font.size(label)[0] for label, _, _ in MENU_ITEMS)
+        shortcuts = max(font.size(shortcut)[0] for _, shortcut, _ in MENU_ITEMS)
+        self.shortcut_x = self.PADDING + labels + self.GAP
+        width = max(self.PADDING + self.title.get_width(), self.shortcut_x + shortcuts)
+        self.line_height = font.get_linesize() + self.PADDING
+        size = width + self.PADDING, (len(MENU_ITEMS) + 1) * self.line_height
+        self.rect = pg.Rect(pos, size).clamp(bounds)
+
+    def row(self, item: int) -> pg.Rect:
+        top = self.rect.top + (item + 1) * self.line_height
+        return pg.Rect(self.rect.left, top, self.rect.width, self.line_height)
+
+    def item_at(self, point: tuple[int, int]) -> int | None:
+        for item in range(len(MENU_ITEMS)):
+            if self.row(item).collidepoint(point):
+                return item
+        return None
+
+    def draw(self, screen: pg.Surface) -> None:
+        screen.fill(self.BACKGROUND, self.rect)
+        screen.fill(self.TITLE_BACKGROUND, self.row(-1))
+        x = self.rect.left + self.PADDING
+        shortcut_x = self.rect.left + self.shortcut_x
+        screen.blit(self.title, (x, self.rect.top + self.PADDING // 2))
+        for item, (label, shortcut, _) in enumerate(MENU_ITEMS):
+            row = self.row(item)
+            color = self.FOREGROUND
+            if item == self.highlighted:
+                screen.fill(self.HIGHLIGHT_BACKGROUND, row)
+                color = self.HIGHLIGHT_FOREGROUND
+            y = row.top + self.PADDING // 2
+            screen.blit(self.font.render(label, True, color), (x, y))
+            screen.blit(self.font.render(shortcut, True, color), (shortcut_x, y))
 
 
 class Capture(Scene):
