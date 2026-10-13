@@ -17,6 +17,7 @@ CYAN = (0, 204, 255)
 MAGENTA = (255, 0, 204)
 RED = (255, 0, 0)
 GRID_MARGIN = 4
+ASPECT_RATIO = 16 / 10
 GRID_LARGER = {pg.K_MINUS, pg.K_KP_MINUS}
 GRID_SMALLER = {pg.K_PLUS, pg.K_EQUALS, pg.K_KP_PLUS}
 ADVANCE = pg.event.custom_type()
@@ -39,7 +40,9 @@ class TitleScreen(Scene):
         progress = self.gradient.get_rect()
         progress.width = int(progress.width * fraction)
         canvas.blit(self.gradient, self.BAR, progress)
-        pg.transform.scale(canvas, screen.get_size(), screen)
+        screen.fill((0, 0, 0))
+        target = screen.subsurface(letterbox(screen.get_rect()))
+        pg.transform.scale(canvas, target.get_size(), target)
 
 
 class Loading(TitleScreen):
@@ -247,7 +250,6 @@ class Browse(Scene):
         games = self.games.games
         cache: dict[tuple[int, tuple[int, int]], pg.Surface] = {}
         selected = None
-        margin = GRID_MARGIN if n > 1 else 0
         screen.fill((0, 0, 0))
         for i in range(n * n):
             row, col = divmod(i, n)
@@ -255,7 +257,10 @@ class Browse(Scene):
             cell = pg.Rect(
                 x, y, rect.width * (col + 1) // n - x, rect.height * (row + 1) // n - y
             )
-            image_rect = cell.inflate(-2 * margin, -2 * margin)
+            if n > 1:
+                image_rect = cell.inflate(-2 * GRID_MARGIN, -2 * GRID_MARGIN)
+            else:
+                image_rect = letterbox(cell)
 
             # Only keep the scaled images that are currently visible
             index = (self.top + i) % len(games)
@@ -458,6 +463,13 @@ class Download(TitleScreen):
             return False
         self.draw_progress(screen, thread.progress)
         return None
+
+
+def letterbox(rect: pg.Rect) -> pg.Rect:
+    """Largest rect with a fixed aspect ratio centered within the given rect"""
+    width = min(rect.width, round(rect.height * ASPECT_RATIO))
+    height = min(rect.height, round(rect.width / ASPECT_RATIO))
+    return pg.Rect(0, 0, width, height).move_to(center=rect.center)
 
 
 def gradient(
