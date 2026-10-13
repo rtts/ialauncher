@@ -21,6 +21,7 @@ setup(
     options={
         "build_exe": {
             "packages": ["ialauncher", "games"],
+            "excludes": ["pygame.docs"],
             "include_msvcr": True,
             "replace_paths": [("*", ""), (root, "")],
         },
