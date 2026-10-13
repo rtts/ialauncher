@@ -32,7 +32,7 @@ setup(
         },
         "bdist_msi": {
             "product_name": "IA Launcher",
-            "output_name": f"ialauncher-{project['version']}-win64.msi",
+            "output_name": f"ialauncher-{project['version']}-amd64.msi",
             "upgrade_code": "{5CFBACDE-7A56-4C59-879B-A5B263B5D68A}",
             "all_users": False,
             "install_icon": "windows/ia.ico",
