@@ -11,18 +11,11 @@ sys.path.insert(0, root)
 with open("pyproject.toml", "rb") as f:
     project = tomllib.load(f)["project"]
 
-with open("temp.py", "w") as f:
-    f.write("""
-from ialauncher.__main__ import main
-if __name__ == '__main__':
-    main()
-""")
-
 setup(
     name="IA Launcher",
     version=project["version"],
     description=project["description"],
-    author=project["authors"][0]["name"],
+    author="Return to the Source",
     author_email=project["authors"][0]["email"],
     url=project["urls"]["Homepage"],
     options={
@@ -36,12 +29,33 @@ setup(
             "upgrade_code": "{5CFBACDE-7A56-4C59-879B-A5B263B5D68A}",
             "all_users": False,
             "install_icon": "windows/ia.ico",
-            "directories": [("ProgramMenuFolder", "TARGETDIR", ".")],
+            "directories": [
+                ("ProgramMenuFolder", "TARGETDIR", "."),
+                ("DesktopFolder", "TARGETDIR", "."),
+            ],
+            "data": {
+                "Shortcut": [
+                    (
+                        "S_DESKTOP",
+                        "DesktopFolder",
+                        "IA Launcher",
+                        "TARGETDIR",
+                        "[TARGETDIR]ialauncher.exe",
+                        None,
+                        None,
+                        None,
+                        None,
+                        None,
+                        None,
+                        "TARGETDIR",
+                    )
+                ],
+            },
         },
     },
     executables=[
         Executable(
-            "temp.py",
+            "windows/main.py",
             target_name="ialauncher.exe",
             base="gui",
             shortcut_name="IA Launcher",
@@ -50,5 +64,3 @@ setup(
         )
     ],
 )
-
-os.remove("temp.py")
