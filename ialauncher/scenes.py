@@ -180,7 +180,8 @@ class Browse(Scene):
 
     @property
     def area(self) -> pg.Rect:
-        # Leave room for the selection border, which can be wider than the margin
+        if self.cols == 1:
+            return self.screen.get_rect()
         return self.screen.get_rect().inflate(-2, -2)
 
     @property
