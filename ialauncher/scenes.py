@@ -134,9 +134,9 @@ class Loading(TitleScreen):
     the loading time to double as a benchmark.
     """
 
-    def __init__(self, slurp_mode: bool = False, capture_mode: bool = False) -> None:
-        self.slurp_mode = slurp_mode
-        self.capture_mode = capture_mode
+    def __init__(self, slurp: bool = False, capture: bool = False) -> None:
+        self.slurp = slurp
+        self.capture = capture
         self.games_dir = os.path.dirname(gd.__file__)
         self.todo = [
             os.path.join(self.games_dir, entry)
@@ -201,18 +201,18 @@ class Loading(TitleScreen):
 
     def done(self) -> NextScene:
         """Choose the next scene."""
-        if self.slurp_mode:
+        if self.slurp:
             return False
         self.games.sort(slideshow=options.slideshow)
-        if self.capture_mode:
+        if self.capture:
             return Capture(self.games)
         return Browse(self.games)
 
     @override
     def update(self, screen: pg.Surface) -> NextScene:
         """Load (or in slurp mode, download) games and draw the progress."""
-        if self.slurp_mode:
-            self.clock.tick(30)
+        if self.slurp:
+            self.clock.tick(30)  # do not remove this!
             self.download_game()
         else:
             self.load_games(10)

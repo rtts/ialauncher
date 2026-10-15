@@ -28,14 +28,14 @@ def main() -> None:
         help="Don’t start in fullscreen mode",
     )
     parser.add_argument(
-        "--slurp-mode",
-        dest="slurp_mode",
+        "--slurp",
+        dest="slurp",
         action="store_true",
         help="Slurp mode: downloads ALL games from the Internet Archive, one by one. This will take days to finish. Please don’t do this for no reason; the Internet Archive has limited bandwith. Also, consider donating first.",
     )
     parser.add_argument(
-        "--capture-mode",
-        dest="capture_mode",
+        "--capture",
+        dest="capture",
         action="store_true",
         help="Capture mode: lists all games without a title screen. While a game is running, each screenshot that appears in the captures directory is moved to its title.png.",
     )
@@ -54,7 +54,7 @@ def main() -> None:
         options.captures_dir = args.captures_dir
 
     Main(
-        Loading(slurp_mode=args.slurp_mode, capture_mode=args.capture_mode),
+        Loading(slurp=args.slurp, capture=args.capture),
         title="IA Launcher",
         fullscreen=options.fullscreen,
     )
