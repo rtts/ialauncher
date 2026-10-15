@@ -73,11 +73,11 @@ class Scene:
         return False
 
     def handle(self, event: pg.event.Event) -> NextScene:
-        """Handle an event; return a scene to switch to, False to quit, or None."""
+        """Handle an event and return a new scene, False to end scene, or None."""
         raise NotImplementedError()
 
     def update(self, screen: pg.Surface) -> NextScene:
-        """Draw a frame; return a scene to switch to, False to quit, or None."""
+        """Draw a frame and return a new scene, False to end scene, or None."""
         raise NotImplementedError()
 
     def intercept(self, event: pg.event.Event) -> bool:
