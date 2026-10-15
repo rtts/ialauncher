@@ -1,3 +1,8 @@
+"""
+The scenes of IA Launcher. It starts with Loading, which hands over
+to Browse. Download runs nested from either Loading or Browse.
+"""
+
 import math
 import os
 import random
@@ -48,7 +53,7 @@ class TitleScreen(Scene):
     manage to get the plane off the runway. On Saturday mornings, I
     would sneak out of my bedroom before anyone else was awake and
     switch on the 486. The blue glow of the menu lit up my happy young
-    face until I pressed 1: Duke Nukum.
+    face until I pressed 1: Duke Nukem.
 
     Then, one evening in the winter of 1992, my father came home with
     a stack of floppy disks and a smile from ear to ear. He shut
@@ -107,6 +112,7 @@ class TitleScreen(Scene):
         super().__init__()
 
     def draw_progress(self, screen: pg.Surface, fraction: float) -> None:
+        """Draw the title screen with the progress bar filled up to fraction."""
         canvas = self.canvas
         canvas.blit(self.title, (0, 0))
         progress = self.gradient.get_rect()
@@ -118,6 +124,16 @@ class TitleScreen(Scene):
 
 
 class Loading(TitleScreen):
+    """
+    Load games while filling up the progress bar.
+
+    We could technically load all the games in a fraction of a second,
+    but where's the fun in that?
+
+    So we load 10 games per frame and uncap the framerate. This allows
+    the loading time to double as a benchmark.
+    """
+
     def __init__(self, slurp_mode: bool = False, capture_mode: bool = False) -> None:
         self.slurp_mode = slurp_mode
         self.capture_mode = capture_mode
@@ -134,16 +150,29 @@ class Loading(TitleScreen):
 
     @override
     def get_events(self) -> list[pg.event.Event]:
+        """Uncap the frame rate."""
         return pg.event.get()
 
     @override
     def handle(self, event: pg.event.Event) -> NextScene:
+        """Quit on Escape."""
         if event.type == pg.KEYDOWN and event.key == pg.K_ESCAPE:
             return False
         return None
 
     @override
     def run(self, screen: pg.Surface) -> NextScene:
+        """
+        Cancel the download in progress when the scene exits.
+
+        This waits for the download thread to terminate by calling
+        Thread.join(). If the network is stalled, that can take up to
+        60 seconds, and the window is frozen until then.
+
+        Using processes instead of threads would fix this, but they
+        don't play nice on Windows.
+        """
+
         try:
             return super().run(screen)
         finally:
@@ -151,18 +180,14 @@ class Loading(TitleScreen):
                 thread.cancel()
 
     def load_games(self, number_of_games: int) -> None:
+        """Load the next N games."""
         while self.todo and number_of_games:
             path = self.todo.pop()
             self.games.add(path)
             number_of_games -= 1
 
     def download_game(self) -> None:
-        """
-        Start downloading the next game once the previous download has
-        finished. Downloads run in a separate thread, so the title screen
-        keeps being redrawn in the meantime.
-        """
-
+        """Download the next game."""
         if self.downloading:
             thread = self.downloading.download_thread
             if thread is not None and thread.is_alive():
@@ -175,6 +200,7 @@ class Loading(TitleScreen):
             self.downloading.download(unzip=False)
 
     def done(self) -> NextScene:
+        """Choose the next scene."""
         if self.slurp_mode:
             return False
         self.games.sort(slideshow=options.slideshow)
@@ -184,6 +210,7 @@ class Loading(TitleScreen):
 
     @override
     def update(self, screen: pg.Surface) -> NextScene:
+        """Load (or in slurp mode, download) games and draw the progress."""
         if self.slurp_mode:
             self.clock.tick(30)
             self.download_game()
