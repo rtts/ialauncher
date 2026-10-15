@@ -36,6 +36,7 @@ MENU_ITEMS = [
 class Scene(engine.Scene):
     @override
     def intercept(self, event: pg.event.Event) -> bool:
+        """Intercept keystrokes to check for cheats."""
         return cga.cheat(event)
 
 
