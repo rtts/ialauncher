@@ -31,12 +31,17 @@ type NextScene = Scene | Literal[False] | None
 
 class Main:
     """
-    Initialize pygame and start the game using the given scene.
+    Initialize pygame and start the game on the given scene.
     """
 
     def __init__(
         self, scene: NextScene, title: str = "Game", fullscreen: bool = True
     ) -> None:
+        """
+        The outer game loop: run scenes continuously until no
+        more scenes are returned, and then the game is over.
+        """
+
         pg.init()
         pg.key.set_repeat(250, 25)
         pg.display.set_caption(title)
@@ -68,75 +73,39 @@ class Scene:
         return False
 
     def handle(self, event: pg.event.Event) -> NextScene:
+        """Handle an event; return a scene to switch to, False to quit, or None."""
         raise NotImplementedError()
 
     def update(self, screen: pg.Surface) -> NextScene:
+        """Draw a frame; return a scene to switch to, False to quit, or None."""
         raise NotImplementedError()
 
     def intercept(self, event: pg.event.Event) -> bool:
+        """Return True to intercept an event before it reaches handle()."""
         return False
 
     def get_events(self) -> list[pg.event.Event]:
+        """Cap inner game loop at 60fps."""
         self.clock.tick(60)
         return pg.event.get()
 
     def run(self, screen: pg.Surface) -> NextScene:
         """
-        Run this scene's main event loop. Return either the next scene or
-        None, at which point Main ends.
+        The inner game loop: call update() for each frame and handle()
+        for each event until one of them returns something.
         """
 
         self.screen = screen
-        next_scene: NextScene = None
-        while next_scene is None:
+        while True:
             pg.mouse.set_visible(self.show_mouse)
             next_scene = self.update(screen)
             pg.display.flip()
+            if next_scene is not None:
+                return next_scene
             for event in self.get_events():
                 if event.type == pg.QUIT:
                     return None
                 if not self.intercept(event):
                     next_scene = self.handle(event)
-
-        return next_scene
-
-    def draw(
-        self,
-        surface: pg.Surface,
-        text: str,
-        margin: int = 15,
-        font_size: int = 24,
-        line_height: float = 1.25,
-        font_family: str = "monospace",
-        color: tuple[int, int, int] = (255, 255, 255),
-    ) -> None:
-        """
-        Simple text drawing routine, adapted from
-        https://www.pygame.org/wiki/TextWrap
-        """
-
-        if not hasattr(self, "font"):
-            self.font = pg.font.SysFont(font_family, font_size)
-        rect = surface.get_rect()
-        ypos = margin
-        yinc = int(line_height * font_size)
-
-        for line in text.split("\n"):
-            if ypos + yinc > rect.bottom:
-                break
-            while line:
-                i = 0
-
-                # Determine maximum width of line
-                while self.font.size(line[:i])[0] + 2 * margin < rect.width and i < len(
-                    line
-                ):
-                    i += 1
-
-                # Render the line and blit it to the surface
-                image = self.font.render(line[:i], True, color)
-                surface.blit(image, (margin, ypos))
-                ypos += yinc
-
-                # Remove the text we just blitted
-                line = line[i:]
+                    if next_scene is not None:
+                        return next_scene
