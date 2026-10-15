@@ -44,7 +44,7 @@ class Main:
             size = info.current_w, info.current_h
             screen = pg.display.set_mode(size, flags=pg.FULLSCREEN)
         else:
-            size = 640, 480
+            size = 640, 400
             screen = pg.display.set_mode(size, flags=pg.RESIZABLE)
 
         while scene:
