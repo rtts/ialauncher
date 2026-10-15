@@ -5,19 +5,21 @@ subclassed by your own custom scenes. Example usage:
 
     class Intro(Scene):
         def __init__(self):
-            self.image = pg.image.load('my_awesome_title_screen.png')
+            self.image = pg.image.load("my_awesome_title_screen.png")
             super().__init__()
 
+        @override
         def handle(self, event):
             if event.type == pg.KEYDOWN:
-                 return LevelOne()
+                return LevelOne()
 
+        @override
         def update(self, screen):
-            screen.blit(self.image, (0,0))
+            screen.blit(self.image, (0, 0))
 
-    if __name__ == '__main__':
+    if __name__ == "__main__":
         scene = Intro()
-        Main(scene, title='My awesome game')
+        Main(scene, title="My awesome game")
 """
 
 from typing import Literal
