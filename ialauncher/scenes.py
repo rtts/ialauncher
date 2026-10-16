@@ -239,7 +239,7 @@ class Browse(Scene):
         self.slideshow = options.slideshow
         self.set_slideshow(enabled=bool(options.slideshow))
         self.cursor = pg.SYSTEM_CURSOR_HAND
-        pg.mouse.set_system_cursor(self.cursor)
+        pg.mouse.set_cursor(self.cursor)
         self.handlers: dict[int, Callable[[], None]] = {
             pg.K_RIGHT: self.games.next_game,
             pg.K_LEFT: self.games.previous_game,
@@ -487,7 +487,7 @@ class Browse(Scene):
             cursor = pg.SYSTEM_CURSOR_HAND
         if cursor != self.cursor:
             self.cursor = cursor
-            pg.mouse.set_system_cursor(cursor)
+            pg.mouse.set_cursor(cursor)
         cols = self.cols
         games = self.games.games
         cache: dict[tuple[int, tuple[int, int], int | None], pg.Surface] = {}

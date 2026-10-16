@@ -3,6 +3,6 @@
 They can be overridden with command-line arguments.
 """
 
-fullscreen = True
+fullscreen: bool = True
 slideshow = 10
 captures_dir = "~/.dosbox/capture"

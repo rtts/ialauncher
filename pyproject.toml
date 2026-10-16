@@ -42,3 +42,6 @@ force-exclude = true
 [tool.ruff.lint]
 select = ["ALL"]
 ignore = ["COM812", "CPY001", "D203", "D213", "T201"]
+
+[tool.ty.src]
+exclude = ["windows"]

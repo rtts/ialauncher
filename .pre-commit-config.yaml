@@ -5,10 +5,8 @@ repos:
       - id: ruff-check
         args: [--fix, --unsafe-fixes]
       - id: ruff-format
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v2.4.0
+  - repo: https://github.com/astral-sh/ty-pre-commit
+    rev: v0.0.89
     hooks:
-      - id: mypy
-        args: [--strict]
-        additional_dependencies: [pygame-ce]
-        exclude: ^windows/setup_win\.py$
+      - id: ty
+        args: [--isolated]
