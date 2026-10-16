@@ -17,5 +17,5 @@ repos:
         entry: python -m unittest
         language: python
         additional_dependencies: [pygame-ce]
-        types: [python]
+        always_run: true
         pass_filenames: false
