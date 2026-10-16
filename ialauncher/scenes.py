@@ -1,6 +1,6 @@
 """
 The scenes of IA Launcher. It starts with Loading, which hands over
-to Browse. Download runs nested from either Loading or Browse.
+to Browse, which hands over to Download.
 """
 
 import math
@@ -224,14 +224,14 @@ class Loading(TitleScreen):
 
 
 class Browse(Scene):
+    """
+    Show games in a grid with infinitie zoom and infinite scholling.
+    """
+
     def __init__(self, games: GameList) -> None:
         self.games = games
         self.games.games = [game for game in games.games if game.get_titlescreen()]
         self.games.random_game()
-
-        # The grid shows rows x cols games, starting at position `top`.
-        # Positions are unbounded so the list appears to be infinite;
-        # the game at a position is found by wrapping around the list.
         self.cols = 1
         self.top = self.pos = self.games.current_game
         self.cache: dict[tuple[int, tuple[int, int], int | None], pg.Surface] = {}
@@ -251,15 +251,18 @@ class Browse(Scene):
 
     @override
     def intercept(self, event: pg.event.Event) -> bool:
+        """Jump to random game after switching CGA mode with cheat code."""
         if not super().intercept(event):
             return False
         self.games.reset_search()
         self.resize(1)
         self.games.random_game()
         self.follow()
+        self.set_slideshow(True)
         return True
 
     def set_slideshow(self, enabled: bool) -> None:
+        """Start or stop the slideshow."""
         pg.time.set_timer(ADVANCE, self.slideshow * 1000 if enabled else 0)
 
     @property
@@ -280,6 +283,7 @@ class Browse(Scene):
         return self.cols > 1 and self.area.collidepoint(pg.mouse.get_pos())
 
     def cells(self) -> Iterator[tuple[int, pg.Rect]]:
+        """Yield the position and rectangle of every visible cell."""
         rect = self.area
         rows, cols = self.rows, self.cols
         for i in range(rows * cols):
@@ -294,7 +298,7 @@ class Browse(Scene):
             yield self.top + i, cell
 
     def rows_to_scroll(self, pos: int) -> int:
-        """Number of rows to scroll (negative is up) to bring pos into view"""
+        """Number of rows to scroll (negative is up) to bring pos into view."""
         rows, cols = self.rows, self.cols
         if pos < self.top:
             return (pos - self.top) // cols
@@ -303,19 +307,23 @@ class Browse(Scene):
         return 0
 
     def scroll(self) -> None:
+        """Scroll the grid to bring the selected position into view."""
         self.top += self.rows_to_scroll(self.pos) * self.cols
 
     def resize(self, cols: int) -> None:
+        """Change the number of columns."""
         self.cols = max(1, cols)
         self.cache = {}
         self.scroll()
 
     def select(self, pos: int) -> None:
+        """Select the game at the given position."""
         self.pos = pos
         self.games.current_game = pos % len(self.games.games)
         self.scroll()
 
     def point(self, point: tuple[int, int]) -> bool:
+        """Select the game under the mouse pointer; return False if there is none."""
         for pos, cell in self.cells():
             if cell.collidepoint(point):
                 if pos != self.pos:
@@ -326,6 +334,7 @@ class Browse(Scene):
         return False
 
     def play(self, mod: int) -> None:
+        """Download the current game if needed and start it."""
         self.games.reset_search()
         game = self.games.get_current_game()
         if mod & pg.KMOD_SHIFT:
@@ -352,6 +361,7 @@ class Browse(Scene):
         self.scroll()
 
     def handle_menu(self, menu: "Menu", event: pg.event.Event) -> bool:
+        """Handle an event while the menu is open; return True if it was consumed."""
         if event.type == pg.MOUSEMOTION:
             menu.highlighted = menu.item_at(event.pos)
             return True
@@ -366,10 +376,12 @@ class Browse(Scene):
 
     @override
     def get_events(self) -> list[pg.event.Event]:
+        """Sleep until the next event."""
         return [pg.event.wait()]
 
     @override
     def handle(self, event: pg.event.Event) -> NextScene:
+        """Handle mouse and keyboard input."""
         if self.menu and self.handle_menu(self.menu, event):
             return None
         if event.type == ADVANCE:
@@ -450,6 +462,7 @@ class Browse(Scene):
 
     @override
     def update(self, screen: pg.Surface) -> None:
+        """Draw the visible title screens, the search query, and the menu."""
         self.scroll()
         if self.menu and self.menu.highlighted is None:
             cursor = pg.SYSTEM_CURSOR_ARROW
@@ -495,6 +508,7 @@ class Browse(Scene):
     def draw_query(
         self, screen: pg.Surface, margin: int = 15, padding: int = 8
     ) -> None:
+        """Draw the search query in the top left corner."""
         if not hasattr(self, "font"):
             self.font = pg.font.SysFont("monospace", 24)
         image = self.font.render(self.games.query, True, (255, 255, 255))
@@ -505,6 +519,10 @@ class Browse(Scene):
 
 
 class Menu:
+    """
+    The context menu that opens when right-clicking a game.
+    """
+
     PADDING = 10
     GAP = 20
     TITLE_BACKGROUND = MAGENTA
@@ -535,16 +553,19 @@ class Menu:
         self.rect = pg.Rect(pos, size).clamp(bounds)
 
     def row(self, item: int) -> pg.Rect:
+        """The rectangle of the given menu item, where -1 is the title."""
         top = self.rect.top + (item + 1) * self.line_height
         return pg.Rect(self.rect.left, top, self.rect.width, self.line_height)
 
     def item_at(self, point: tuple[int, int]) -> int | None:
+        """The menu item at the given point, or None."""
         for item in range(len(MENU_ITEMS)):
             if self.row(item).collidepoint(point):
                 return item
         return None
 
     def draw(self, screen: pg.Surface) -> None:
+        """Draw the menu."""
         screen.fill(self.BACKGROUND, self.rect)
         screen.fill(self.TITLE_BACKGROUND, self.row(-1))
         x = self.rect.left + self.PADDING
@@ -585,6 +606,7 @@ class Capture(Scene):
 
     @override
     def handle(self, event: pg.event.Event) -> NextScene:
+        """Move through the list, and play the selected game on Enter."""
         if event.type != pg.KEYDOWN:
             return None
         if event.key == pg.K_ESCAPE:
@@ -616,6 +638,7 @@ class Capture(Scene):
         return None
 
     def watch(self, game: Game) -> None:
+        """Remember the existing screenshots before the game starts."""
         os.makedirs(self.captures_dir, exist_ok=True)
         self.running = game
         self.existing = set(os.listdir(self.captures_dir))
@@ -645,6 +668,7 @@ class Capture(Scene):
 
     @override
     def update(self, screen: pg.Surface) -> None:
+        """Poll for screenshots, and draw the list and a preview."""
         if self.running and pg.time.get_ticks() - self.last_poll >= self.POLL_INTERVAL:
             self.last_poll = pg.time.get_ticks()
             running = self.running.is_running()
@@ -703,6 +727,10 @@ class Capture(Scene):
 
 
 class Download(TitleScreen):
+    """
+    Download a game and show a progress bar.
+    """
+
     def __init__(self, game: Game, unzip: bool = True) -> None:
         self.game = game
         super().__init__()
@@ -712,6 +740,15 @@ class Download(TitleScreen):
 
     @override
     def run(self, screen: pg.Surface) -> NextScene:
+        """
+        Cancel the download when the scene exits before it's finished.
+
+        The same note applies as above: This waits for the download
+        thread to terminate by calling Thread.join(). If the network
+        is stalled, that can take up to 60 seconds, and the window is
+        frozen until then.
+        """
+
         try:
             return super().run(screen)
         finally:
@@ -720,6 +757,7 @@ class Download(TitleScreen):
 
     @override
     def handle(self, event: pg.event.Event) -> NextScene:
+        """Cancel on Escape."""
         if event.type == pg.KEYDOWN:
             if event.key == pg.K_ESCAPE:
                 return False
@@ -727,6 +765,7 @@ class Download(TitleScreen):
 
     @override
     def update(self, screen: pg.Surface) -> NextScene:
+        """Draw the progress bar."""
         thread = self.game.download_thread
         if thread is None or not thread.is_alive():
             return False
@@ -735,10 +774,12 @@ class Download(TitleScreen):
 
 
 def grid_margin(cols: int) -> int:
+    """Return the margin around each tile."""
     return max(1, round(GRID_MARGIN * 3 / cols))
 
 
 def grid_rows(cols: int, size: tuple[int, int]) -> int:
+    """Return the number of rows that best approximates TILE_ASPECT_RATIO."""
     if cols == 1:
         return 1
     width, height = size
@@ -757,6 +798,7 @@ def grid_rows(cols: int, size: tuple[int, int]) -> int:
 
 
 def letterbox(rect: pg.Rect) -> pg.Rect:
+    """Return a letterboxed rect adhering to FULLSCREEN_ASPECT_RATIO."""
     width = min(rect.width, round(rect.height * FULLSCREEN_ASPECT_RATIO))
     height = min(rect.height, round(rect.width / FULLSCREEN_ASPECT_RATIO))
     letterboxed = pg.Rect(0, 0, width, height)
@@ -767,6 +809,7 @@ def letterbox(rect: pg.Rect) -> pg.Rect:
 def gradient(
     size: tuple[int, int], start: tuple[int, int, int], end: tuple[int, int, int]
 ) -> pg.Surface:
+    """Return a surface filled with a horizontal gradient."""
     width, height = size
     surface = pg.Surface(size)
     for x in range(width):
