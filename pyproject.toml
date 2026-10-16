@@ -25,8 +25,7 @@ ialauncher = "ialauncher.__main__:main"
 
 [tool.hatch.build]
 include = [
-    "/ialauncher/*.py",
-    "/ialauncher/title.png",
+    "/ialauncher",
     "/games/__init__.py",
     "/games/*/metadata.ini",
     "/games/*/title.png",
