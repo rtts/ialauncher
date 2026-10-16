@@ -35,9 +35,10 @@ include = [
 [tool.hatch.build.targets.wheel]
 packages = ["ialauncher", "games"]
 
+[tool.ruff]
+extend-exclude = ["windows"]
+force-exclude = true
+
 [tool.ruff.lint]
 select = ["ALL"]
 ignore = ["COM812", "CPY001", "D203", "D213", "T201"]
-
-[tool.ruff.lint.per-file-ignores]
-"windows/*" = ["INP001"]
