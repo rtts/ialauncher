@@ -2,18 +2,6 @@ from weakref import WeakKeyDictionary
 
 import pygame as pg
 
-# fmt: off
-CHEAT_CODES: dict[str, int | None] = {
-    "dnkroz": 0,       # Duke Nukem 3D
-    "dnstuff": 1,      # Duke Nukem 3D
-    "iddqd": 2,        # Doom
-    "idkfa": 3,        # Doom
-    "ken sent me": 4,  # Leisure Suit Larry
-    "megahit": 5,      # Prince of Persia
-    "xyzzy": None,     # Colossal Cave Adventure
-}
-# fmt: on
-
 BLACK = (0, 0, 0)
 PALETTES = [
     [BLACK, (170, 0, 0), (0, 170, 0), (170, 85, 0)],
@@ -35,22 +23,12 @@ def luma(color: tuple[int, int, int]) -> float:
 
 class CGA:
     def __init__(self) -> None:
-        self.typed = ""
         self.palette: int | None = None
         self.converted: WeakKeyDictionary[pg.Surface, pg.Surface] = WeakKeyDictionary()
 
-    def cheat(self, event: pg.event.Event) -> bool:
-        if event.type != pg.KEYDOWN or not event.unicode:
-            return False
-        longest = max(len(code) for code in CHEAT_CODES)
-        self.typed = (self.typed + event.unicode.lower())[-longest:]
-        for code, palette in CHEAT_CODES.items():
-            if self.typed.endswith(code):
-                self.typed = ""
-                self.palette = palette
-                self.converted.clear()
-                return True
-        return False
+    def set_palette(self, palette: int | None) -> None:
+        self.palette = palette
+        self.converted.clear()
 
     def apply(self, image: pg.Surface) -> pg.Surface:
         if self.palette is None:

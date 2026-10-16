@@ -15,6 +15,7 @@ import games as gd
 
 from . import engine, options
 from .cga import cga
+from .cheats import cheat
 from .engine import NextScene
 from .game import Game
 from .gamelist import SEARCH_TIMEOUT, GameList
@@ -39,7 +40,7 @@ class Scene(engine.Scene):
     @override
     def intercept(self, event: pg.event.Event) -> bool:
         """Intercept keystrokes to check for cheats."""
-        return cga.cheat(event)
+        return cheat(event)
 
 
 class TitleScreen(Scene):
