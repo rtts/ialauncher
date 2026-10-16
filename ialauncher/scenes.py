@@ -106,7 +106,7 @@ class TitleScreen(Scene):
     """
 
     RESOLUTION = 320, 200
-    BAR = pg.Rect(102, 171, 116, 8)
+    BAR = pg.Rect(102, 170, 116, 9)
 
     def __init__(self) -> None:
         """Load the title screen and draw the progress bar gradient."""
