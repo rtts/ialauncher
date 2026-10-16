@@ -1,3 +1,5 @@
+"""Cheat codes that switch to one of seven CGA palettes."""
+
 import pygame as pg
 
 from .cga import cga
@@ -16,11 +18,15 @@ CHEAT_CODES: dict[str, int | None] = {
 
 
 class Cheats:
+    """Keep track of the keys typed so far."""
+
     def __init__(self) -> None:
+        """Start with nothing typed."""
         self.typed = ""
         self.longest = max(len(code) for code in CHEAT_CODES)
 
     def cheat(self, event: pg.event.Event) -> bool:
+        """Switch the palette if the keystroke completes a cheat code."""
         if event.type != pg.KEYDOWN or not event.unicode:
             return False
         self.typed = (self.typed + event.unicode.lower())[-self.longest :]

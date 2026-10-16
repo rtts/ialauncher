@@ -1,23 +1,32 @@
-"""
-Minimal ISO 9660 reader, so that CD images can be extracted without
-any external dependencies. Joliet filenames are used when present.
-Raw images with 2352-byte sectors (such as BIN files that come with a
-CUE sheet) are supported as well.
+"""Minimal ISO 9660 reader.
+
+CD images can be extracted without any external dependencies. Joliet
+filenames are used when present. Raw images with 2352-byte sectors
+(such as BIN files that come with a CUE sheet) are supported as well.
 """
 
-import os
 import struct
 from collections.abc import Callable, Iterator
+from pathlib import Path
 from typing import Self
 
 SECTOR = 2048
 RAW_SECTOR = 2352
 SYNC = b"\x00" + b"\xff" * 10 + b"\x00"
+MODE_2 = 2
+
+# Volume descriptor types
+PRIMARY = 1
+SUPPLEMENTARY = 2
+TERMINATOR = 255
 
 
 class ISOFile:
-    def __init__(self, path: str) -> None:
-        self.f = open(path, "rb")
+    """An ISO 9660 image, opened for reading."""
+
+    def __init__(self, path: Path) -> None:
+        """Open the image and find the root directory."""
+        self.f = path.open("rb")
         self.sector_size = SECTOR
         self.data_offset = 0
         header = self.f.read(16)
@@ -25,33 +34,37 @@ class ISOFile:
             # Raw sectors: skip sync and header (and the subheader in
             # mode 2), ignore the error correction data at the end
             self.sector_size = RAW_SECTOR
-            self.data_offset = 24 if header[15] == 2 else 16
+            self.data_offset = 24 if header[15] == MODE_2 else 16
         self.encoding = "ascii"
         root: bytes | None = None
         sector = 16
         while True:
             desc = self.read(sector, SECTOR)
             kind = desc[0]
-            if kind == 255 or desc[1:6] != b"CD001":
+            if kind == TERMINATOR or desc[1:6] != b"CD001":
                 break
-            if kind == 1 and root is None:
+            if kind == PRIMARY and root is None:
                 root = desc[156:190]
-            if kind == 2 and desc[88:91] in (b"%/@", b"%/C", b"%/E"):
+            if kind == SUPPLEMENTARY and desc[88:91] in (b"%/@", b"%/C", b"%/E"):
                 root = desc[156:190]
                 self.encoding = "utf-16-be"
                 break
             sector += 1
         if root is None:
-            raise ValueError(f"{path} is not an ISO 9660 image")
+            msg = f"{path} is not an ISO 9660 image"
+            raise ValueError(msg)
         self.root = root
 
     def __enter__(self) -> Self:
+        """Use the image as a context manager."""
         return self
 
     def __exit__(self, *exc: object) -> None:
+        """Close the image."""
         self.f.close()
 
     def read(self, sector: int, size: int) -> bytes:
+        """Read size bytes of data, starting at the given sector."""
         if self.sector_size == SECTOR:
             self.f.seek(sector * SECTOR)
             return self.f.read(size)
@@ -67,12 +80,9 @@ class ISOFile:
         return b"".join(data)
 
     def walk(
-        self, record: bytes | None = None, prefix: str = ""
-    ) -> Iterator[tuple[str, int, int]]:
-        """
-        Yield (path, sector, size) for every file in the image.
-
-        """
+        self, record: bytes | None = None, prefix: Path = Path()
+    ) -> Iterator[tuple[Path, int, int]]:
+        """Yield (path, sector, size) for every file in the image."""
         extent, size = struct.unpack_from("<I4xI", record or self.root, 2)
         data = self.read(extent, size)
         pos = 0
@@ -93,7 +103,7 @@ class ISOFile:
                 name = name[:-1]
             if not name or name in (".", "..") or "/" in name or "\\" in name:
                 continue
-            path = os.path.join(prefix, name)
+            path = prefix / name
             if rec[25] & 0x02:
                 yield from self.walk(rec, path)
             else:
@@ -104,15 +114,17 @@ class ISOFile:
         self,
         sector: int,
         size: int,
-        dest: str,
+        dest: Path,
         progress: Callable[[int], None] | None = None,
     ) -> None:
-        os.makedirs(os.path.dirname(dest), exist_ok=True)
-        with open(dest, "wb") as out:
+        """Extract the file at the given sector, reporting progress in bytes."""
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        with dest.open("wb") as out:
             while size > 0:
                 block = self.read(sector, min(size, 512 * SECTOR))
                 if not block:
-                    raise EOFError(f"Unexpected end of image while extracting {dest}")
+                    msg = f"Unexpected end of image while extracting {dest}"
+                    raise EOFError(msg)
                 out.write(block)
                 size -= len(block)
                 sector += 512

@@ -1,6 +1,6 @@
-"""
-This is a _very_ simple engine for building pygame games. There
-are two classes: Main and Scene. The latter one is meant to be
+"""A _very_ simple engine for building pygame games.
+
+There are two classes: Main and Scene. The latter one is meant to be
 subclassed by your own custom scenes. Example usage:
 
     class Intro(Scene):
@@ -30,18 +30,16 @@ type NextScene = Scene | Literal[False] | None
 
 
 class Main:
-    """
-    Initialize pygame and start the game on the given scene.
-    """
+    """Initialize pygame and start the game on the given scene."""
 
     def __init__(
-        self, scene: NextScene, title: str = "Game", fullscreen: bool = True
+        self, scene: NextScene, title: str = "Game", *, fullscreen: bool = True
     ) -> None:
-        """
-        The outer game loop: run scenes continuously until no
-        more scenes are returned, and then the game is over.
-        """
+        """Run the outer game loop.
 
+        Scenes run continuously until no more scenes are returned, and
+        then the game is over.
+        """
         pg.init()
         pg.key.set_repeat(250, 25)
         pg.display.set_caption(title)
@@ -60,27 +58,29 @@ class Main:
 
 
 class Scene:
-    """
-    Base class for scenes. Subclasses are meant to override the
-    handle() and update() methods.
+    """Base class for scenes.
+
+    Subclasses are meant to override the handle() and update() methods.
     """
 
     def __init__(self) -> None:
+        """Create the clock that caps the frame rate."""
         self.clock = pg.time.Clock()
 
     @property
     def show_mouse(self) -> bool:
+        """Whether the mouse pointer is visible."""
         return False
 
     def handle(self, event: pg.event.Event) -> NextScene:
         """Handle an event and return a new scene, False to end scene, or None."""
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def update(self, screen: pg.Surface) -> NextScene:
         """Draw a frame and return a new scene, False to end scene, or None."""
-        raise NotImplementedError()
+        raise NotImplementedError
 
-    def intercept(self, event: pg.event.Event) -> bool:
+    def intercept(self, event: pg.event.Event) -> bool:  # noqa: ARG002
         """Return True to intercept an event before it reaches handle()."""
         return False
 
@@ -90,11 +90,12 @@ class Scene:
         return pg.event.get()
 
     def run(self, screen: pg.Surface) -> NextScene:
-        """
-        The inner game loop: call update() for each frame and handle()
-        for each event until one of them returns something.
-        """
+        """Run the inner game loop.
 
+        Call update() for each frame and handle() for each event until
+        one of them returns something.
+
+        """
         self.screen = screen
         while True:
             pg.mouse.set_visible(self.show_mouse)

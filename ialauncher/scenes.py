@@ -1,12 +1,12 @@
-"""
-The scenes of IA Launcher. It starts with Loading, which hands over
-to Browse, which hands over to Download.
+"""The scenes of IA Launcher.
+
+It starts with Loading, which hands over to Browse, which hands over
+to Download.
 """
 
-import os
-import random
 import shutil
 from collections.abc import Callable, Iterator
+from pathlib import Path
 from typing import override
 
 import pygame as pg
@@ -24,6 +24,7 @@ from .utils import gradient, grid_margin, grid_rows, letterbox
 CYAN = (0, 204, 255)
 MAGENTA = (255, 0, 204)
 BLACK = (0, 0, 0)
+ANTIALIAS = True
 GRID_LARGER = {pg.K_MINUS, pg.K_KP_MINUS}
 GRID_SMALLER = {pg.K_PLUS, pg.K_EQUALS, pg.K_KP_PLUS}
 ADVANCE = pg.event.custom_type()
@@ -37,6 +38,8 @@ MENU_ITEMS = [
 
 
 class Scene(engine.Scene):
+    """Base class for the scenes of IA Launcher."""
+
     @override
     def intercept(self, event: pg.event.Event) -> bool:
         """Intercept keystrokes to check for cheats."""
@@ -44,7 +47,8 @@ class Scene(engine.Scene):
 
 
 class TitleScreen(Scene):
-    """
+    """Storytime.
+
     Our games launcher was a blue menu with twelve numbered entries,
     and I knew every one of them by heart. 3 was Commander Keen. 7 was
     Prince of Persia. 11 was a flight simulator, and only once did I
@@ -104,8 +108,9 @@ class TitleScreen(Scene):
     BAR = pg.Rect(102, 171, 116, 8)
 
     def __init__(self) -> None:
+        """Load the title screen and draw the progress bar gradient."""
         self.canvas = pg.Surface(self.RESOLUTION)
-        self.title = pg.image.load(os.path.join(os.path.dirname(__file__), "title.png"))
+        self.title = pg.image.load(Path(__file__).parent / "title.png")
         self.gradient = gradient(self.BAR.size, MAGENTA, CYAN)
         super().__init__()
 
@@ -122,8 +127,7 @@ class TitleScreen(Scene):
 
 
 class Loading(TitleScreen):
-    """
-    Load games while filling up the progress bar.
+    """Load games while filling up the progress bar.
 
     We could technically load all the games in a fraction of a second,
     but where's the fun in that?
@@ -132,14 +136,15 @@ class Loading(TitleScreen):
     the loading time to double as a benchmark.
     """
 
-    def __init__(self, slurp: bool = False, capture: bool = False) -> None:
+    def __init__(self, *, slurp: bool = False, capture: bool = False) -> None:
+        """Find the directories of all games."""
         self.slurp = slurp
         self.capture = capture
-        self.games_dir = os.path.dirname(gd.__file__)
+        self.games_dir = Path(gd.__file__).parent
         self.todo = [
-            os.path.join(self.games_dir, entry)
-            for entry in os.listdir(self.games_dir)
-            if os.path.exists(os.path.join(self.games_dir, entry, "metadata.ini"))
+            entry
+            for entry in self.games_dir.iterdir()
+            if (entry / "metadata.ini").exists()
         ]
         self.total = len(self.todo)
         self.downloading: Game | None = None
@@ -160,8 +165,7 @@ class Loading(TitleScreen):
 
     @override
     def run(self, screen: pg.Surface) -> NextScene:
-        """
-        Cancel the download in progress when the scene exits.
+        """Cancel the download in progress when the scene exits.
 
         This waits for the download thread to terminate by calling
         Thread.join(). If the network is stalled, that can take up to
@@ -170,7 +174,6 @@ class Loading(TitleScreen):
         Using processes instead of threads would fix this, but they
         don't play nice on Windows.
         """
-
         try:
             return super().run(screen)
         finally:
@@ -201,7 +204,7 @@ class Loading(TitleScreen):
         """Choose the next scene."""
         if self.slurp:
             return False
-        self.games.sort(slideshow=options.slideshow)
+        self.games.sort()
         if self.capture:
             return Capture(self.games)
         return Browse(self.games)
@@ -222,11 +225,10 @@ class Loading(TitleScreen):
 
 
 class Browse(Scene):
-    """
-    Show games in a grid with infinitie zoom and infinite scholling.
-    """
+    """Show games in a grid with infinite zoom and infinite scrolling."""
 
     def __init__(self, games: GameList) -> None:
+        """Show a random game, full screen."""
         self.games = games
         self.games.games = [game for game in games.games if game.get_titlescreen()]
         self.games.random_game()
@@ -235,7 +237,7 @@ class Browse(Scene):
         self.cache: dict[tuple[int, tuple[int, int], int | None], pg.Surface] = {}
         self.menu: Menu | None = None
         self.slideshow = options.slideshow
-        self.set_slideshow(bool(options.slideshow))
+        self.set_slideshow(enabled=bool(options.slideshow))
         self.cursor = pg.SYSTEM_CURSOR_HAND
         pg.mouse.set_system_cursor(self.cursor)
         self.handlers: dict[int, Callable[[], None]] = {
@@ -256,26 +258,29 @@ class Browse(Scene):
         self.resize(1)
         self.games.random_game()
         self.follow()
-        self.set_slideshow(True)
+        self.set_slideshow(enabled=True)
         return True
 
-    def set_slideshow(self, enabled: bool) -> None:
+    def set_slideshow(self, *, enabled: bool) -> None:
         """Start or stop the slideshow."""
         pg.time.set_timer(ADVANCE, self.slideshow * 1000 if enabled else 0)
 
     @property
     def area(self) -> pg.Rect:
+        """The part of the screen that holds the grid."""
         if self.cols == 1:
             return self.screen.get_rect()
         return self.screen.get_rect().inflate(-2, -2)
 
     @property
     def rows(self) -> int:
+        """The number of rows in the grid."""
         return grid_rows(self.cols, self.area.size)
 
     @property
     @override
     def show_mouse(self) -> bool:
+        """Show the mouse pointer over the grid and when the menu is open."""
         if self.menu:
             return True
         return self.cols > 1 and self.area.collidepoint(pg.mouse.get_pos())
@@ -296,7 +301,7 @@ class Browse(Scene):
             yield self.top + i, cell
 
     def rows_to_scroll(self, pos: int) -> int:
-        """Number of rows to scroll (negative is up) to bring pos into view."""
+        """Return the rows to scroll (negative is up) to bring pos into view."""
         rows, cols = self.rows, self.cols
         if pos < self.top:
             return (pos - self.top) // cols
@@ -325,7 +330,7 @@ class Browse(Scene):
         for pos, cell in self.cells():
             if cell.collidepoint(point):
                 if pos != self.pos:
-                    self.set_slideshow(False)
+                    self.set_slideshow(enabled=False)
                     self.games.reset_search()
                     self.select(pos)
                 return True
@@ -340,16 +345,14 @@ class Browse(Scene):
         if not game.is_ready():
             Download(game).run(self.screen)
         if game.is_ready():
-
             # Start playing (spawns a new thread)
             game.start(autorun=not mod & pg.KMOD_ALT)
 
     def follow(self) -> None:
-        """
-        Move the position to the current game (which may have been
-        changed by a jump or search) with the least amount of scrolling.
-        """
+        """Move the position to the current game with the least scrolling.
 
+        The current game may have been changed by a jump or search.
+        """
         total = len(self.games.games)
         current = self.games.current_game
         if self.pos % total == current:
@@ -385,78 +388,94 @@ class Browse(Scene):
         if event.type == ADVANCE:
             self.games.reset_search()
             self.games.random_game()
-        if event.type == SEARCH_EXPIRED:
+        elif event.type == SEARCH_EXPIRED:
             self.games.reset_search()
-        if event.type == pg.MOUSEMOTION and self.cols > 1:
+        elif event.type in (pg.MOUSEMOTION, pg.MOUSEBUTTONDOWN):
+            self.handle_mouse(event)
+        elif event.type == pg.MOUSEWHEEL:
+            self.handle_wheel(event)
+        elif event.type == pg.KEYDOWN:
+            if event.key == pg.K_ESCAPE:
+                return False
+            self.handle_key(event)
+        self.follow()
+        return None
+
+    def handle_mouse(self, event: pg.event.Event) -> None:
+        """Select the game under the pointer; play it or open the menu on click."""
+        if self.cols == 1:
+            return
+        if event.type == pg.MOUSEMOTION:
             self.point(event.pos)
-        if (
-            event.type == pg.MOUSEBUTTONDOWN
-            and event.button == pg.BUTTON_LEFT
-            and self.cols > 1
-            and self.point(event.pos)
-        ):
+        elif event.button == pg.BUTTON_LEFT and self.point(event.pos):
             self.play(pg.key.get_mods())
-        if (
-            event.type == pg.MOUSEBUTTONDOWN
-            and event.button == pg.BUTTON_RIGHT
-            and self.cols > 1
-            and self.point(event.pos)
-        ):
-            if not hasattr(self, "menu_font"):
-                self.menu_font = pg.font.SysFont(MENU_FONT, 12)
-            self.menu = Menu(
-                self.menu_font,
-                self.games.get_current_game(),
-                event.pos,
-                self.screen.get_rect(),
-            )
-        if event.type == pg.MOUSEWHEEL and event.y and pg.key.get_mods() & pg.KMOD_CTRL:
-            self.set_slideshow(False)
+        elif event.button == pg.BUTTON_RIGHT and self.point(event.pos):
+            self.open_menu(event.pos)
+
+    def open_menu(self, pos: tuple[int, int]) -> None:
+        """Open the menu of the current game at the given position."""
+        if not hasattr(self, "menu_font"):
+            self.menu_font = pg.font.SysFont(MENU_FONT, 12)
+        self.menu = Menu(
+            self.menu_font,
+            self.games.get_current_game(),
+            pos,
+            self.screen.get_rect(),
+        )
+
+    def handle_wheel(self, event: pg.event.Event) -> None:
+        """Zoom with Ctrl and the mouse wheel, or scroll with the wheel alone."""
+        if not event.y:
+            return
+        if pg.key.get_mods() & pg.KMOD_CTRL:
+            self.set_slideshow(enabled=False)
             self.games.reset_search()
             self.resize(self.cols - 2 * event.y)
-        elif event.type == pg.MOUSEWHEEL and event.y and self.show_mouse:
-            self.set_slideshow(False)
+        elif self.show_mouse:
+            self.set_slideshow(enabled=False)
             self.games.reset_search()
             delta = -event.y * self.cols
             self.top += delta
             self.select(self.pos + delta)
-        if event.type == pg.KEYDOWN:
-            if event.key == pg.K_ESCAPE:
-                return False
-            cols = self.cols
-            grid = cols > 1
-            grid_moves = {pg.K_RIGHT: 1, pg.K_LEFT: -1, pg.K_DOWN: cols, pg.K_UP: -cols}
-            if event.key != pg.K_SPACE:
-                self.set_slideshow(False)
-            elif not self.games.is_searching():
-                self.set_slideshow(True)
-            if event.key == pg.K_SPACE and self.games.is_searching():
-                self.games.search(" ")
-            elif event.key == pg.K_SPACE and grid:
-                self.resize(1)
-                self.games.random_game()
-            elif event.key in GRID_LARGER and not self.games.is_searching():
-                self.resize(cols + 2)
-            elif event.key in GRID_SMALLER and not self.games.is_searching():
-                self.resize(cols - 2)
-            elif grid and event.key in grid_moves:
-                self.games.reset_search()
-                self.select(self.pos + grid_moves[event.key])
-            elif event.key == pg.K_BACKSPACE:
-                self.games.backspace()
-            elif handler := self.handlers.get(event.key):
-                self.games.reset_search()
-                handler()
-            elif event.unicode.isprintable() and event.unicode:
-                self.games.search(event.unicode)
 
-            # (Re)start the timer that removes the query from the screen
-            if self.games.query:
-                pg.time.set_timer(SEARCH_EXPIRED, SEARCH_TIMEOUT, loops=1)
-            if event.key == pg.K_RETURN:
-                self.play(event.mod)
-        self.follow()
-        return None
+    def handle_key(self, event: pg.event.Event) -> None:
+        """Handle a keystroke other than Escape."""
+        if event.key != pg.K_SPACE:
+            self.set_slideshow(enabled=False)
+        elif not self.games.is_searching():
+            self.set_slideshow(enabled=True)
+        self.navigate(event)
+
+        # (Re)start the timer that removes the query from the screen
+        if self.games.query:
+            pg.time.set_timer(SEARCH_EXPIRED, SEARCH_TIMEOUT, loops=1)
+        if event.key == pg.K_RETURN:
+            self.play(event.mod)
+
+    def navigate(self, event: pg.event.Event) -> None:
+        """Search, zoom, move, or jump, depending on the key."""
+        cols = self.cols
+        grid = cols > 1
+        grid_moves = {pg.K_RIGHT: 1, pg.K_LEFT: -1, pg.K_DOWN: cols, pg.K_UP: -cols}
+        if event.key == pg.K_SPACE and self.games.is_searching():
+            self.games.search(" ")
+        elif event.key == pg.K_SPACE and grid:
+            self.resize(1)
+            self.games.random_game()
+        elif event.key in GRID_LARGER and not self.games.is_searching():
+            self.resize(cols + 2)
+        elif event.key in GRID_SMALLER and not self.games.is_searching():
+            self.resize(cols - 2)
+        elif grid and event.key in grid_moves:
+            self.games.reset_search()
+            self.select(self.pos + grid_moves[event.key])
+        elif event.key == pg.K_BACKSPACE:
+            self.games.backspace()
+        elif handler := self.handlers.get(event.key):
+            self.games.reset_search()
+            handler()
+        elif event.unicode.isprintable() and event.unicode:
+            self.games.search(event.unicode)
 
     @override
     def update(self, screen: pg.Surface) -> None:
@@ -509,7 +528,7 @@ class Browse(Scene):
         """Draw the search query in the top left corner."""
         if not hasattr(self, "font"):
             self.font = pg.font.SysFont("monospace", 24)
-        image = self.font.render(self.games.query, True, (255, 255, 255))
+        image = self.font.render(self.games.query, ANTIALIAS, (255, 255, 255))
         rect = image.get_rect().inflate(2 * padding, 2 * padding)
         rect.topleft = (margin, margin)
         screen.fill((0, 0, 0), rect)
@@ -517,9 +536,7 @@ class Browse(Scene):
 
 
 class Menu:
-    """
-    The context menu that opens when right-clicking a game.
-    """
+    """The context menu that opens when right-clicking a game."""
 
     PADDING = 10
     GAP = 20
@@ -533,13 +550,14 @@ class Menu:
     def __init__(
         self, font: pg.font.Font, game: Game, pos: tuple[int, int], bounds: pg.Rect
     ) -> None:
+        """Lay out the menu for the game at pos, within the bounds."""
         self.font = font
         self.highlighted: int | None = None
         if not game.configured:
             game.configure()
         font.bold = True
         self.title = font.render(
-            f"{game.title} ({game.year})", True, self.TITLE_FOREGROUND
+            f"{game.title} ({game.year})", ANTIALIAS, self.TITLE_FOREGROUND
         )
         font.bold = False
         labels = max(font.size(label)[0] for label, _, _ in MENU_ITEMS)
@@ -551,12 +569,12 @@ class Menu:
         self.rect = pg.Rect(pos, size).clamp(bounds)
 
     def row(self, item: int) -> pg.Rect:
-        """The rectangle of the given menu item, where -1 is the title."""
+        """Return the rectangle of the given menu item, where -1 is the title."""
         top = self.rect.top + (item + 1) * self.line_height
         return pg.Rect(self.rect.left, top, self.rect.width, self.line_height)
 
     def item_at(self, point: tuple[int, int]) -> int | None:
-        """The menu item at the given point, or None."""
+        """Return the menu item at the given point, or None."""
         for item in range(len(MENU_ITEMS)):
             if self.row(item).collidepoint(point):
                 return item
@@ -576,20 +594,21 @@ class Menu:
                 screen.fill(self.HIGHLIGHT_BACKGROUND, row)
                 color = self.HIGHLIGHT_FOREGROUND
             y = row.top + self.PADDING // 2
-            screen.blit(self.font.render(label, True, color), (x, y))
-            screen.blit(self.font.render(shortcut, True, color), (shortcut_x, y))
+            screen.blit(self.font.render(label, ANTIALIAS, color), (x, y))
+            screen.blit(self.font.render(shortcut, ANTIALIAS, color), (shortcut_x, y))
 
 
 class Capture(Scene):
-    """
-    List all games without a title screen. While a game is running,
-    watch the captures directory and move every new screenshot to the
-    title.png of that game.
+    """List all games without a title screen.
+
+    While a game is running, watch the captures directory and move every
+    new screenshot to the title.png of that game.
     """
 
     POLL_INTERVAL = 500
 
     def __init__(self, games: GameList) -> None:
+        """List the games without a title screen."""
         self.games = [game for game in games.games if not game.get_titlescreen()]
         self.current = 0
         self.offset = 0
@@ -597,7 +616,7 @@ class Capture(Scene):
         self.running: Game | None = None
         self.existing: set[str] = set()
         self.sizes: dict[str, int] = {}
-        self.captures_dir = os.path.expanduser(options.captures_dir)
+        self.captures_dir = Path(options.captures_dir).expanduser()
         self.last_poll = 0
         self.preview: pg.Surface | None = None
         super().__init__()
@@ -637,26 +656,24 @@ class Capture(Scene):
 
     def watch(self, game: Game) -> None:
         """Remember the existing screenshots before the game starts."""
-        os.makedirs(self.captures_dir, exist_ok=True)
+        self.captures_dir.mkdir(parents=True, exist_ok=True)
         self.running = game
-        self.existing = set(os.listdir(self.captures_dir))
+        self.existing = {path.name for path in self.captures_dir.iterdir()}
         self.sizes = {}
 
     def poll(self, game: Game) -> None:
-        """
-        Move new screenshots to the title screen of the given game,
-        but only once their size has stopped changing.
-        """
+        """Move new screenshots to the title screen of the given game.
 
-        for name in sorted(os.listdir(self.captures_dir)):
-            path = os.path.join(self.captures_dir, name)
+        A screenshot is only moved once its size has stopped changing.
+        """
+        for path in sorted(self.captures_dir.iterdir()):
+            name = path.name
             if name in self.existing or not name.lower().endswith(".png"):
                 continue
-            size = os.path.getsize(path)
+            size = path.stat().st_size
             if size and self.sizes.get(name) == size:
-                dest = os.path.join(game.path, "title.png")
-                shutil.copyfile(path, dest)
-                os.remove(path)
+                shutil.copyfile(path, game.path / "title.png")
+                path.unlink()
                 print(f"Captured {name} as title screen of {game.identifier}")
                 self.captured.add(game)
                 self.preview = None
@@ -687,7 +704,9 @@ class Capture(Scene):
             else "Enter: play, Alt-Enter: play without autorun, Esc: quit"
         )
         header = f"{len(self.captured)} of {len(self.games)} captured | {status}"
-        screen.blit(self.font.render(header, True, (255, 255, 0)), (margin, margin))
+        screen.blit(
+            self.font.render(header, ANTIALIAS, (255, 255, 0)), (margin, margin)
+        )
 
         # Game list on the left half, scrolled to keep the selection visible
         top = margin + 2 * line_height
@@ -705,7 +724,7 @@ class Capture(Scene):
             y = top + (i - self.offset) * line_height
             if i == self.current:
                 screen.fill((255, 255, 255), (margin, y, list_width, line_height))
-            text = self.font.render(f"{mark} {game.identifier}", True, color)
+            text = self.font.render(f"{mark} {game.identifier}", ANTIALIAS, color)
             screen.blit(text, (margin, y), (0, 0, list_width, line_height))
 
         # Preview of the captured title screen on the right half
@@ -725,28 +744,25 @@ class Capture(Scene):
 
 
 class Download(TitleScreen):
-    """
-    Download a game and show a progress bar.
-    """
+    """Download a game and show a progress bar."""
 
-    def __init__(self, game: Game, unzip: bool = True) -> None:
+    def __init__(self, game: Game, *, unzip: bool = True) -> None:
+        """Start downloading the game."""
         self.game = game
         super().__init__()
 
         # Start downloading (spawns a new thread)
-        self.game.download(unzip)
+        self.game.download(unzip=unzip)
 
     @override
     def run(self, screen: pg.Surface) -> NextScene:
-        """
-        Cancel the download when the scene exits before it's finished.
+        """Cancel the download when the scene exits before it's finished.
 
         The same note applies as above: This waits for the download
         thread to terminate by calling Thread.join(). If the network
         is stalled, that can take up to 60 seconds, and the window is
         frozen until then.
         """
-
         try:
             return super().run(screen)
         finally:
@@ -756,9 +772,8 @@ class Download(TitleScreen):
     @override
     def handle(self, event: pg.event.Event) -> NextScene:
         """Cancel on Escape."""
-        if event.type == pg.KEYDOWN:
-            if event.key == pg.K_ESCAPE:
-                return False
+        if event.type == pg.KEYDOWN and event.key == pg.K_ESCAPE:
+            return False
         return None
 
     @override

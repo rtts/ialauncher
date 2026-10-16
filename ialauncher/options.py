@@ -1,6 +1,6 @@
-"""
-Default options for IA Launcher. Can be overridden with
-command-line arguments.
+"""Default options for IA Launcher.
+
+They can be overridden with command-line arguments.
 """
 
 fullscreen = True

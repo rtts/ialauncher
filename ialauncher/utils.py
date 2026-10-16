@@ -1,3 +1,5 @@
+"""Helpers for laying out the scenes."""
+
 import math
 
 import pygame as pg
