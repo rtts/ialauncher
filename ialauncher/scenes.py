@@ -6,6 +6,7 @@ to Download.
 
 import shutil
 from collections.abc import Callable, Iterator
+from contextlib import suppress
 from pathlib import Path
 from typing import override
 
@@ -238,8 +239,7 @@ class Browse(Scene):
         self.menu: Menu | None = None
         self.slideshow = options.slideshow
         self.set_slideshow(enabled=bool(options.slideshow))
-        self.cursor = pg.SYSTEM_CURSOR_HAND
-        pg.mouse.set_cursor(self.cursor)
+        self.set_cursor(pg.SYSTEM_CURSOR_HAND)
         self.handlers: dict[int, Callable[[], None]] = {
             pg.K_RIGHT: self.games.next_game,
             pg.K_LEFT: self.games.previous_game,
@@ -260,6 +260,12 @@ class Browse(Scene):
         self.follow()
         self.set_slideshow(enabled=True)
         return True
+
+    def set_cursor(self, cursor: int) -> None:
+        """Change the mouse pointer, if the video driver supports that."""
+        self.cursor = cursor
+        with suppress(pg.error):
+            pg.mouse.set_cursor(cursor)
 
     def set_slideshow(self, *, enabled: bool) -> None:
         """Start or stop the slideshow."""
@@ -486,8 +492,7 @@ class Browse(Scene):
         else:
             cursor = pg.SYSTEM_CURSOR_HAND
         if cursor != self.cursor:
-            self.cursor = cursor
-            pg.mouse.set_cursor(cursor)
+            self.set_cursor(cursor)
         cols = self.cols
         games = self.games.games
         cache: dict[tuple[int, tuple[int, int], int | None], pg.Surface] = {}

@@ -10,3 +10,12 @@ repos:
     hooks:
       - id: ty
         args: [--isolated]
+  - repo: local
+    hooks:
+      - id: unittest
+        name: unittest
+        entry: python -m unittest
+        language: python
+        additional_dependencies: [pygame-ce]
+        types: [python]
+        pass_filenames: false
