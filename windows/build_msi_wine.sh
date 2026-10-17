@@ -50,13 +50,17 @@ if ! (cd "$work/src" && wine "$python" windows/setup_win.py bdist_msi) >"$log" 2
 fi
 msi=$(cd "$work/src/dist" && ls -- *.msi)
 cp "$work/src/dist/$msi" dist/
+xorriso -as mkisofs -J -r -V IALAUNCHER -o ~/ialauncher.iso -graft-points "$msi=dist/$msi"
 
 cat << EOF
-
 Successfully built $PWD/dist/$msi
 
 To install and run it in Wine:
 
     wine msiexec /i "$PWD/dist/$msi"
     wine "C:\\Program Files\\IA Launcher\\ialauncher.exe"
+
+To install it on Windows, burn ~/ialauncher.iso to a CD and then
+insert the CD into a Windows machine :-)
+
 EOF
