@@ -12,11 +12,25 @@ from pathlib import Path
 from unittest import mock
 from urllib.error import ContentTooShortError, HTTPError, URLError
 
-from ialauncher.game import Download
+from ialauncher.game import CERTIFICATE_HINT, Download
 
 URL = "https://example.com/games/Example%20Game%20%281992%29.zip"
 GAMEDIR = Path("/path/to/gamedir")
 MESSAGE = "Failed to download Example Game (1992).zip\n\n{}"
+
+
+def certificate_error(message: str) -> ssl.SSLCertVerificationError:
+    """Return the error that the ssl module raises when verification fails."""
+    error = ssl.SSLCertVerificationError(
+        1,
+        f"[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: {message} "
+        "(_ssl.c:1032)",
+    )
+    error.reason = "CERTIFICATE_VERIFY_FAILED"
+    error.verify_message = message
+    return error
+
+
 DOWNLOAD_ERRORS: dict[str, tuple[Exception, str]] = {
     # It's always DNS:
     "unknown host": (
@@ -73,14 +87,18 @@ DOWNLOAD_ERRORS: dict[str, tuple[Exception, str]] = {
         "Connection reset by peer",
     ),
     "certificate expired": (
-        URLError(
-            ssl.SSLCertVerificationError(
-                1,
-                "[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: "
-                "certificate has expired (_ssl.c:1032)",
-            )
+        URLError(certificate_error("certificate has expired")),
+        (
+            "TLS certificate error: CERTIFICATE_VERIFY_FAILED: certificate has expired"
+            f"\n\n{CERTIFICATE_HINT}"
         ),
-        "TLS certificate error",
+    ),
+    "missing root certificate": (
+        URLError(certificate_error("unable to get local issuer certificate")),
+        (
+            "TLS certificate error: CERTIFICATE_VERIFY_FAILED: "
+            f"unable to get local issuer certificate\n\n{CERTIFICATE_HINT}"
+        ),
     ),
     "TLS error": (
         URLError(ssl.SSLError(1, "[SSL: WRONG_VERSION_NUMBER] wrong version number")),

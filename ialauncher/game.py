@@ -27,6 +27,12 @@ from .iso import ISOFile
 QUICK_EXIT = 3
 EMULATOR_FAILED = pg.event.custom_type()
 
+# Browsers make Windows fetch missing root certificates, Python doesn't.
+CERTIFICATE_HINT = (
+    "Visit https://cors.archive.org/ in your web browser and then try again, "
+    "it might help."
+)
+
 # How to describe download errors, checked in order.
 ERROR_WORDING: list[tuple[type[Exception] | tuple[type[Exception], ...], str]] = [
     (TimeoutError, "The connection timed out"),
@@ -299,7 +305,7 @@ class Download(Thread):
         self.error = f"Failed to {self.action} {self.filename}\n\n{reason}"
         print(f" {error!r} :(")
 
-    def explain(self, error: object) -> str:
+    def explain(self, error: object) -> str:  # noqa: PLR0911
         """Return an explanation for why it failed."""
         if type(error) is URLError:
             error = error.reason  # The actual error is inside
@@ -313,6 +319,11 @@ class Download(Thread):
             return "Temporary failure in name resolution"
         if isinstance(error, PermissionError):
             return f"Not allowed to write to {self.gamedir.parent}"
+        if isinstance(error, ssl.SSLCertVerificationError):
+            return (
+                f"TLS certificate error: {error.reason}: {error.verify_message}"
+                f"\n\n{CERTIFICATE_HINT}"
+            )
         for types, wording in ERROR_WORDING:
             if isinstance(error, types):
                 return wording
