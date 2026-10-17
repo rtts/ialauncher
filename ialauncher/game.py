@@ -62,8 +62,8 @@ class Game:
         """Read the metadata from metadata.ini."""
         self.config = c = RawConfigParser()
         c.read(self.path / "metadata.ini")
-        self.title = c["metadata"].get("title")
-        self.year = c["metadata"].get("year")
+        self.title = c["metadata"]["title"]
+        self.year = c["metadata"]["year"]
         self.engine = c["metadata"].get("engine", "dosbox")
         self.scummvm_game = c["metadata"].get("scummvm_game")
         self.scummvm_args = (c["metadata"].get("scummvm_args") or "").split()
@@ -177,10 +177,8 @@ class Game:
 
     def write_metadata(self) -> None:
         """Write the metadata back to metadata.ini."""
-        if self.title:
-            self.config["metadata"]["title"] = self.title
-        if self.year:
-            self.config["metadata"]["year"] = self.year
+        self.config["metadata"]["title"] = self.title
+        self.config["metadata"]["year"] = self.year
         if self.urls:
             self.config["metadata"]["url"] = "\n".join(self.urls)
         if self.emulator_start:
@@ -249,7 +247,7 @@ class DOSBox(Emulator):
 
         if game.autorun and seconds < QUICK_EXIT:
             message = (
-                f"{game.title or game.identifier} exited in {seconds:.3f} seconds.\n\n"
+                f"{game.title} exited in {seconds:.3f} seconds.\n\n"
                 "This probably means its start command is wrong.\n"
                 "Press Alt-Enter to open DOSBox and try to start\n"
                 "the game manually. Good luck!"
