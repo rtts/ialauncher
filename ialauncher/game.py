@@ -5,7 +5,7 @@ import shutil
 import subprocess
 from collections.abc import Callable
 from configparser import RawConfigParser
-from http.client import RemoteDisconnected
+from http.client import HTTPException, RemoteDisconnected
 from pathlib import Path
 from threading import Event, Thread
 from typing import TYPE_CHECKING, override
@@ -293,6 +293,8 @@ class Download(Thread):
             print(f" {e.reason} :(")
         except RemoteDisconnected:
             print(" no answer :(")
+        except (OSError, HTTPException) as e:
+            print(f" {e!r} :(")
         else:
             return
 
