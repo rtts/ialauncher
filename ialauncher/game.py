@@ -84,10 +84,6 @@ class Game:
         datadir = "scummvm_data" if self.engine == "scummvm" else "dosbox_drive_c"
         self.gamedir = self.path / datadir
 
-    def __lt__(self, other: "Game") -> bool:
-        """Sort games by identifier, ignoring case."""
-        return self.identifier.lower() < other.identifier.lower()
-
     def get_emulator(self) -> list[str]:
         """Return the emulator's command, or raise EmulatorError."""
         if self.engine == "scummvm":

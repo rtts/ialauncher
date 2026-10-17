@@ -25,8 +25,8 @@ class GameList:
         self.games.append(Game(game_dir))
 
     def sort(self) -> None:
-        """Sort the games by identifier."""
-        self.games.sort()
+        """Sort the games by identifier, ignoring case."""
+        self.games.sort(key=lambda game: game.identifier.lower())
 
     def get_image(self, game: Game) -> pg.Surface:
         """Return the title screen of the given game."""
