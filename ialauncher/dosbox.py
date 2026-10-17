@@ -3,31 +3,21 @@
 import os
 import subprocess
 from collections.abc import Iterable, Iterator
+from functools import cache
 from pathlib import Path
 
-DOSBOX_NOT_FOUND = """
 
-Uh-oh! The program DOSBox could not be found on your system. IA Launcher
-acts as a frontend for DOSBox: when you select a game, it starts DOSBox
-with the right arguments to play that game.
-
-Please visit https://www.dosbox.com/ to learn more about DOSBox and
-download the correct installer for your operating system.
-
-"""
-
-
-class DOSBoxNotFoundError(Exception):
-    """DOSBox is not installed."""
+class EmulatorError(Exception):
+    """The emulator is not installed."""
 
 
 def works(command: list[str]) -> bool:
     """Return whether the command can be executed."""
     try:
-        subprocess.run(  # noqa: S603 - the candidates are hardcoded
-            [*command, "--version"], capture_output=True, check=True
+        subprocess.run(  # noqa: S603
+            [*command, "--version"], capture_output=True, check=True, timeout=3
         )
-    except (OSError, subprocess.CalledProcessError):
+    except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
         return False
     return True
 
@@ -45,8 +35,9 @@ def windows_candidates(pattern: str) -> Iterator[list[str]]:
                 yield [str(path)]
 
 
-def get_dosbox_path() -> list[str]:
-    """Return the command that runs DOSBox on this system."""
+@cache
+def get_dosbox_command() -> list[str]:
+    """Return the command that runs DOSBox."""
     command = find_command(
         [
             ["dosbox"],
@@ -59,5 +50,17 @@ def get_dosbox_path() -> list[str]:
         ]
     )
     if command is None:
-        raise DOSBoxNotFoundError(DOSBOX_NOT_FOUND)
+        msg = """
+This game needs DOSBox to play, but DOSBox could not be
+found on your system.
+
+Please visit https://www.dosbox.com/ to learn more about
+DOSBox and to download the correct installer for your
+operating system.
+
+Alternatively, if you installed DOSBox in a non-standard
+location, set the PATH environment variable to point to the
+DOSBox directory.
+        """
+        raise EmulatorError(msg)
     return command

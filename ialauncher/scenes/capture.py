@@ -11,6 +11,7 @@ from ialauncher import options
 from ialauncher.engine import NextScene
 from ialauncher.game import Game
 from ialauncher.gamelist import GameList
+from ialauncher.utils import find_emulator
 
 from . import ANTIALIAS, BLACK, WHITE, Scene
 from .download import Download
@@ -66,6 +67,8 @@ class Capture(Scene):
             self.preview = None
         if event.key == pg.K_RETURN and self.games and not self.running:
             game = self.games[self.current]
+            if not find_emulator(game):
+                return None
             if event.mod & pg.KMOD_SHIFT:
                 game.reset()
             if not game.is_ready():

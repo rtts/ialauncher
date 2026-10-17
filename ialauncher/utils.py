@@ -1,8 +1,11 @@
-"""Helpers for laying out the scenes."""
+"""Helpers for the scenes."""
 
 import math
 
 import pygame as pg
+
+from ialauncher.dosbox import EmulatorError
+from ialauncher.game import Game
 
 GRID_MARGIN = 5
 FULLSCREEN_ASPECT_RATIO = 16 / 10
@@ -52,3 +55,13 @@ def gradient(
         color = pg.Color(start).lerp(end, x / max(width - 1, 1))
         pg.draw.line(surface, color, (x, 0), (x, height - 1))
     return surface
+
+
+def find_emulator(game: Game) -> bool:
+    """Return whether the game's emulator is installed; if not, show a message box."""
+    try:
+        game.get_emulator()
+    except EmulatorError as e:
+        pg.display.message_box("IA Launcher", str(e).strip(), message_type="error")
+        return False
+    return True

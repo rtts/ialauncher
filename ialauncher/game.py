@@ -15,14 +15,12 @@ from urllib.parse import unquote
 from zipfile import ZipFile
 
 from . import options
-from .dosbox import get_dosbox_path
+from .dosbox import get_dosbox_command
 from .iso import ISOFile
-from .scummvm import ScummVMNotFoundError, get_scummvm_path
+from .scummvm import get_scummvm_command
 
 if TYPE_CHECKING:
     import pygame as pg
-
-DOSBOX = get_dosbox_path()
 
 # What configure() raises when metadata.ini is missing or invalid
 CONFIG_ERRORS = (KeyError, ValueError, configparser.Error)
@@ -60,6 +58,14 @@ class Game:
         """Sort games by identifier, ignoring case."""
         return self.identifier.lower() < other.identifier.lower()
 
+    def get_emulator(self) -> list[str]:
+        """Return the emulator's command, or raise EmulatorError."""
+        if not self.configured:
+            self.configure()
+        if self.engine == "scummvm":
+            return get_scummvm_command()
+        return get_dosbox_command()
+
     def start(self, *, autorun: bool = True) -> None:
         r"""Start the game.
 
@@ -85,11 +91,14 @@ class Game:
 
         These changes will then be preserved for the next time the game
         is run normally.
+
+        Raises EmulatorError if DOSBox (or ScummVM) isn't installed.
         """
         if self.engine == "scummvm":
             self.start_scummvm(autorun=autorun)
             return
 
+        dosbox = get_dosbox_command()
         batfile = self.gamedir / "dosbox.bat"
         conffile = self.gamedir / "dosbox.conf"
         dosbox_args = [
@@ -124,7 +133,7 @@ class Game:
         self.batfile = batfile
         self.autorun = autorun
         self.emulator_args = dosbox_args
-        self.emulator_thread = DOSBox(self)
+        self.emulator_thread = DOSBox(self, dosbox)
         self.emulator_thread.start()
 
     def start_scummvm(self, *, autorun: bool = True) -> None:
@@ -134,12 +143,7 @@ class Game:
         game directory. With autorun=False, the ScummVM launcher is
         opened instead.
         """
-        try:
-            scummvm = get_scummvm_path()
-        except ScummVMNotFoundError as e:
-            print(e)
-            return
-
+        scummvm = get_scummvm_command()
         captures_dir = Path(options.captures_dir).expanduser()
         captures_dir.mkdir(parents=True, exist_ok=True)
         args = ["--path=.", "--savepath=.", f"--screenshotpath={captures_dir}"]
@@ -227,10 +231,6 @@ class Emulator(Thread):
 
 class DOSBox(Emulator):
     """A thread that runs a game in DOSBox."""
-
-    def __init__(self, game: Game) -> None:
-        """Prepare to run the game with DOSBox."""
-        super().__init__(game, DOSBOX)
 
     @override
     def run(self) -> None:

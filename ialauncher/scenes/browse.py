@@ -12,7 +12,7 @@ from ialauncher.cga import cga
 from ialauncher.engine import NextScene
 from ialauncher.game import Game
 from ialauncher.gamelist import SEARCH_TIMEOUT, GameList
-from ialauncher.utils import grid_margin, grid_rows, letterbox
+from ialauncher.utils import find_emulator, grid_margin, grid_rows, letterbox
 
 from . import ANTIALIAS, BLACK, CYAN, MAGENTA, WHITE, Scene
 from .download import Download
@@ -160,6 +160,8 @@ class Browse(Scene):
         """Download the current game if needed and start it."""
         self.games.reset_search()
         game = self.games.get_current_game()
+        if not find_emulator(game):
+            return
         if mod & pg.KMOD_SHIFT:
             game.reset()
         if not game.is_ready():

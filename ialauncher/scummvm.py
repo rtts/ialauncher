@@ -2,26 +2,12 @@
 
 from functools import cache
 
-from .dosbox import find_command, windows_candidates
-
-SCUMMVM_NOT_FOUND = """
-
-Uh-oh! The program ScummVM could not be found on your system. Some games
-in IA Launcher are played with ScummVM instead of DOSBox.
-
-Please visit https://www.scummvm.org/ to learn more about ScummVM and
-download the correct installer for your operating system.
-
-"""
-
-
-class ScummVMNotFoundError(Exception):
-    """ScummVM is not installed."""
+from .dosbox import EmulatorError, find_command, windows_candidates
 
 
 @cache
-def get_scummvm_path() -> list[str]:
-    """Return the command that runs ScummVM on this system."""
+def get_scummvm_command() -> list[str]:
+    """Return the command that runs ScummVM."""
     command = find_command(
         [
             ["scummvm"],
@@ -32,5 +18,17 @@ def get_scummvm_path() -> list[str]:
         ]
     )
     if command is None:
-        raise ScummVMNotFoundError(SCUMMVM_NOT_FOUND)
+        msg = """
+This game needs ScummVM to play, but ScummVM could not be
+found on your system.
+
+Please visit https://www.scummvm.org/ to learn more about
+ScummVM and to download the correct installer for your
+operating system.
+
+Alternatively, if you installed ScummVM in a non-standard
+location, set the PATH environment variable to point to the
+ScummVM directory.
+        """
+        raise EmulatorError(msg)
     return command
