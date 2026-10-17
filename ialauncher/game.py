@@ -2,6 +2,7 @@
 
 import configparser
 import shutil
+import socket
 import subprocess
 from collections.abc import Callable
 from configparser import RawConfigParser
@@ -11,7 +12,7 @@ from threading import Event, Thread
 from typing import TYPE_CHECKING, override
 from urllib import request
 from urllib.error import ContentTooShortError, HTTPError, URLError
-from urllib.parse import unquote
+from urllib.parse import unquote, urlparse
 from zipfile import ZipFile
 
 from . import options
@@ -263,6 +264,7 @@ class Download(Thread):
         self.should_unzip = unzip
         self.should_extract = extract
         self.progress = 0.0
+        self.url = ""
         self.error: str | None = None
         self.cancelled = Event()
         super().__init__(daemon=True)
@@ -280,31 +282,38 @@ class Download(Thread):
         except InterruptedError:
             print(" cancelled.")
         except TimeoutError:
-            self.fail("timed out")
+            self.fail("timed out", "the network connection timed out")
         except HTTPError as e:
-            self.fail(f"{e.code} {e.reason}")
+            self.fail(f"{e.code} {e.reason}", "")
         except ContentTooShortError:
-            self.fail("incomplete")
+            self.fail("incomplete", "the file we download was incomplete")
         except URLError as e:
-            self.fail(str(e.reason))
+            if isinstance(e.reason, socket.gaierror):
+                host = urlparse(self.url).hostname
+                self.fail(
+                    str(e.reason), f"the server name {host} could not be resolved"
+                )
+            else:
+                self.fail(str(e.reason), "")
         except RemoteDisconnected:
-            self.fail("no answer")
+            self.fail("no answer", "the remote end suddenly disconnected")
         except (OSError, HTTPException) as e:
-            self.fail(repr(e))
+            self.fail(repr(e), "")
         else:
             return
 
         # Remove the partially unzipped or extracted game
         shutil.rmtree(self.gamedir, ignore_errors=True)
 
-    def fail(self, error: str) -> None:
+    def fail(self, status: str, reason: str) -> None:
         """Remember why the download failed, and print it."""
-        self.error = error
-        print(f" {error} :(")
+        self.error = f"Downloading {self.url} failed: {reason or status}"
+        print(f" {status} :(")
 
     def download(self) -> None:
         """Download each URL (unless it already was) and unpack it."""
         for u in self.urls:
+            self.url = u
             filename = unquote(u.split("/")[-1]).split("/")[-1]
             dest = self.gamedir.parent / filename
             if not dest.is_file():
