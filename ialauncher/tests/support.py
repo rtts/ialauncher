@@ -1,12 +1,4 @@
-"""Helpers for testing IA Launcher.
-
-Tests subclass HeadlessTestCase, and each test method that is a generator
-is a script that drives the app: it yields the events to post (or None
-to just wait a frame), and is sent the scene that is running once the
-app has handled them. After the app quits, the script is sent None and
-should then return. If the app raises an exception instead, it is
-raised in the script, at the step that caused it.
-"""
+"""Support for headless testing of IA Launcher."""
 
 import functools
 import random
@@ -27,11 +19,14 @@ from ialauncher.game import Game
 type Step = pg.event.Event | list[pg.event.Event] | None
 type Script = Generator[Step, engine.Scene | None, None]
 
-# Posted to wake up scenes that sleep until the next event
 TICK = pg.event.custom_type()
+MAX_FRAMES = 10_000  # 300 is typical
 
-# Give up when the app runs this many frames (loading takes about 300)
-MAX_FRAMES = 10_000
+# In the original pygame, pg.event.peek() has a reference-counting bug
+# that causes a use-after-free that segfaults Python, hence the
+# requirement to run the tests with pygame-ce.
+if not getattr(pg, "IS_CE", False):
+    sys.exit("You need pygame-ce to run the unittests.")
 
 
 def key(key: int, mod: int = pg.KMOD_NONE, unicode: str = "") -> list[pg.event.Event]:
@@ -116,7 +111,9 @@ class HeadlessTestCase(unittest.TestCase):
             frames += 1
             if frames > MAX_FRAMES:
                 self.fail(f"The app is still running after {MAX_FRAMES} frames")
-            if not pg.event.peek():  # Wait until the app has handled all events
+
+            # Wait until the app has handled all events.
+            if not pg.event.peek():
                 for event in self.next_events(script, scenes[-1]):
                     pg.event.post(event)
 
