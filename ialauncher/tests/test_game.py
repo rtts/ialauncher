@@ -16,7 +16,7 @@ from ialauncher.game import Download
 
 URL = "https://example.com/games/Example%20Game%20%281992%29.zip"
 GAMEDIR = Path("/path/to/gamedir")
-MESSAGE = "Downloading Example Game (1992).zip failed: {}"
+MESSAGE = "Failed to download Example Game (1992).zip\n\n{}"
 DOWNLOAD_ERRORS: dict[str, tuple[Exception, str]] = {
     # It's always DNS:
     "unknown host": (

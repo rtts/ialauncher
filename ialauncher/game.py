@@ -246,9 +246,10 @@ class Emulator(Thread):
         seconds = monotonic() - started
         if game.autorun and seconds < QUICK_EXIT:
             message = (
-                f"{game.title or game.identifier} exited in {seconds:.3f} seconds, "
-                "which probably means its start command is wrong. Press Alt-Enter "
-                "to open DOSBox and try to start the game manually. Good luck!"
+                f"{game.title or game.identifier} exited in {seconds:.3f} seconds.\n\n"
+                "This probably means its start command is wrong.\n"
+                "Press Alt-Enter to open DOSBox and try to start\n"
+                "the game manually. Good luck!"
             )
             print(message)
             pg.event.post(pg.event.Event(EMULATOR_FAILED, message=message))
@@ -290,7 +291,7 @@ class Download(Thread):
         self.should_extract = extract
         self.progress = 0.0
         self.filename = ""
-        self.action = "Downloading"
+        self.action = "download"
         self.error: str | None = None
         self.cancelled = Event()
         super().__init__(daemon=True)
@@ -340,13 +341,13 @@ class Download(Thread):
         """Remember why the download failed, and print the error."""
         reason = self.explain(error)
         reason = reason[:1].upper() + reason[1:]
-        self.error = f"{self.action} {self.filename} failed: {reason}"
+        self.error = f"Failed to {self.action} {self.filename}\n\n{reason}"
         print(f" {error!r} :(")
 
     def download(self) -> None:
         """Download each URL (unless it already was) and unpack it."""
         for u in self.urls:
-            self.action = "Downloading"
+            self.action = "download"
             self.filename = filename = unquote(u.split("/")[-1]).split("/")[-1]
             dest = self.gamedir.parent / filename
             if not dest.is_file():
@@ -357,17 +358,19 @@ class Download(Thread):
             if not self.should_unzip:
                 continue
             if self.should_extract and filename.lower().endswith((".iso", ".bin")):
-                self.unpack("Extracting", dest, self.extract_iso)
+                self.unpack("extract", dest, self.extract_iso)
             elif filename.lower().endswith((".zip", ".play")):
-                self.unpack("Unzipping", dest, self.unzip)
+                self.unpack("unzip", dest, self.unzip)
             else:
                 self.gamedir.mkdir(parents=True, exist_ok=True)
                 shutil.copy(dest, self.gamedir)
 
-    def unpack(self, verb: str, archive: Path, method: Callable[[Path], None]) -> None:
+    def unpack(
+        self, action: str, archive: Path, method: Callable[[Path], None]
+    ) -> None:
         """Unpack the archive with the given method, and print the result."""
-        self.action = verb
-        print(f"{verb} {archive.name}...", end="", flush=True)
+        self.action = action
+        print(f"Trying to {action} {archive.name}...", end="", flush=True)
         method(archive)
         print(" done!")
 
