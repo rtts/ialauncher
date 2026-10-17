@@ -1,6 +1,7 @@
 """A single game."""
 
 import configparser
+import shlex
 import shutil
 import socket
 import ssl
@@ -174,16 +175,10 @@ class Game:
 
         Emulator(self, [*scummvm, *args]).start()
 
-    def write_metadata(self) -> None:
-        """Write the metadata back to metadata.ini."""
-        self.config["metadata"]["title"] = self.title
-        self.config["metadata"]["year"] = self.year
-        if self.urls:
-            self.config["metadata"]["url"] = "\n".join(self.urls)
-        if self.emulator_start:
-            self.config["metadata"]["emulator_start"] = self.emulator_start
-        if self.dosbox_conf:
-            self.config["metadata"]["dosbox_conf"] = self.dosbox_conf
+    def save_emulator_start(self, emulator_start: str) -> None:
+        """Change emulator_start, and save it to metadata.ini."""
+        self.emulator_start = emulator_start
+        self.config["metadata"]["emulator_start"] = emulator_start
         with (self.path / "metadata.ini").open("w") as f:
             self.config.write(f)
 
@@ -220,7 +215,7 @@ class Emulator(Thread):
     @override
     def run(self) -> None:
         """Run the emulator and wait for it to exit."""
-        print("Executing:", " ".join(self.command))
+        print("Executing:", shlex.join(self.command))
         subprocess.run(self.command, cwd=self.game.gamedir, check=False)  # noqa: S603
 
 
@@ -255,8 +250,7 @@ class DOSBox(Emulator):
         if not self.autorun and self.batfile.is_file():
             emulator_start = self.batfile.read_text().rstrip("\r\n")
             if emulator_start and emulator_start != game.emulator_start:
-                game.emulator_start = emulator_start
-                game.write_metadata()
+                game.save_emulator_start(emulator_start)
 
 
 class Download(Thread):
