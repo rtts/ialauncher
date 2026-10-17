@@ -2,6 +2,7 @@
 
 from collections.abc import Callable, Iterator
 from contextlib import suppress
+from functools import cached_property
 from typing import override
 
 import pygame as pg
@@ -73,6 +74,16 @@ class Browse(Scene):
     def set_slideshow(self, *, enabled: bool) -> None:
         """Start or stop the slideshow."""
         pg.time.set_timer(ADVANCE, self.slideshow * 1000 if enabled else 0)
+
+    @cached_property
+    def font(self) -> pg.font.Font:
+        """The font of the search query."""
+        return pg.font.SysFont("monospace", 24)
+
+    @cached_property
+    def menu_font(self) -> pg.font.Font:
+        """The font of the menu."""
+        return pg.font.SysFont(MENU_FONT, 12)
 
     @property
     def area(self) -> pg.Rect:
@@ -223,8 +234,6 @@ class Browse(Scene):
 
     def open_menu(self, pos: tuple[int, int]) -> None:
         """Open the menu of the current game at the given position."""
-        if not hasattr(self, "menu_font"):
-            self.menu_font = pg.font.SysFont(MENU_FONT, 12)
         self.menu = Menu(
             self.menu_font,
             self.games.get_current_game(),
@@ -334,8 +343,6 @@ class Browse(Scene):
         self, screen: pg.Surface, margin: int = 15, padding: int = 8
     ) -> None:
         """Draw the search query in the top left corner."""
-        if not hasattr(self, "font"):
-            self.font = pg.font.SysFont("monospace", 24)
         image = self.font.render(self.games.query, ANTIALIAS, WHITE)
         rect = image.get_rect().inflate(2 * padding, 2 * padding)
         rect.topleft = (margin, margin)

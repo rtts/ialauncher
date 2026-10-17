@@ -1,6 +1,7 @@
 """A list of all games without a title screen."""
 
 import shutil
+from functools import cached_property
 from pathlib import Path
 from typing import override
 
@@ -37,6 +38,11 @@ class Capture(Scene):
         self.last_poll = 0
         self.preview: pg.Surface | None = None
         super().__init__()
+
+    @cached_property
+    def font(self) -> pg.font.Font:
+        """The font of the list."""
+        return pg.font.SysFont("monospace", 24)
 
     @override
     def handle(self, event: pg.event.Event) -> NextScene:
@@ -109,8 +115,6 @@ class Capture(Scene):
                 self.running = None
 
         screen.fill(BLACK)
-        if not hasattr(self, "font"):
-            self.font = pg.font.SysFont("monospace", 24)
         rect = screen.get_rect()
         margin = 15
         line_height = self.font.get_linesize()
