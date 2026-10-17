@@ -1,7 +1,5 @@
 """Run the app headless and browse around."""
 
-import unittest
-
 import pygame as pg
 
 from ialauncher.scenes.browse import Browse
@@ -64,7 +62,3 @@ class TestBrowse(HeadlessTestCase):
         yield from self.wait_for(Browse)
         with self.assertRaisesRegex(AssertionError, "tried to"):
             yield key(pg.K_RETURN)
-
-
-if __name__ == "__main__":
-    unittest.main()
