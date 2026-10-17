@@ -378,8 +378,6 @@ class Menu:
         """Lay out the menu for the game at pos, within the bounds."""
         self.font = font
         self.highlighted: int | None = None
-        if not game.configured:
-            game.configure()
         font.bold = True
         self.title = font.render(
             f"{game.title} ({game.year})", ANTIALIAS, self.TITLE_FOREGROUND

@@ -14,7 +14,9 @@ import pygame as pg
 
 import games as gd
 from ialauncher.engine import NextScene
+from ialauncher.game import MetadataError
 from ialauncher.gamelist import GameList
+from ialauncher.utils import show_error
 
 from . import TitleScreen
 from .browse import Browse
@@ -102,16 +104,23 @@ class Loading(TitleScreen):
 
     @override
     def update(self, screen: pg.Surface) -> NextScene:
-        """Load (or in slurp mode, download) games and draw the progress."""
-        if self.slurp:
-            # Loading doesn't cap the frame rate and the download
-            # happens in a separate thread, so cap the framerate to
-            # prevent 100% CPU.
-            self.clock.tick(30)
+        """Load (or in slurp mode, download) games and draw the progress.
 
-            self.download_game()
-        else:
-            self.load_games(10)
+        Quit if a game has invalid metadata.
+        """
+        try:
+            if self.slurp:
+                # Loading doesn't cap the frame rate and the download
+                # happens in a separate thread, so cap the framerate to
+                # prevent 100% CPU.
+                self.clock.tick(30)
+
+                self.download_game()
+            else:
+                self.load_games(10)
+        except MetadataError as e:
+            show_error(str(e))
+            return False
         if not self.todo and not self.downloading:
             return self.done()
         finished = self.total - len(self.todo) - bool(self.downloading)

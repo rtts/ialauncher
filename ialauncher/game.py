@@ -23,9 +23,6 @@ from . import options
 from .emulator import get_dosbox_command, get_scummvm_command
 from .iso import ISOFile
 
-# What configure() raises when metadata.ini is missing or invalid.
-CONFIG_ERRORS = (KeyError, ValueError, configparser.Error)
-
 # A game that exits within this many seconds probably has a wrong start command.
 QUICK_EXIT = 3
 EMULATOR_FAILED = pg.event.custom_type()
@@ -40,17 +37,26 @@ ERROR_WORDING: list[tuple[type[Exception] | tuple[type[Exception], ...], str]] =
 ]
 
 
+class MetadataError(Exception):
+    """The metadata.ini of a game is missing or invalid."""
+
+
 class Game:
     """A game with metadata and a title screen."""
 
     def __init__(self, path: Path) -> None:
-        """Create the game without reading its metadata yet."""
+        """Create the game and read its metadata, or raise MetadataError."""
         self.path = path
         self.identifier = path.name
-        self.configured = False
         self.download_thread: Download | None = None
         self.emulator_thread: Emulator | None = None
         self.cached_image: pg.Surface | None = None
+        try:
+            self.configure()
+        except (KeyError, ValueError, configparser.Error) as e:
+            reason = f"Missing {e}" if isinstance(e, KeyError) else str(e)
+            msg = f"Invalid metadata for {self.identifier}\n\n{reason}"
+            raise MetadataError(msg) from e
 
     def configure(self) -> None:
         """Read the metadata from metadata.ini."""
@@ -66,7 +72,6 @@ class Game:
         self.emulator_start = c["metadata"].get("emulator_start")
         self.dosbox_conf = c["metadata"].get("dosbox_conf")
         self.urls = c["metadata"]["url"].split()
-        self.configured = True
 
     def __lt__(self, other: "Game") -> bool:
         """Sort games by identifier, ignoring case."""
@@ -74,8 +79,6 @@ class Game:
 
     def get_emulator(self) -> list[str]:
         """Return the emulator's command, or raise EmulatorError."""
-        if not self.configured:
-            self.configure()
         if self.engine == "scummvm":
             return get_scummvm_command()
         return get_dosbox_command()
@@ -196,11 +199,6 @@ class Game:
 
     def is_ready(self) -> bool:
         """Return whether the game has been downloaded."""
-        if not self.configured:
-            try:
-                self.configure()
-            except CONFIG_ERRORS:
-                return False
         return self.gamedir.is_dir()
 
     def reset(self) -> None:
@@ -211,11 +209,6 @@ class Game:
 
     def download(self, *, unzip: bool = True) -> None:
         """Start downloading the game in a new thread."""
-        if not self.configured:
-            try:
-                self.configure()
-            except CONFIG_ERRORS:
-                return
         # ScummVM can't read disc images, so extract them. DOSBox games
         # mount their disc images themselves.
         extract = self.engine == "scummvm"
