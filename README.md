@@ -62,14 +62,12 @@ Special Keys
 - A-Z: start searching
 - Enter: launch the selected game
 - Shift-Enter: reset game state before starting game
-  (warning: you will lose your save files!)
 - Alt-Enter: open DOSBox without starting the game
-  (useful for debugging, see "Troubleshooting" below)
+- Ctrl-Enter: toggle whether the selected game is one of your favorites
+- Tab: toggle between showing all games and only your favorites
 - Minus: zoom out
 - Plus: zoom in
 - Esc: quit
-
-*Tip: try some of your favorite cheat codes. They might just work!*
 
 During gameplay, you should also be familiar with the [DOSBox Special
 Keys](https://www.dosbox.com/wiki/Special_Keys). The most important

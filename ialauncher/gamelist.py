@@ -15,18 +15,35 @@ class GameList:
 
     def __init__(self) -> None:
         """Start with an empty list."""
-        self.games: list[Game] = []
+        self.all_games: list[Game] = []
+        self.games = self.all_games  # The games that are shown
+        self.ready_only = False
         self.current_game = 0
         self.query = ""
         self.last_keypress = 0
 
     def add(self, game_dir: Path) -> None:
         """Add the game in the given directory."""
-        self.games.append(Game(game_dir))
+        self.all_games.append(Game(game_dir))
 
     def sort(self) -> None:
         """Sort the games by identifier, ignoring case."""
-        self.games.sort(key=lambda game: game.identifier.lower())
+        self.all_games.sort(key=lambda game: game.identifier.lower())
+
+    def show_ready(self, *, ready_only: bool) -> None:
+        """Show only the games that are ready to play, or all games.
+
+        If no game is ready, show all games. Keep the current game, or
+        select the next one that is shown.
+        """
+        ready = [g for g in self.all_games if g.is_ready()] if ready_only else []
+        current = self.get_current_game().identifier.lower()
+        self.ready_only = bool(ready)
+        self.games = ready or self.all_games
+        self.current_game = next(
+            (i for i, g in enumerate(self.games) if g.identifier.lower() >= current),
+            0,
+        )
 
     def get_image(self, game: Game) -> pg.Surface:
         """Return the title screen of the given game."""

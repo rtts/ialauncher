@@ -32,6 +32,7 @@ MENU_ITEMS = [
     ("Start game", "Enter", 0),
     ("Reset game state", "Shift-Enter", pg.KMOD_SHIFT),
     ("DOSBox prompt", "Alt-Enter", pg.KMOD_ALT),
+    ("{} favorites", "Ctrl-Enter", pg.KMOD_CTRL),  # Add to/Remove from
 ]
 
 
@@ -161,10 +162,42 @@ class Browse(Scene):
                 return True
         return False
 
+    def show_ready(self, *, ready_only: bool) -> None:
+        """Show only the games that are ready to play, or all games."""
+        self.games.show_ready(ready_only=ready_only)
+
+        # Keep the current game in the same cell
+        offset = self.pos - self.top
+        self.pos = self.games.current_game
+        self.top = self.pos - offset
+        self.cache = {}
+        self.scroll()
+
     def play(self, mod: int) -> None:
-        """Download the current game if needed and start it."""
+        """Download the current game if needed and start it.
+
+        With Ctrl, download the game without starting it, or remove it
+        if it was ready.
+        """
         self.games.reset_search()
         game = self.games.get_current_game()
+        if mod & pg.KMOD_CTRL:
+            self.add_or_remove(game)
+        else:
+            self.start(game, mod)
+
+        # The game may have become ready, or not
+        self.show_ready(ready_only=self.games.ready_only)
+
+    def add_or_remove(self, game: Game) -> None:
+        """Download the game without starting it, or remove it if it's ready."""
+        if game.is_ready():
+            game.reset()
+        else:
+            Download(game).run(self.screen)
+
+    def start(self, game: Game, mod: int) -> None:
+        """Download the game if needed and start it."""
         if not find_emulator(game):
             return
         if mod & pg.KMOD_SHIFT:
@@ -298,6 +331,9 @@ class Browse(Scene):
             self.select(self.pos + grid_moves[event.key])
         elif event.key == pg.K_BACKSPACE:
             self.games.backspace()
+        elif event.key == pg.K_TAB:
+            self.games.reset_search()
+            self.show_ready(ready_only=not self.games.ready_only)
         elif handler := self.handlers.get(event.key):
             self.games.reset_search()
             handler()
@@ -376,13 +412,15 @@ class Menu:
     ) -> None:
         """Lay out the menu for the game at pos, within the bounds."""
         self.font = font
+        add_or_remove = "Remove from" if game.is_ready() else "Add to"
+        self.labels = [label.format(add_or_remove) for label, _, _ in MENU_ITEMS]
         self.highlighted: int | None = None
         font.bold = True
         self.title = font.render(
             f"{game.title} ({game.year})", ANTIALIAS, self.TITLE_FOREGROUND
         )
         font.bold = False
-        labels = max(font.size(label)[0] for label, _, _ in MENU_ITEMS)
+        labels = max(font.size(label)[0] for label in self.labels)
         shortcuts = max(font.size(shortcut)[0] for _, shortcut, _ in MENU_ITEMS)
         self.shortcut_x = self.PADDING + labels + self.GAP
         width = max(self.PADDING + self.title.get_width(), self.shortcut_x + shortcuts)
@@ -409,7 +447,8 @@ class Menu:
         x = self.rect.left + self.PADDING
         shortcut_x = self.rect.left + self.shortcut_x
         screen.blit(self.title, (x, self.rect.top + self.PADDING // 2))
-        for item, (label, shortcut, _) in enumerate(MENU_ITEMS):
+        for item, (_, shortcut, _) in enumerate(MENU_ITEMS):
+            label = self.labels[item]
             row = self.row(item)
             color = self.FOREGROUND
             if item == self.highlighted:
