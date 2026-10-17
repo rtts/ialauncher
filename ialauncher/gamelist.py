@@ -28,16 +28,10 @@ class GameList:
         """Sort the games by identifier."""
         self.games.sort()
 
-    def get_image(self, game: Game | None = None) -> pg.Surface:
-        """Return the title screen of the given (or current) game."""
-        if game is None:
-            game = self.get_current_game()
+    def get_image(self, game: Game) -> pg.Surface:
+        """Return the title screen of the given game."""
         if game.cached_image is None:
-            path = game.get_titlescreen()
-            if path is None:
-                msg = f"{game.identifier} has no title screen"
-                raise ValueError(msg)
-            game.cached_image = pg.image.load(path)
+            game.cached_image = pg.image.load(game.titlescreen)
         return game.cached_image
 
     def get_current_game(self) -> Game:

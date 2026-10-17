@@ -41,7 +41,6 @@ class Browse(Scene):
     def __init__(self, games: GameList) -> None:
         """Show a random game, full screen."""
         self.games = games
-        self.games.games = [game for game in games.games if game.get_titlescreen()]
         self.games.random_game()
         self.cols = 1
         self.top = self.pos = self.games.current_game

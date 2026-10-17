@@ -19,7 +19,6 @@ from zipfile import ZipFile
 
 import pygame as pg
 
-from . import options
 from .emulator import get_dosbox_command, get_scummvm_command
 from .iso import ISOFile
 
@@ -41,19 +40,19 @@ type Engine = Literal["dosbox", "scummvm"]
 
 
 class MetadataError(Exception):
-    """The metadata.ini of a game is missing or invalid."""
+    """The metadata.ini or title.png of a game is missing or invalid."""
 
 
 class Game:
     """A game with metadata and a title screen."""
 
     def __init__(self, path: Path) -> None:
-        """Create the game from its metadata.ini, or raise MetadataError."""
+        """Create the game from its metadata, or raise MetadataError."""
         self.path = path
         self.identifier = path.name
         self.download_thread: Download | None = None
-        self.emulator_thread: Emulator | None = None
         self.cached_image: pg.Surface | None = None
+        self.titlescreen = path / "title.png"
         try:
             self.configure()
         except (KeyError, ValueError, configparser.Error) as e:
@@ -62,7 +61,10 @@ class Game:
             raise MetadataError(msg) from e
 
     def configure(self) -> None:
-        """Read the metadata from metadata.ini."""
+        """Read the metadata from metadata.ini, and check for title.png."""
+        if not self.titlescreen.is_file():
+            msg = "Missing title.png"
+            raise ValueError(msg)
         self.config = RawConfigParser()
         self.config.read(self.path / "metadata.ini")
         metadata = self.config["metadata"]
@@ -158,8 +160,7 @@ class Game:
         self.batfile = batfile
         self.autorun = autorun
         self.emulator_args = dosbox_args
-        self.emulator_thread = DOSBox(self, dosbox)
-        self.emulator_thread.start()
+        DOSBox(self, dosbox).start()
 
     def start_scummvm(self, *, autorun: bool = True) -> None:
         """Start the game with ScummVM.
@@ -169,19 +170,12 @@ class Game:
         opened instead.
         """
         scummvm = get_scummvm_command()
-        captures_dir = Path(options.captures_dir).expanduser()
-        captures_dir.mkdir(parents=True, exist_ok=True)
-        args = ["--path=.", "--savepath=.", f"--screenshotpath={captures_dir}"]
+        args = ["--path=.", "--savepath=."]
         if autorun and self.scummvm_game:
             args.extend([*self.scummvm_args, self.scummvm_game])
 
         self.emulator_args = args
-        self.emulator_thread = Emulator(self, scummvm)
-        self.emulator_thread.start()
-
-    def is_running(self) -> bool:
-        """Return whether the emulator is still running."""
-        return self.emulator_thread is not None and self.emulator_thread.is_alive()
+        Emulator(self, scummvm).start()
 
     def write_metadata(self) -> None:
         """Write the metadata back to metadata.ini."""
@@ -195,13 +189,6 @@ class Game:
             self.config["metadata"]["dosbox_conf"] = self.dosbox_conf
         with (self.path / "metadata.ini").open("w") as f:
             self.config.write(f)
-
-    def get_titlescreen(self) -> Path | None:
-        """Return the path of the title screen, or None if there is none."""
-        path = self.path / "title.png"
-        if path.is_file():
-            return path
-        return None
 
     def is_ready(self) -> bool:
         """Return whether the game has been downloaded."""

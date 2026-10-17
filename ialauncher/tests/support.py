@@ -68,7 +68,7 @@ class HeadlessTestCase(unittest.TestCase):
 
     def setUp(self) -> None:
         """Reset the global state, and restore it after the test."""
-        for name in ("fullscreen", "slideshow", "captures_dir"):
+        for name in ("fullscreen", "slideshow"):
             value = getattr(options, name)
             self.enterContext(mock.patch.object(options, name, value))
         self.enterContext(mock.patch.object(sys, "argv", list(self.argv)))

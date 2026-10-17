@@ -14,13 +14,13 @@ from . import TitleScreen
 class Download(TitleScreen):
     """Title screen with progress bar while games are downloading."""
 
-    def __init__(self, game: Game, *, unzip: bool = True) -> None:
+    def __init__(self, game: Game) -> None:
         """Start downloading the game."""
         self.game = game
         super().__init__()
 
         # Start downloading (spawns a new thread)
-        self.game.download(unzip=unzip)
+        self.game.download()
 
     @override
     def run(self, screen: pg.Surface) -> NextScene:

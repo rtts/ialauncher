@@ -20,7 +20,6 @@ from ialauncher.utils import show_error
 
 from . import TitleScreen
 from .browse import Browse
-from .capture import Capture
 
 if TYPE_CHECKING:
     from ialauncher.game import Game
@@ -29,10 +28,9 @@ if TYPE_CHECKING:
 class Loading(TitleScreen):
     """Title screen with progress bar while games are loading."""
 
-    def __init__(self, *, slurp: bool = False, capture: bool = False) -> None:
+    def __init__(self, *, slurp: bool = False) -> None:
         """Find the directories of all games."""
         self.slurp = slurp
-        self.capture = capture
         self.games_dir = Path(gd.__file__).parent
         self.todo = [
             entry
@@ -98,8 +96,6 @@ class Loading(TitleScreen):
         if self.slurp:
             return False
         self.games.sort()
-        if self.capture:
-            return Capture(self.games)
         return Browse(self.games)
 
     @override

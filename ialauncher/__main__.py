@@ -27,30 +27,7 @@ def main() -> None:
         "--slurp",
         dest="slurp",
         action="store_true",
-        help=(
-            "Slurp mode: downloads ALL games from the Internet Archive, one by "
-            "one. This will take days to finish. Please don't do this for no "
-            "reason; the Internet Archive has limited bandwidth. Also, consider "
-            "donating first."
-        ),
-    )
-    parser.add_argument(
-        "--capture",
-        dest="capture",
-        action="store_true",
-        help=(
-            "Capture mode: lists all games without a title screen. While a game "
-            "is running, each screenshot that appears in the captures directory "
-            "is moved to its title.png."
-        ),
-    )
-    parser.add_argument(
-        "--captures-dir",
-        metavar="DIR",
-        help=(
-            "Directory where DOSBox and ScummVM save screenshots "
-            f"(default: {options.captures_dir})"
-        ),
+        help=argparse.SUPPRESS,
     )
     args = parser.parse_args()
 
@@ -58,11 +35,9 @@ def main() -> None:
         options.fullscreen = args.fullscreen
     if args.slideshow is not None:
         options.slideshow = args.slideshow
-    if args.captures_dir is not None:
-        options.captures_dir = args.captures_dir
 
     run(
-        Loading(slurp=args.slurp, capture=args.capture),
+        Loading(slurp=args.slurp),
         title="IA Launcher",
         fullscreen=options.fullscreen,
     )
