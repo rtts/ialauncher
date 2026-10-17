@@ -67,6 +67,7 @@ class Game:
         self.title = metadata["title"]
         self.year = metadata["year"]
         self.urls = metadata["url"].split()
+        self.size = metadata.getint("size")
         engine = metadata.get("engine", "dosbox")
         if engine not in ("dosbox", "scummvm"):
             msg = f"Unknown engine {engine!r}"
@@ -189,7 +190,7 @@ class Game:
         # mount their disc images themselves.
         extract = self.engine == "scummvm"
         self.download_thread = Download(
-            self.urls, self.gamedir, unzip=unzip, extract=extract
+            self.urls, self.gamedir, size=self.size, unzip=unzip, extract=extract
         )
         self.download_thread.start()
 
@@ -252,12 +253,21 @@ class Download(Thread):
         urls: list[str],
         gamedir: Path,
         *,
+        size: int | None = None,
         unzip: bool = True,
         extract: bool = False,
     ) -> None:
-        """Prepare to download the URLs and unpack them into gamedir."""
+        """Prepare to download the URLs and unpack them into gamedir.
+
+        The size is the combined size of all files in bytes. Without it,
+        each file takes an equal part of the progress bar.
+        """
         self.urls = urls
         self.gamedir = gamedir
+        self.size = size
+        self.downloaded = 0
+        self.step = 0
+        self.steps = 1
         self.should_unzip = unzip
         self.should_extract = extract
         self.progress = 0.0
@@ -301,18 +311,31 @@ class Download(Thread):
         print(" failed :(")
 
     def download(self) -> None:
-        """Download each URL (unless it already was) and unpack it."""
-        for u in self.urls:
-            self.action = "download"
-            self.filename = filename = unquote(u.split("/")[-1]).split("/")[-1]
-            dest = self.gamedir.parent / filename
+        """Download each URL (unless it already was), then unpack them all.
+
+        Both phases fill the progress bar from 0 to 100% once.
+        """
+        files = [
+            self.gamedir.parent / unquote(u.split("/")[-1]).split("/")[-1]
+            for u in self.urls
+        ]
+        self.action = "download"
+        self.steps = 1 if self.size else len(files)
+        for i, (u, dest) in enumerate(zip(self.urls, files, strict=True)):
+            self.step = 0 if self.size else i
+            self.filename = dest.name
             if not dest.is_file():
                 print(f"Downloading {u}", end="", flush=True)
-                self.report(0, 0)
+                self.report_download(0, 0)
                 self.request(u, dest)
                 print(" done!")
-            if not self.should_unzip:
-                continue
+            else:
+                self.downloaded += dest.stat().st_size
+        if not self.should_unzip:
+            return
+        self.steps = len(files)
+        for self.step, dest in enumerate(files):
+            self.filename = filename = dest.name
             if self.should_extract and filename.lower().endswith((".iso", ".bin")):
                 self.unpack("extract", dest, self.extract_iso)
             elif filename.lower().endswith((".zip", ".play")):
@@ -352,7 +375,7 @@ class Download(Thread):
             while block := response.read(1024 * 8):
                 f.write(block)
                 done += len(block)
-                self.report(done, total)
+                self.report_download(done, total)
 
                 # Print one period per 0.1MB
                 if new_dots := done // 100_000 - dots:
@@ -361,13 +384,25 @@ class Download(Thread):
         if done < total:
             msg = f"retrieval incomplete: got only {done} out of {total} bytes"
             raise ContentTooShortError(msg, (str(dest), response.headers))
+        self.downloaded += done
+
+    def report_download(self, done: int, total: int) -> None:
+        """Report the bytes downloaded of the current file, out of all files."""
+        if self.size:
+            self.report(self.downloaded + done, self.size)
+        else:
+            self.report(done, total)
 
     def report(self, done: int, total: int) -> None:
-        """Update the progress, or stop if the download was cancelled."""
+        """Update the progress, or stop if the download was cancelled.
+
+        The current step counts as done/total, the steps before it as done.
+        """
         if self.cancelled.is_set():
             msg = "Download cancelled"
             raise InterruptedError(msg)
-        self.progress = min(done / total, 1.0) if total > 0 else 0.0
+        fraction = min(done / total, 1.0) if total > 0 else 0.0
+        self.progress = (self.step + fraction) / self.steps
 
     def unzip(self, zipfile: Path) -> None:
         """Unzip the archive into the game directory."""
