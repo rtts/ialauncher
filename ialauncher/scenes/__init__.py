@@ -16,6 +16,7 @@ from ialauncher.utils import gradient, letterbox
 CYAN = (0, 204, 255)
 MAGENTA = (255, 0, 204)
 BLACK = (0, 0, 0)
+WHITE = (255, 255, 255)
 ANTIALIAS = True
 
 
@@ -103,6 +104,6 @@ class TitleScreen(Scene):
         progress = self.gradient.get_rect()
         progress.width = int(progress.width * fraction)
         canvas.blit(self.gradient, self.BAR, progress)
-        screen.fill((0, 0, 0))
+        screen.fill(BLACK)
         target = screen.subsurface(letterbox(screen.get_rect()))
         pg.transform.scale(canvas, target.get_size(), target)

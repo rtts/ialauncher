@@ -11,7 +11,7 @@ from ialauncher.engine import NextScene
 from ialauncher.game import Game
 from ialauncher.gamelist import GameList
 
-from . import ANTIALIAS, Scene
+from . import ANTIALIAS, BLACK, WHITE, Scene
 from .download import Download
 
 
@@ -108,7 +108,7 @@ class Capture(Scene):
             if not running:
                 self.running = None
 
-        screen.fill((0, 0, 0))
+        screen.fill(BLACK)
         if not hasattr(self, "font"):
             self.font = pg.font.SysFont("monospace", 24)
         rect = screen.get_rect()
@@ -137,10 +137,10 @@ class Capture(Scene):
             self.games[self.offset : self.offset + rows], self.offset
         ):
             mark = "*" if game in self.captured else " "
-            color = (0, 0, 0) if i == self.current else (255, 255, 255)
+            color = BLACK if i == self.current else WHITE
             y = top + (i - self.offset) * line_height
             if i == self.current:
-                screen.fill((255, 255, 255), (margin, y, list_width, line_height))
+                screen.fill(WHITE, (margin, y, list_width, line_height))
             text = self.font.render(f"{mark} {game.identifier}", ANTIALIAS, color)
             screen.blit(text, (margin, y), (0, 0, list_width, line_height))
 

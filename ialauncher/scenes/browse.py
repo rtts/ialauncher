@@ -13,7 +13,7 @@ from ialauncher.game import Game
 from ialauncher.gamelist import SEARCH_TIMEOUT, GameList
 from ialauncher.utils import grid_margin, grid_rows, letterbox
 
-from . import ANTIALIAS, BLACK, CYAN, MAGENTA, Scene
+from . import ANTIALIAS, BLACK, CYAN, MAGENTA, WHITE, Scene
 from .download import Download
 
 GRID_LARGER = {pg.K_MINUS, pg.K_KP_MINUS}
@@ -301,7 +301,7 @@ class Browse(Scene):
         cache: dict[tuple[int, tuple[int, int], int | None], pg.Surface] = {}
         selected = None
         margin = grid_margin(cols)
-        screen.fill((0, 0, 0))
+        screen.fill(BLACK)
         for pos, cell in self.cells():
             if cols > 1:
                 image_rect = cell.inflate(-2 * margin, -2 * margin)
@@ -336,10 +336,10 @@ class Browse(Scene):
         """Draw the search query in the top left corner."""
         if not hasattr(self, "font"):
             self.font = pg.font.SysFont("monospace", 24)
-        image = self.font.render(self.games.query, ANTIALIAS, (255, 255, 255))
+        image = self.font.render(self.games.query, ANTIALIAS, WHITE)
         rect = image.get_rect().inflate(2 * padding, 2 * padding)
         rect.topleft = (margin, margin)
-        screen.fill((0, 0, 0), rect)
+        screen.fill(BLACK, rect)
         screen.blit(image, image.get_rect(center=rect.center))
 
 
