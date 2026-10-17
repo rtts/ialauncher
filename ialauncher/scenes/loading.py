@@ -104,7 +104,11 @@ class Loading(TitleScreen):
     def update(self, screen: pg.Surface) -> NextScene:
         """Load (or in slurp mode, download) games and draw the progress."""
         if self.slurp:
-            self.clock.tick(30)  # do not remove this!
+            # Loading doesn't cap the frame rate and the download
+            # happens in a separate thread, so cap the framerate to
+            # prevent 100% CPU.
+            self.clock.tick(30)
+
             self.download_game()
         else:
             self.load_games(10)
