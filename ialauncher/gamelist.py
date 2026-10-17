@@ -13,22 +13,20 @@ SEARCH_TIMEOUT = 1000
 class GameList:
     """The list of games."""
 
-    current_game = 0
-    query = ""
-    last_keypress = 0
-
     def __init__(self) -> None:
         """Start with an empty list."""
         self.games: list[Game] = []
+        self.current_game = 0
+        self.query = ""
+        self.last_keypress = 0
 
     def add(self, game_dir: Path) -> None:
         """Add the game in the given directory."""
         self.games.append(Game(game_dir))
 
     def sort(self) -> None:
-        """Sort the games by identifier and select a random one."""
+        """Sort the games by identifier."""
         self.games.sort()
-        self.random_game()
 
     def get_image(self, game: Game | None = None) -> pg.Surface:
         """Return the title screen of the given (or current) game."""
