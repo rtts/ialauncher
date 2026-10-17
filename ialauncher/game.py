@@ -251,7 +251,6 @@ class Emulator(Thread):
                 "Press Alt-Enter to open DOSBox and try to start\n"
                 "the game manually. Good luck!"
             )
-            print(message)
             pg.event.post(pg.event.Event(EMULATOR_FAILED, message=message))
 
 

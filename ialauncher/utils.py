@@ -58,15 +58,14 @@ def gradient(
 
 
 def show_error(message: str) -> None:
-    """Show the error message in a message box, or on the console."""
-    if not hasattr(pg.display, "message_box"):  # Only pygame-ce has message boxes
-        print(message)
-        return
-    pg.display.message_box("IA Launcher", message, message_type="error")
+    """Show the error to the user."""
+    print(message)
+    if hasattr(pg.display, "message_box"):  # n/a in pygame
+        pg.display.message_box("IA Launcher", message, message_type="error")
 
 
 def find_emulator(game: Game) -> bool:
-    """Return whether the game's emulator is installed; if not, show a message box."""
+    """Return whether the game's emulator is correctly installed."""
     try:
         game.get_emulator()
     except EmulatorError as e:
