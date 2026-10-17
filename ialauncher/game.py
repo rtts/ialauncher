@@ -11,7 +11,7 @@ from http.client import HTTPException, IncompleteRead
 from pathlib import Path
 from threading import Event, Thread
 from time import monotonic
-from typing import override
+from typing import Literal, override
 from urllib import request
 from urllib.error import ContentTooShortError, HTTPError, URLError
 from urllib.parse import unquote
@@ -37,6 +37,9 @@ ERROR_WORDING: list[tuple[type[Exception] | tuple[type[Exception], ...], str]] =
 ]
 
 
+type Engine = Literal["dosbox", "scummvm"]
+
+
 class MetadataError(Exception):
     """The metadata.ini of a game is missing or invalid."""
 
@@ -45,7 +48,7 @@ class Game:
     """A game with metadata and a title screen."""
 
     def __init__(self, path: Path) -> None:
-        """Create the game and read its metadata, or raise MetadataError."""
+        """Create the game from its metadata.ini, or raise MetadataError."""
         self.path = path
         self.identifier = path.name
         self.download_thread: Download | None = None
@@ -60,18 +63,23 @@ class Game:
 
     def configure(self) -> None:
         """Read the metadata from metadata.ini."""
-        self.config = c = RawConfigParser()
-        c.read(self.path / "metadata.ini")
-        self.title = c["metadata"]["title"]
-        self.year = c["metadata"]["year"]
-        self.engine = c["metadata"].get("engine", "dosbox")
-        self.scummvm_game = c["metadata"].get("scummvm_game")
-        self.scummvm_args = (c["metadata"].get("scummvm_args") or "").split()
+        self.config = RawConfigParser()
+        self.config.read(self.path / "metadata.ini")
+        metadata = self.config["metadata"]
+        self.title = metadata["title"]
+        self.year = metadata["year"]
+        self.urls = metadata["url"].split()
+        engine = metadata.get("engine", "dosbox")
+        if engine not in ("dosbox", "scummvm"):
+            msg = f"Unknown engine {engine!r}"
+            raise ValueError(msg)
+        self.engine: Engine = engine
+        self.scummvm_game = metadata.get("scummvm_game")
+        self.scummvm_args = (metadata.get("scummvm_args") or "").split()
+        self.emulator_start = metadata.get("emulator_start")
+        self.dosbox_conf = metadata.get("dosbox_conf")
         datadir = "scummvm_data" if self.engine == "scummvm" else "dosbox_drive_c"
         self.gamedir = self.path / datadir
-        self.emulator_start = c["metadata"].get("emulator_start")
-        self.dosbox_conf = c["metadata"].get("dosbox_conf")
-        self.urls = c["metadata"]["url"].split()
 
     def __lt__(self, other: "Game") -> bool:
         """Sort games by identifier, ignoring case."""
