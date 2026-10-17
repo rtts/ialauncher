@@ -257,11 +257,7 @@ class Download(Thread):
         unzip: bool = True,
         extract: bool = False,
     ) -> None:
-        """Prepare to download the URLs and unpack them into gamedir.
-
-        The size is the combined size of all files in bytes. Without it,
-        each file takes an equal part of the progress bar.
-        """
+        """Prepare to download the URLs and unpack them into gamedir."""
         self.urls = urls
         self.gamedir = gamedir
         self.size = size
@@ -311,10 +307,7 @@ class Download(Thread):
         print(" failed :(")
 
     def download(self) -> None:
-        """Download each URL (unless it already was), then unpack them all.
-
-        Both phases fill the progress bar from 0 to 100% once.
-        """
+        """Download each URL (unless it already was), then unpack them all."""
         files = [
             self.gamedir.parent / unquote(u.split("/")[-1]).split("/")[-1]
             for u in self.urls
@@ -326,15 +319,15 @@ class Download(Thread):
             self.filename = dest.name
             if not dest.is_file():
                 print(f"Downloading {u}", end="", flush=True)
-                self.report_download(0, 0)
+                self.report(0, 0)
                 self.request(u, dest)
                 print(" done!")
             else:
                 self.downloaded += dest.stat().st_size
+        self.progress = 1.0
         if not self.should_unzip:
             return
-        self.steps = len(files)
-        for self.step, dest in enumerate(files):
+        for dest in files:
             self.filename = filename = dest.name
             if self.should_extract and filename.lower().endswith((".iso", ".bin")):
                 self.unpack("extract", dest, self.extract_iso)
@@ -375,7 +368,7 @@ class Download(Thread):
             while block := response.read(1024 * 8):
                 f.write(block)
                 done += len(block)
-                self.report_download(done, total)
+                self.report(done, total)
 
                 # Print one period per 0.1MB
                 if new_dots := done // 100_000 - dots:
@@ -386,34 +379,20 @@ class Download(Thread):
             raise ContentTooShortError(msg, (str(dest), response.headers))
         self.downloaded += done
 
-    def report_download(self, done: int, total: int) -> None:
-        """Report the bytes downloaded of the current file, out of all files."""
-        if self.size:
-            self.report(self.downloaded + done, self.size)
-        else:
-            self.report(done, total)
-
     def report(self, done: int, total: int) -> None:
-        """Update the progress, or stop if the download was cancelled.
-
-        The current step counts as done/total, the steps before it as done.
-        """
+        """Set progress to fraction of total progress, or stop if cancelled."""
         if self.cancelled.is_set():
             msg = "Download cancelled"
             raise InterruptedError(msg)
+        if self.size:
+            done, total = self.downloaded + done, self.size
         fraction = min(done / total, 1.0) if total > 0 else 0.0
         self.progress = (self.step + fraction) / self.steps
 
     def unzip(self, zipfile: Path) -> None:
         """Unzip the archive into the game directory."""
         with ZipFile(zipfile, "r") as f:
-            members = f.infolist()
-            total = sum(m.file_size for m in members)
-            done = 0
-            for m in members:
-                self.report(done, total)
-                f.extract(m, self.gamedir)
-                done += m.file_size
+            f.extractall(self.gamedir)
 
     def copy(self, file: Path) -> None:
         """Copy the file into the game directory."""
@@ -423,14 +402,5 @@ class Download(Thread):
     def extract_iso(self, isofile: Path) -> None:
         """Extract the disc image into the game directory."""
         with ISOFile(isofile) as iso:
-            members = list(iso.walk())
-            total = sum(size for _, _, size in members)
-            done = 0
-
-            def progress(n: int) -> None:
-                nonlocal done
-                done += n
-                self.report(done, total)
-
-            for path, sector, size in members:
-                iso.extract(sector, size, self.gamedir / path, progress)
+            for path, sector, size in iso.walk():
+                iso.extract(sector, size, self.gamedir / path)

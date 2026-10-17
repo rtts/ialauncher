@@ -6,7 +6,7 @@ filenames are used when present. Raw images with 2352-byte sectors
 """
 
 import struct
-from collections.abc import Callable, Iterator
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Self
 
@@ -110,14 +110,8 @@ class ISOFile:
                 file_extent, file_size = struct.unpack_from("<I4xI", rec, 2)
                 yield path, file_extent, file_size
 
-    def extract(
-        self,
-        sector: int,
-        size: int,
-        dest: Path,
-        progress: Callable[[int], None] | None = None,
-    ) -> None:
-        """Extract the file at the given sector, reporting progress in bytes."""
+    def extract(self, sector: int, size: int, dest: Path) -> None:
+        """Extract the file at the given sector."""
         dest.parent.mkdir(parents=True, exist_ok=True)
         with dest.open("wb") as out:
             while size > 0:
@@ -128,5 +122,3 @@ class ISOFile:
                 out.write(block)
                 size -= len(block)
                 sector += 512
-                if progress:
-                    progress(len(block))
