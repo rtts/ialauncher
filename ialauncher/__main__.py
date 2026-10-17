@@ -3,7 +3,7 @@
 import argparse
 
 from . import options
-from .engine import Main
+from .engine import run
 from .scenes.loading import Loading
 
 
@@ -61,7 +61,7 @@ def main() -> None:
     if args.captures_dir is not None:
         options.captures_dir = args.captures_dir
 
-    Main(
+    run(
         Loading(slurp=args.slurp, capture=args.capture),
         title="IA Launcher",
         fullscreen=options.fullscreen,

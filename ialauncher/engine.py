@@ -1,7 +1,7 @@
 """A _very_ simple engine for building pygame games.
 
-There are two classes: Main and Scene. The latter one is meant to be
-subclassed by your own custom scenes. Example usage:
+There is a function, run(), and a class, Scene, which is meant to
+be subclassed by your own custom scenes. Example usage:
 
     class Intro(Scene):
         def __init__(self):
@@ -19,9 +19,10 @@ subclassed by your own custom scenes. Example usage:
 
     if __name__ == "__main__":
         scene = Intro()
-        Main(scene, title="My awesome game")
+        run(scene, title="My awesome game")
 """
 
+from abc import ABC, abstractmethod
 from typing import Literal
 
 import pygame as pg
@@ -29,39 +30,36 @@ import pygame as pg
 type NextScene = Scene | Literal[False] | None
 
 
-class Main:
-    """Initialize pygame and start the game on the given scene."""
+def run(scene: NextScene, title: str = "Game", *, fullscreen: bool = True) -> None:
+    """Initialize pygame and run the outer game loop, starting with scene.
 
-    def __init__(
-        self, scene: NextScene, title: str = "Game", *, fullscreen: bool = True
-    ) -> None:
-        """Run the outer game loop.
+    Scenes run continuously until no more scenes are returned, and then
+    the game is over.
+    """
+    pg.init()
+    pg.key.set_repeat(250, 25)
+    pg.display.set_caption(title)
 
-        Scenes run continuously until no more scenes are returned, and
-        then the game is over.
-        """
-        pg.init()
-        pg.key.set_repeat(250, 25)
-        pg.display.set_caption(title)
+    if fullscreen:
+        info = pg.display.Info()
+        size = info.current_w, info.current_h
+        screen = pg.display.set_mode(size, flags=pg.FULLSCREEN)
+    else:
+        size = 640, 400
+        screen = pg.display.set_mode(size, flags=pg.RESIZABLE)
 
-        if fullscreen:
-            info = pg.display.Info()
-            size = info.current_w, info.current_h
-            screen = pg.display.set_mode(size, flags=pg.FULLSCREEN)
-        else:
-            size = 640, 400
-            screen = pg.display.set_mode(size, flags=pg.RESIZABLE)
-
-        while scene:
-            pg.event.clear()
-            scene = scene.run(screen)
+    while scene:
+        pg.event.clear()
+        scene = scene.run(screen)
 
 
-class Scene:
+class Scene(ABC):
     """Base class for scenes.
 
-    Subclasses are meant to override the handle() and update() methods.
+    Subclasses must implement the handle() and update() methods.
     """
+
+    screen: pg.Surface  # Set by Scene.run()
 
     def __init__(self) -> None:
         """Create the clock that caps the frame rate."""
@@ -72,13 +70,13 @@ class Scene:
         """Whether the mouse pointer is visible."""
         return False
 
+    @abstractmethod
     def handle(self, event: pg.event.Event) -> NextScene:
         """Handle an event and return a new scene, False to end scene, or None."""
-        raise NotImplementedError
 
+    @abstractmethod
     def update(self, screen: pg.Surface) -> NextScene:
         """Draw a frame and return a new scene, False to end scene, or None."""
-        raise NotImplementedError
 
     def intercept(self, event: pg.event.Event) -> bool:  # noqa: ARG002
         """Return True to intercept an event before it reaches handle()."""
@@ -94,7 +92,6 @@ class Scene:
 
         Call update() for each frame and handle() for each event until
         one of them returns something.
-
         """
         self.screen = screen
         while True:
