@@ -11,20 +11,33 @@ class EmulatorError(Exception):
     """The emulator is not installed."""
 
 
-def works(command: list[str]) -> bool:
-    """Return whether the command can be executed."""
-    try:
-        subprocess.run(  # noqa: S603
-            [*command, "--version"], capture_output=True, check=True, timeout=3
-        )
-    except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
-        return False
-    return True
+@cache
+def get_dosbox_command() -> list[str]:
+    """Return the command that runs DOSBox."""
+    return get_command(
+        "DOSBox",
+        "https://www.dosbox.com/",
+        [
+            ["dosbox"],
+            ["open", "-a", "DOSBox", "--args"],
+            ["/Applications/dosbox.app/Contents/MacOS/DOSBox"],
+            *windows_candidates("dosbox*/dosbox.exe"),
+        ],
+    )
 
 
-def find_command(candidates: Iterable[list[str]]) -> list[str] | None:
-    """Return the first candidate command that works, or None."""
-    return next((command for command in candidates if works(command)), None)
+@cache
+def get_scummvm_command() -> list[str]:
+    """Return the command that runs ScummVM."""
+    return get_command(
+        "ScummVM",
+        "https://www.scummvm.org/",
+        [
+            ["scummvm"],
+            ["/Applications/ScummVM.app/Contents/MacOS/scummvm"],
+            *windows_candidates("scummvm*/scummvm.exe"),
+        ],
+    )
 
 
 def windows_candidates(pattern: str) -> Iterator[list[str]]:
@@ -35,61 +48,37 @@ def windows_candidates(pattern: str) -> Iterator[list[str]]:
                 yield [str(path)]
 
 
-@cache
-def get_dosbox_command() -> list[str]:
-    """Return the command that runs DOSBox."""
-    command = find_command(
-        [
-            ["dosbox"],
-            # Proper way to do it on macOS
-            ["open", "-a", "DOSBox", "--args"],
-            # Fallback to hardcoded path on macOS
-            ["/Applications/dosbox.app/Contents/MacOS/DOSBox"],
-            # Special case for Windows
-            *windows_candidates("dosbox*/dosbox.exe"),
-        ]
-    )
+def get_command(name: str, url: str, candidates: Iterable[list[str]]) -> list[str]:
+    """Return the first candidate command that works, or raise EmulatorError."""
+    command = find_command(candidates)
     if command is None:
-        msg = """
-This game needs DOSBox to play, but DOSBox could not be
+        msg = f"""
+This game needs {name} to play, but {name} could not be
 found on your system.
 
-Please visit https://www.dosbox.com/ to learn more about
-DOSBox and to download the correct installer for your
+Please visit {url} to learn more about
+{name} and to download the correct installer for your
 operating system.
 
-Alternatively, if you installed DOSBox in a non-standard
+Alternatively, if you installed {name} in a non-standard
 location, set the PATH environment variable to point to the
-DOSBox directory.
+{name} directory.
         """
         raise EmulatorError(msg)
     return command
 
 
-@cache
-def get_scummvm_command() -> list[str]:
-    """Return the command that runs ScummVM."""
-    command = find_command(
-        [
-            ["scummvm"],
-            # Hardcoded path on macOS
-            ["/Applications/ScummVM.app/Contents/MacOS/scummvm"],
-            # Special case for Windows
-            *windows_candidates("scummvm*/scummvm.exe"),
-        ]
-    )
-    if command is None:
-        msg = """
-This game needs ScummVM to play, but ScummVM could not be
-found on your system.
+def find_command(candidates: Iterable[list[str]]) -> list[str] | None:
+    """Return the first candidate command that works, or None."""
+    return next((command for command in candidates if works(command)), None)
 
-Please visit https://www.scummvm.org/ to learn more about
-ScummVM and to download the correct installer for your
-operating system.
 
-Alternatively, if you installed ScummVM in a non-standard
-location, set the PATH environment variable to point to the
-ScummVM directory.
-        """
-        raise EmulatorError(msg)
-    return command
+def works(command: list[str]) -> bool:
+    """Return whether the command can be executed."""
+    try:
+        subprocess.run(  # noqa: S603
+            [*command, "--version"], capture_output=True, check=True, timeout=3
+        )
+    except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
+        return False
+    return True
