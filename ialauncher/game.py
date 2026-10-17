@@ -259,14 +259,12 @@ class DOSBox(Emulator):
 
     @override
     def run(self) -> None:
-        """Run DOSBox, then save any changes to dosbox.bat."""
+        """Run DOSBox and save changes the user made to dosbox.bat."""
         super().run()
         game = self.game
 
         if not game.autorun and game.batfile.is_file():
             emulator_start = game.batfile.read_text().rstrip("\r\n")
-            # Only rewrite metadata.ini if needed, because
-            # rewriting it discards any comments.
             if emulator_start and emulator_start != game.emulator_start:
                 game.emulator_start = emulator_start
                 game.write_metadata()
@@ -315,8 +313,15 @@ class Download(Thread):
         # Remove the partially unzipped or extracted game
         shutil.rmtree(self.gamedir, ignore_errors=True)
 
+    def fail(self, error: Exception) -> None:
+        """Record an action that failed."""
+        reason = self.explain(error)
+        reason = reason[:1].upper() + reason[1:]
+        self.error = f"Failed to {self.action} {self.filename}\n\n{reason}"
+        print(f" {error!r} :(")
+
     def explain(self, error: object) -> str:
-        """Return the reason why the download failed, worded for humans."""
+        """Return an explanation for why it failed."""
         if type(error) is URLError:
             error = error.reason  # The actual error is inside
         if isinstance(error, HTTPError):
@@ -335,13 +340,6 @@ class Download(Thread):
         if isinstance(error, OSError) and error.strerror:
             return error.strerror
         return repr(error) if isinstance(error, HTTPException) else str(error)
-
-    def fail(self, error: Exception) -> None:
-        """Remember why the download failed, and print the error."""
-        reason = self.explain(error)
-        reason = reason[:1].upper() + reason[1:]
-        self.error = f"Failed to {self.action} {self.filename}\n\n{reason}"
-        print(f" {error!r} :(")
 
     def download(self) -> None:
         """Download each URL (unless it already was) and unpack it."""
