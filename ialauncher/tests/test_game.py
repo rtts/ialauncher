@@ -119,7 +119,7 @@ DOWNLOAD_ERRORS: dict[str, tuple[Exception, str]] = {
     ),
     "closed before responding": (
         RemoteDisconnected("Remote end closed connection without response"),
-        "Remote end closed connection without response",
+        "Connection reset by peer",
     ),
     "garbled response": (
         BadStatusLine("garbage"),
@@ -128,7 +128,7 @@ DOWNLOAD_ERRORS: dict[str, tuple[Exception, str]] = {
     # Receiving the file:
     "connection dropped": (
         IncompleteRead(b"x" * 123, 456),
-        "Incomplete read",
+        "Transferred a partial file",
     ),
     "connection reset": (
         ConnectionResetError(104, "Connection reset by peer"),
@@ -142,7 +142,7 @@ DOWNLOAD_ERRORS: dict[str, tuple[Exception, str]] = {
         ContentTooShortError(
             "got only 123 out of 456 bytes", ("Example Game (1992).zip", Message())
         ),
-        "The file we downloaded was incomplete",
+        "Transferred a partial file",
     ),
     # Writing the file:
     "no write permission": (

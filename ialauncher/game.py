@@ -7,7 +7,7 @@ import ssl
 import subprocess
 from collections.abc import Callable
 from configparser import RawConfigParser
-from http.client import HTTPException, IncompleteRead, RemoteDisconnected
+from http.client import HTTPException, IncompleteRead
 from pathlib import Path
 from threading import Event, Thread
 from typing import TYPE_CHECKING, override
@@ -32,6 +32,7 @@ ERROR_WORDING: list[tuple[type[Exception] | tuple[type[Exception], ...], str]] =
     (ConnectionRefusedError, "Connection refused"),
     ((ConnectionResetError, ssl.SSLEOFError), "Connection reset by peer"),
     (ssl.SSLError, "TLS certificate error"),
+    ((IncompleteRead, ContentTooShortError), "Transferred a partial file"),
 ]
 
 
@@ -290,20 +291,8 @@ class Download(Thread):
             self.download()
         except InterruptedError:
             print(" cancelled.")
-        except TimeoutError:
-            self.fail("timed out", "The connection timed out")
-        except HTTPError as e:
-            self.fail(f"{e.code} {e.reason}", "")
-        except ContentTooShortError:
-            self.fail("incomplete", "The file we downloaded was incomplete")
-        except URLError as e:
-            self.fail(str(e.reason), self.explain(e.reason))
-        except RemoteDisconnected:
-            self.fail("no answer", "Remote end closed connection without response")
-        except IncompleteRead as e:
-            self.fail(repr(e), "Incomplete read")
         except (OSError, HTTPException) as e:
-            self.fail(repr(e), self.explain(e))
+            self.fail(e)
         else:
             return
 
@@ -311,7 +300,11 @@ class Download(Thread):
         shutil.rmtree(self.gamedir, ignore_errors=True)
 
     def explain(self, error: object) -> str:
-        """Return the standard wording of the error, or "" if there is none."""
+        """Return the reason why the download failed, worded for humans."""
+        if type(error) is URLError:
+            error = error.reason  # The actual error is inside
+        if isinstance(error, HTTPError):
+            return f"{error.code} {error.reason}"
         if (
             isinstance(error, socket.gaierror)
             and error.strerror == "getaddrinfo failed"
@@ -325,14 +318,14 @@ class Download(Thread):
                 return wording
         if isinstance(error, OSError) and error.strerror:
             return error.strerror
-        return ""
+        return str(error) if isinstance(error, (OSError, str)) else repr(error)
 
-    def fail(self, status: str, reason: str) -> None:
-        """Remember why the download failed, and print it."""
-        reason = reason or status
+    def fail(self, error: Exception) -> None:
+        """Remember why the download failed, and print the error."""
+        reason = self.explain(error)
         reason = reason[:1].upper() + reason[1:]
         self.error = f"Downloading {self.filename} failed: {reason}"
-        print(f" {status} :(")
+        print(f" {error!r} :(")
 
     def download(self) -> None:
         """Download each URL (unless it already was) and unpack it."""
