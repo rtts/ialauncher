@@ -95,6 +95,9 @@ class Loading(TitleScreen):
         """Choose the next scene."""
         if self.slurp:
             return False
+        if not self.games.games:
+            show_error("No games were found!\n\nThere are no games in {self.games_dir}")
+            return False
         self.games.sort()
         return Browse(self.games)
 
