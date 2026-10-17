@@ -156,11 +156,9 @@ class Game:
         if autorun:
             dosbox_args.append("-exit")
 
-        # Save our work and hand the game over to the Dosbox thread
-        self.batfile = batfile
-        self.autorun = autorun
-        self.emulator_args = dosbox_args
-        DOSBox(self, dosbox).start()
+        # Hand the game over to the DOSBox thread
+        command = [*dosbox, *dosbox_args]
+        DOSBox(self, command, batfile=batfile, autorun=autorun).start()
 
     def start_scummvm(self, *, autorun: bool = True) -> None:
         """Start the game with ScummVM.
@@ -174,8 +172,7 @@ class Game:
         if autorun and self.scummvm_game:
             args.extend([*self.scummvm_args, self.scummvm_game])
 
-        self.emulator_args = args
-        Emulator(self, scummvm).start()
+        Emulator(self, [*scummvm, *args]).start()
 
     def write_metadata(self) -> None:
         """Write the metadata back to metadata.ini."""
@@ -214,23 +211,29 @@ class Game:
 class Emulator(Thread):
     """A thread that runs a game in an emulator."""
 
-    def __init__(self, game: Game, executable: list[str]) -> None:
+    def __init__(self, game: Game, command: list[str]) -> None:
         """Prepare to run the game with the given emulator command."""
         self.game = game
-        self.executable = executable
+        self.command = command
         super().__init__(daemon=True)
 
     @override
     def run(self) -> None:
         """Run the emulator and wait for it to exit."""
-        game = self.game
-        command = self.executable + game.emulator_args
-        print("Executing:", " ".join(command))
-        subprocess.run(command, cwd=game.gamedir, check=False)  # noqa: S603
+        print("Executing:", " ".join(self.command))
+        subprocess.run(self.command, cwd=self.game.gamedir, check=False)  # noqa: S603
 
 
 class DOSBox(Emulator):
     """A thread that runs a game in DOSBox."""
+
+    def __init__(
+        self, game: Game, command: list[str], *, batfile: Path, autorun: bool
+    ) -> None:
+        """Prepare to run the game in DOSBox, with or without autorun."""
+        self.batfile = batfile
+        self.autorun = autorun
+        super().__init__(game, command)
 
     @override
     def run(self) -> None:
@@ -240,7 +243,7 @@ class DOSBox(Emulator):
         super().run()
         seconds = monotonic() - started
 
-        if game.autorun and seconds < QUICK_EXIT:
+        if self.autorun and seconds < QUICK_EXIT:
             message = (
                 f"{game.title} exited in {seconds:.3f} seconds.\n\n"
                 "This probably means its start command is wrong.\n"
@@ -249,8 +252,8 @@ class DOSBox(Emulator):
             )
             pg.event.post(pg.event.Event(EMULATOR_FAILED, message=message))
 
-        if not game.autorun and game.batfile.is_file():
-            emulator_start = game.batfile.read_text().rstrip("\r\n")
+        if not self.autorun and self.batfile.is_file():
+            emulator_start = self.batfile.read_text().rstrip("\r\n")
             if emulator_start and emulator_start != game.emulator_start:
                 game.emulator_start = emulator_start
                 game.write_metadata()
