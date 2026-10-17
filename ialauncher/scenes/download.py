@@ -6,6 +6,7 @@ import pygame as pg
 
 from ialauncher.engine import NextScene
 from ialauncher.game import Game
+from ialauncher.utils import show_error
 
 from . import TitleScreen
 
@@ -45,9 +46,11 @@ class Download(TitleScreen):
 
     @override
     def update(self, screen: pg.Surface) -> NextScene:
-        """Draw the progress bar."""
+        """Draw the progress bar, or show the error if the download failed."""
         thread = self.game.download_thread
         if thread is None or not thread.is_alive():
+            if thread is not None and thread.error:
+                show_error(thread.error)
             return False
         self.draw_progress(screen, thread.progress)
         return None

@@ -57,11 +57,16 @@ def gradient(
     return surface
 
 
+def show_error(message: str) -> None:
+    """Show the error message in a message box."""
+    pg.display.message_box("IA Launcher", message, message_type="error")
+
+
 def find_emulator(game: Game) -> bool:
     """Return whether the game's emulator is installed; if not, show a message box."""
     try:
         game.get_emulator()
     except EmulatorError as e:
-        pg.display.message_box("IA Launcher", str(e).strip(), message_type="error")
+        show_error(str(e).strip())
         return False
     return True

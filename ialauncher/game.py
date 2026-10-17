@@ -263,6 +263,7 @@ class Download(Thread):
         self.should_unzip = unzip
         self.should_extract = extract
         self.progress = 0.0
+        self.error: str | None = None
         self.cancelled = Event()
         super().__init__(daemon=True)
 
@@ -279,22 +280,27 @@ class Download(Thread):
         except InterruptedError:
             print(" cancelled.")
         except TimeoutError:
-            print(" timed out :(")
+            self.fail("timed out")
         except HTTPError as e:
-            print(f" {e.code} {e.reason} :(")
+            self.fail(f"{e.code} {e.reason}")
         except ContentTooShortError:
-            print(" incomplete :(")
+            self.fail("incomplete")
         except URLError as e:
-            print(f" {e.reason} :(")
+            self.fail(str(e.reason))
         except RemoteDisconnected:
-            print(" no answer :(")
+            self.fail("no answer")
         except (OSError, HTTPException) as e:
-            print(f" {e!r} :(")
+            self.fail(repr(e))
         else:
             return
 
         # Remove the partially unzipped or extracted game
         shutil.rmtree(self.gamedir, ignore_errors=True)
+
+    def fail(self, error: str) -> None:
+        """Remember why the download failed, and print it."""
+        self.error = error
+        print(f" {error} :(")
 
     def download(self) -> None:
         """Download each URL (unless it already was) and unpack it."""
