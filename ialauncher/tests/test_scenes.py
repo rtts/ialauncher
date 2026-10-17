@@ -4,7 +4,8 @@ import unittest
 
 import pygame as pg
 
-from ialauncher.scenes import Browse, Loading
+from ialauncher.scenes.browse import Browse
+from ialauncher.scenes.loading import Loading
 
 from .support import HeadlessTestCase, Script, key, text
 

@@ -4,7 +4,7 @@ import argparse
 
 from . import options
 from .engine import Main
-from .scenes import Loading
+from .scenes.loading import Loading
 
 
 def main() -> None:
