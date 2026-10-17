@@ -1,4 +1,4 @@
-"""Cheat codes that switch to one of seven CGA palettes."""
+"""Cheat codes that switch to one of the CGA palettes."""
 
 import pygame as pg
 
@@ -6,13 +6,13 @@ from .cga import cga
 
 # fmt: off
 CHEAT_CODES: dict[str, int | None] = {
-    "dnkroz": 0,       # Duke Nukem 3D
-    "dnstuff": 1,      # Duke Nukem 3D
-    "iddqd": 2,        # Doom
-    "idkfa": 3,        # Doom
+    "dnkroz":      0,  # Duke Nukem 3D
+    "dnstuff":     1,  # Duke Nukem 3D
+    "iddqd":       2,  # Doom
+    "idkfa":       3,  # Doom
     "ken sent me": 4,  # Leisure Suit Larry
-    "megahit": 5,      # Prince of Persia
-    "xyzzy": None,     # Colossal Cave Adventure
+    "megahit":     5,  # Prince of Persia
+    "xyzzy":    None,  # Colossal Cave Adventure
 }
 # fmt: on
 
