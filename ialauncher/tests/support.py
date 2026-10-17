@@ -1,6 +1,7 @@
 """Support for headless testing of IA Launcher."""
 
 import functools
+import os
 import random
 import sys
 import tempfile
@@ -72,6 +73,7 @@ class HeadlessTestCase(unittest.TestCase):
             value = getattr(options, name)
             self.enterContext(mock.patch.object(options, name, value))
         self.enterContext(mock.patch.object(sys, "argv", list(self.argv)))
+        self.enterContext(mock.patch.object(Game, "get_emulator", return_value=[]))
         for method in ("download", "start"):
             error = AssertionError(f"The app tried to {method} a game")
             self.enterContext(mock.patch.object(Game, method, side_effect=error))
@@ -123,7 +125,8 @@ class HeadlessTestCase(unittest.TestCase):
             self.play(script)
         except Exception as e:
             if screen := pg.display.get_surface():
-                path = tempfile.mkstemp(prefix="ialauncher-", suffix=".png")[1]
+                fd, path = tempfile.mkstemp(prefix="ialauncher-", suffix=".png")
+                os.close(fd)  # Windows can't open a file twice
                 pg.image.save(screen, path)
                 e.add_note(f"Screenshot of the last frame: {path}")
             raise

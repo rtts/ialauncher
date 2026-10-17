@@ -2,6 +2,7 @@
 
 import os
 import subprocess
+import sys
 from collections.abc import Iterable, Iterator
 from functools import cache
 from pathlib import Path
@@ -19,7 +20,7 @@ def get_dosbox_command() -> list[str]:
         "https://www.dosbox.com/",
         [
             ["dosbox"],
-            ["open", "-a", "DOSBox", "--args"],
+            *macos_candidates(["open", "-a", "DOSBox", "--args"]),
             ["/Applications/dosbox.app/Contents/MacOS/DOSBox"],
             *windows_candidates("dosbox*/dosbox.exe"),
         ],
@@ -46,6 +47,16 @@ def windows_candidates(pattern: str) -> Iterator[list[str]]:
         if program_files := os.environ.get(var):
             for path in Path(program_files).glob(pattern):
                 yield [str(path)]
+
+
+def macos_candidates(command: list[str]) -> Iterator[list[str]]:
+    """Yield the command on macOS only.
+
+    Elsewhere, `open` is often xdg-open, which succeeds with any
+    arguments as long as one of them is --version.
+    """
+    if sys.platform == "darwin":
+        yield command
 
 
 def get_command(name: str, url: str, candidates: Iterable[list[str]]) -> list[str]:
