@@ -10,23 +10,27 @@ from configparser import RawConfigParser
 from http.client import HTTPException, IncompleteRead
 from pathlib import Path
 from threading import Event, Thread
-from typing import TYPE_CHECKING, override
+from time import monotonic
+from typing import override
 from urllib import request
 from urllib.error import ContentTooShortError, HTTPError, URLError
 from urllib.parse import unquote
 from zipfile import ZipFile
 
+import pygame as pg
+
 from . import options
 from .emulator import get_dosbox_command, get_scummvm_command
 from .iso import ISOFile
 
-if TYPE_CHECKING:
-    import pygame as pg
-
-# What configure() raises when metadata.ini is missing or invalid
+# What configure() raises when metadata.ini is missing or invalid.
 CONFIG_ERRORS = (KeyError, ValueError, configparser.Error)
 
-# How to describe download errors, checked in order
+# A game that exits within this many seconds probably has a wrong start command.
+QUICK_EXIT = 3
+EMULATOR_FAILED = pg.event.custom_type()
+
+# How to describe download errors, checked in order.
 ERROR_WORDING: list[tuple[type[Exception] | tuple[type[Exception], ...], str]] = [
     (TimeoutError, "The connection timed out"),
     (ConnectionRefusedError, "Connection refused"),
@@ -160,6 +164,7 @@ class Game:
         if autorun and self.scummvm_game:
             args.extend([*self.scummvm_args, self.scummvm_game])
 
+        self.autorun = autorun and bool(self.scummvm_game)
         self.emulator_args = args
         self.emulator_thread = Emulator(self, scummvm)
         self.emulator_thread.start()
@@ -232,11 +237,21 @@ class Emulator(Thread):
 
     @override
     def run(self) -> None:
-        """Run the emulator and wait for it to exit."""
+        """Run the emulator, and report it if the game exits right away."""
         game = self.game
         command = self.executable + game.emulator_args
         print("Executing:", " ".join(command))
+        started = monotonic()
         subprocess.run(command, cwd=game.gamedir, check=False)  # noqa: S603
+        seconds = monotonic() - started
+        if game.autorun and seconds < QUICK_EXIT:
+            message = (
+                f"{game.title or game.identifier} exited in {seconds:.3f} seconds, "
+                "which probably means its start command is wrong. Press Alt-Enter "
+                "to open DOSBox and try to start the game manually. Good luck!"
+            )
+            print(message)
+            pg.event.post(pg.event.Event(EMULATOR_FAILED, message=message))
 
 
 class DOSBox(Emulator):
@@ -275,6 +290,7 @@ class Download(Thread):
         self.should_extract = extract
         self.progress = 0.0
         self.filename = ""
+        self.action = "Downloading"
         self.error: str | None = None
         self.cancelled = Event()
         super().__init__(daemon=True)
@@ -291,7 +307,7 @@ class Download(Thread):
             self.download()
         except InterruptedError:
             print(" cancelled.")
-        except (OSError, HTTPException) as e:
+        except Exception as e:  # noqa: BLE001 - a corrupt archive can raise anything
             self.fail(e)
         else:
             return
@@ -318,18 +334,19 @@ class Download(Thread):
                 return wording
         if isinstance(error, OSError) and error.strerror:
             return error.strerror
-        return str(error) if isinstance(error, (OSError, str)) else repr(error)
+        return repr(error) if isinstance(error, HTTPException) else str(error)
 
     def fail(self, error: Exception) -> None:
         """Remember why the download failed, and print the error."""
         reason = self.explain(error)
         reason = reason[:1].upper() + reason[1:]
-        self.error = f"Downloading {self.filename} failed: {reason}"
+        self.error = f"{self.action} {self.filename} failed: {reason}"
         print(f" {error!r} :(")
 
     def download(self) -> None:
         """Download each URL (unless it already was) and unpack it."""
         for u in self.urls:
+            self.action = "Downloading"
             self.filename = filename = unquote(u.split("/")[-1]).split("/")[-1]
             dest = self.gamedir.parent / filename
             if not dest.is_file():
@@ -349,15 +366,10 @@ class Download(Thread):
 
     def unpack(self, verb: str, archive: Path, method: Callable[[Path], None]) -> None:
         """Unpack the archive with the given method, and print the result."""
+        self.action = verb
         print(f"{verb} {archive.name}...", end="", flush=True)
-        try:
-            method(archive)
-        except InterruptedError:
-            raise
-        except Exception:  # noqa: BLE001 - a corrupt archive can raise anything
-            print(" failed.")
-        else:
-            print(" done!")
+        method(archive)
+        print(" done!")
 
     def request(self, url: str, dest: Path) -> None:
         """Download the URL to dest, and remove dest if that fails."""

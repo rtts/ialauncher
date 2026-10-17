@@ -10,9 +10,15 @@ import pygame as pg
 from ialauncher import options
 from ialauncher.cga import cga
 from ialauncher.engine import NextScene
-from ialauncher.game import Game
+from ialauncher.game import EMULATOR_FAILED, Game
 from ialauncher.gamelist import SEARCH_TIMEOUT, GameList
-from ialauncher.utils import find_emulator, grid_margin, grid_rows, letterbox
+from ialauncher.utils import (
+    find_emulator,
+    grid_margin,
+    grid_rows,
+    letterbox,
+    show_error,
+)
 
 from . import ANTIALIAS, BLACK, CYAN, MAGENTA, WHITE, Scene
 from .download import Download
@@ -212,6 +218,8 @@ class Browse(Scene):
             self.games.random_game()
         elif event.type == SEARCH_EXPIRED:
             self.games.reset_search()
+        elif event.type == EMULATOR_FAILED:
+            show_error(event.message)
         elif event.type in (pg.MOUSEMOTION, pg.MOUSEBUTTONDOWN):
             self.handle_mouse(event)
         elif event.type == pg.MOUSEWHEEL:
