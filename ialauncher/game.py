@@ -164,7 +164,6 @@ class Game:
         if autorun and self.scummvm_game:
             args.extend([*self.scummvm_args, self.scummvm_game])
 
-        self.autorun = autorun and bool(self.scummvm_game)
         self.emulator_args = args
         self.emulator_thread = Emulator(self, scummvm)
         self.emulator_thread.start()
@@ -237,21 +236,11 @@ class Emulator(Thread):
 
     @override
     def run(self) -> None:
-        """Run the emulator, and report it if the game exits right away."""
+        """Run the emulator and wait for it to exit."""
         game = self.game
         command = self.executable + game.emulator_args
         print("Executing:", " ".join(command))
-        started = monotonic()
         subprocess.run(command, cwd=game.gamedir, check=False)  # noqa: S603
-        seconds = monotonic() - started
-        if game.autorun and seconds < QUICK_EXIT:
-            message = (
-                f"{game.title or game.identifier} exited in {seconds:.3f} seconds.\n\n"
-                "This probably means its start command is wrong.\n"
-                "Press Alt-Enter to open DOSBox and try to start\n"
-                "the game manually. Good luck!"
-            )
-            pg.event.post(pg.event.Event(EMULATOR_FAILED, message=message))
 
 
 class DOSBox(Emulator):
@@ -260,8 +249,19 @@ class DOSBox(Emulator):
     @override
     def run(self) -> None:
         """Run DOSBox and save changes the user made to dosbox.bat."""
-        super().run()
         game = self.game
+        started = monotonic()
+        super().run()
+        seconds = monotonic() - started
+
+        if game.autorun and seconds < QUICK_EXIT:
+            message = (
+                f"{game.title or game.identifier} exited in {seconds:.3f} seconds.\n\n"
+                "This probably means its start command is wrong.\n"
+                "Press Alt-Enter to open DOSBox and try to start\n"
+                "the game manually. Good luck!"
+            )
+            pg.event.post(pg.event.Event(EMULATOR_FAILED, message=message))
 
         if not game.autorun and game.batfile.is_file():
             emulator_start = game.batfile.read_text().rstrip("\r\n")
