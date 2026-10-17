@@ -1,11 +1,15 @@
-"""Helpers for the scenes."""
+"""Helper functions."""
 
 import math
+import ssl
+from typing import TYPE_CHECKING
 
 import pygame as pg
 
 from ialauncher.emulator import EmulatorError
-from ialauncher.game import Game
+
+if TYPE_CHECKING:
+    from ialauncher.game import Game
 
 GRID_MARGIN = 5
 FULLSCREEN_ASPECT_RATIO = 16 / 10
@@ -64,7 +68,7 @@ def show_error(message: str) -> None:
         pg.display.message_box("IA Launcher", message, message_type="error")
 
 
-def find_emulator(game: Game) -> bool:
+def find_emulator(game: "Game") -> bool:
     """Return whether the game's emulator is correctly installed."""
     try:
         game.get_emulator()
@@ -72,3 +76,15 @@ def find_emulator(game: Game) -> bool:
         show_error(str(e).strip())
         return False
     return True
+
+
+def tls_context() -> ssl.SSLContext:
+    """Return a context that also accepts older root certificates.
+
+    Since Python 3.13, strict mode rejects old roots like the Go Daddy
+    Class 2 CA, which Windows installs when you visit archive.org in
+    your browser.
+    """
+    context = ssl.create_default_context()
+    context.verify_flags &= ~ssl.VERIFY_X509_STRICT
+    return context

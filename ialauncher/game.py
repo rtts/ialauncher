@@ -22,6 +22,7 @@ import pygame as pg
 
 from .emulator import get_dosbox_command, get_scummvm_command
 from .iso import ISOFile
+from .utils import tls_context
 
 # A game that exits within this many seconds probably has a wrong start command.
 QUICK_EXIT = 3
@@ -29,8 +30,7 @@ EMULATOR_FAILED = pg.event.custom_type()
 
 # Browsers make Windows fetch missing root certificates, Python doesn't.
 CERTIFICATE_HINT = (
-    "Visit https://cors.archive.org/ in your web browser and then try again, "
-    "it might help."
+    "Visit https://archive.org/ in your web browser and then try again, it might help."
 )
 
 # How to describe download errors, checked in order.
@@ -372,7 +372,9 @@ class Download(Thread):
     def fetch(self, url: str, dest: Path) -> None:
         """Download the URL to dest, and print and report the progress."""
         with (
-            request.urlopen(url, timeout=60) as response,  # noqa: S310
+            request.urlopen(  # noqa: S310
+                url, timeout=60, context=tls_context()
+            ) as response,
             dest.open("wb") as f,
         ):
             total = int(response.headers.get("Content-Length") or 0)
