@@ -15,9 +15,8 @@ from urllib.parse import unquote
 from zipfile import ZipFile
 
 from . import options
-from .dosbox import get_dosbox_command
+from .emulator import get_dosbox_command, get_scummvm_command
 from .iso import ISOFile
-from .scummvm import get_scummvm_command
 
 if TYPE_CHECKING:
     import pygame as pg

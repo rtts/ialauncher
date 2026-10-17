@@ -4,7 +4,7 @@ import math
 
 import pygame as pg
 
-from ialauncher.dosbox import EmulatorError
+from ialauncher.emulator import EmulatorError
 from ialauncher.game import Game
 
 GRID_MARGIN = 5
