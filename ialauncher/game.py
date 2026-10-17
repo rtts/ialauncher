@@ -56,10 +56,6 @@ class Game:
         self.urls = c["metadata"]["url"].split()
         self.configured = True
 
-    def __gt__(self, other: "Game") -> bool:
-        """Sort games by identifier, ignoring case."""
-        return self.identifier.lower() > other.identifier.lower()
-
     def __lt__(self, other: "Game") -> bool:
         """Sort games by identifier, ignoring case."""
         return self.identifier.lower() < other.identifier.lower()
