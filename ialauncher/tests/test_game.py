@@ -194,3 +194,24 @@ class TestGame(unittest.TestCase):
     def test_cancelled_download(self) -> None:
         """Cancelling a download shows no error."""
         self.assertIsNone(self.download(InterruptedError("Download cancelled")).error)
+
+    def test_failed_copy(self) -> None:
+        """A file that isn't an archive is copied, which can fail too."""
+        download = Download(["https://example.com/games/GAME.EXE"], Path("/path/to"))
+        with (
+            mock.patch.object(Download, "request"),
+            mock.patch("pathlib.Path.mkdir"),
+            mock.patch("shutil.copy", side_effect=OSError(28, "No space left")),
+            mock.patch("shutil.rmtree"),
+            contextlib.redirect_stdout(io.StringIO()) as stdout,
+        ):
+            download.run()
+        self.assertEqual(
+            download.error,
+            "Failed to copy GAME.EXE\n\nOSError: [Errno 28] No space left",
+        )
+        self.assertEqual(
+            stdout.getvalue(),
+            "Downloading https://example.com/games/GAME.EXE done!\n"
+            "Trying to copy GAME.EXE... failed :(\n",
+        )

@@ -318,13 +318,12 @@ class Download(Thread):
             elif filename.lower().endswith((".zip", ".play")):
                 self.unpack("unzip", dest, self.unzip)
             else:
-                self.gamedir.mkdir(parents=True, exist_ok=True)
-                shutil.copy(dest, self.gamedir)
+                self.unpack("copy", dest, self.copy)
 
     def unpack(
         self, action: str, archive: Path, method: Callable[[Path], None]
     ) -> None:
-        """Unpack the archive with the given method, and print the result."""
+        """Unpack (or copy) the file with the given method, and print the result."""
         self.action = action
         print(f"Trying to {action} {archive.name}...", end="", flush=True)
         method(archive)
@@ -380,6 +379,11 @@ class Download(Thread):
                 self.report(done, total)
                 f.extract(m, self.gamedir)
                 done += m.file_size
+
+    def copy(self, file: Path) -> None:
+        """Copy the file into the game directory."""
+        self.gamedir.mkdir(parents=True, exist_ok=True)
+        shutil.copy(file, self.gamedir)
 
     def extract_iso(self, isofile: Path) -> None:
         """Extract the disc image into the game directory."""
