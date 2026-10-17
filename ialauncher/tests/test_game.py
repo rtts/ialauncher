@@ -15,104 +15,91 @@ from urllib.error import ContentTooShortError, HTTPError, URLError
 from ialauncher.game import CERTIFICATE_HINT, Download
 
 URL = "https://example.com/games/Example%20Game%20%281992%29.zip"
-GAMEDIR = Path("/path/to/gamedir")
 MESSAGE = "Failed to download Example Game (1992).zip\n\n{}"
-
-
-def certificate_error(message: str) -> ssl.SSLCertVerificationError:
-    """Return the error that the ssl module raises when verification fails."""
-    error = ssl.SSLCertVerificationError(
-        1,
-        f"[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: {message} "
-        "(_ssl.c:1032)",
-    )
-    error.reason = "CERTIFICATE_VERIFY_FAILED"
-    error.verify_message = message
-    return error
-
-
+CERTIFICATE_EXPIRED = (
+    "[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: "
+    "certificate has expired (_ssl.c:1032)"
+)
+MISSING_ROOT = (
+    "[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: "
+    "unable to get local issuer certificate (_ssl.c:1032)"
+)
 DOWNLOAD_ERRORS: dict[str, tuple[Exception, str]] = {
     # It's always DNS:
     "unknown host": (
         URLError(socket.gaierror(-2, "Name or service not known")),
-        "Name or service not known",
+        "socket.gaierror: [Errno -2] Name or service not known",
     ),
     "no DNS server": (
         URLError(socket.gaierror(-3, "Temporary failure in name resolution")),
-        "Temporary failure in name resolution",
+        "socket.gaierror: [Errno -3] Temporary failure in name resolution",
     ),
     "unknown host or no network (Windows)": (
         URLError(socket.gaierror(11001, "getaddrinfo failed")),
-        "Temporary failure in name resolution",
+        "socket.gaierror: [Errno 11001] getaddrinfo failed",
     ),
     "no DNS answer (Windows)": (
         URLError(socket.gaierror(11002, "getaddrinfo failed")),
-        "Temporary failure in name resolution",
+        "socket.gaierror: [Errno 11002] getaddrinfo failed",
     ),
     "other DNS error (Windows)": (
         URLError(socket.gaierror(11003, "getaddrinfo failed")),
-        "Temporary failure in name resolution",
+        "socket.gaierror: [Errno 11003] getaddrinfo failed",
     ),
     # Connecting to the server:
     "connection timed out": (
         URLError(TimeoutError("timed out")),
-        "The connection timed out",
+        "TimeoutError: timed out",
     ),
     "connection timed out (Windows)": (
         URLError(TimeoutError(10060, "A connection attempt failed")),
-        "The connection timed out",
+        "TimeoutError: [Errno 10060] A connection attempt failed",
     ),
     "connection refused": (
         URLError(ConnectionRefusedError(111, "Connection refused")),
-        "Connection refused",
+        "ConnectionRefusedError: [Errno 111] Connection refused",
     ),
     "connection refused (Windows)": (
         URLError(ConnectionRefusedError(10061, "No connection could be made")),
-        "Connection refused",
+        "ConnectionRefusedError: [Errno 10061] No connection could be made",
     ),
     "network unreachable": (
         URLError(OSError(errno.ENETUNREACH, "Network is unreachable")),
-        "Network is unreachable",
+        f"OSError: [Errno {errno.ENETUNREACH}] Network is unreachable",
     ),
     "no route to host": (
         URLError(OSError(errno.EHOSTUNREACH, "No route to host")),
-        "No route to host",
+        f"OSError: [Errno {errno.EHOSTUNREACH}] No route to host",
     ),
     "connection reset while connecting": (
         URLError(ConnectionResetError(104, "Connection reset by peer")),
-        "Connection reset by peer",
+        "ConnectionResetError: [Errno 104] Connection reset by peer",
     ),
     "connection reset while connecting (Windows)": (
         URLError(ConnectionResetError(10054, "An existing connection was closed")),
-        "Connection reset by peer",
+        "ConnectionResetError: [Errno 10054] An existing connection was closed",
     ),
     "certificate expired": (
-        URLError(certificate_error("certificate has expired")),
-        (
-            "TLS certificate error: CERTIFICATE_VERIFY_FAILED: certificate has expired"
-            f"\n\n{CERTIFICATE_HINT}"
-        ),
+        URLError(ssl.SSLCertVerificationError(1, CERTIFICATE_EXPIRED)),
+        f"ssl.SSLCertVerificationError: {CERTIFICATE_EXPIRED}\n\n{CERTIFICATE_HINT}",
     ),
     "missing root certificate": (
-        URLError(certificate_error("unable to get local issuer certificate")),
-        (
-            "TLS certificate error: CERTIFICATE_VERIFY_FAILED: "
-            f"unable to get local issuer certificate\n\n{CERTIFICATE_HINT}"
-        ),
+        URLError(ssl.SSLCertVerificationError(1, MISSING_ROOT)),
+        f"ssl.SSLCertVerificationError: {MISSING_ROOT}\n\n{CERTIFICATE_HINT}",
     ),
     "TLS error": (
         URLError(ssl.SSLError(1, "[SSL: WRONG_VERSION_NUMBER] wrong version number")),
-        "TLS certificate error",
+        "ssl.SSLError: [SSL: WRONG_VERSION_NUMBER] wrong version number",
     ),
     "proxy refused": (
         URLError(
             OSError("Tunnel connection failed: 407 Proxy Authentication Required")
         ),
-        "Tunnel connection failed: 407 Proxy Authentication Required",
+        "OSError: Tunnel connection failed: 407 Proxy Authentication Required",
     ),
     "no host in URL": (
         URLError("no host given"),
-        "No host given",
+        "urllib.error.URLError: <urlopen error no host given>",
     ),
     # The server's response:
     "forbidden": (
@@ -133,43 +120,53 @@ DOWNLOAD_ERRORS: dict[str, tuple[Exception, str]] = {
     ),
     "response timed out": (
         TimeoutError("timed out"),
-        "The connection timed out",
+        "TimeoutError: timed out",
     ),
     "closed before responding": (
         RemoteDisconnected("Remote end closed connection without response"),
-        "Connection reset by peer",
+        (
+            "http.client.RemoteDisconnected: "
+            "Remote end closed connection without response"
+        ),
     ),
     "garbled response": (
         BadStatusLine("garbage"),
-        "BadStatusLine('garbage')",
+        "http.client.BadStatusLine: garbage",
     ),
     # Receiving the file:
     "connection dropped": (
         IncompleteRead(b"x" * 123, 456),
-        "Transferred a partial file",
+        "http.client.IncompleteRead: IncompleteRead(123 bytes read, 456 more expected)",
     ),
     "connection reset": (
         ConnectionResetError(104, "Connection reset by peer"),
-        "Connection reset by peer",
+        "ConnectionResetError: [Errno 104] Connection reset by peer",
     ),
     "TLS connection closed": (
         ssl.SSLEOFError(8, "EOF occurred in violation of protocol (_ssl.c:2427)"),
-        "Connection reset by peer",
+        "ssl.SSLEOFError: EOF occurred in violation of protocol (_ssl.c:2427)",
     ),
     "file too short": (
         ContentTooShortError(
-            "got only 123 out of 456 bytes", ("Example Game (1992).zip", Message())
+            "retrieval incomplete: got only 123 out of 456 bytes",
+            ("Example Game (1992).zip", Message()),
         ),
-        "Transferred a partial file",
+        (
+            "urllib.error.ContentTooShortError: "
+            "<urlopen error retrieval incomplete: got only 123 out of 456 bytes>"
+        ),
     ),
     # Writing the file:
     "no write permission": (
-        PermissionError(13, "Permission denied"),
-        f"Not allowed to write to {GAMEDIR.parent}",
+        PermissionError(13, "Permission denied", "/path/to/Example Game (1992).zip"),
+        (
+            "PermissionError: [Errno 13] Permission denied: "
+            "'/path/to/Example Game (1992).zip'"
+        ),
     ),
     "disk full": (
         OSError(28, "No space left on device"),
-        "No space left on device",
+        "OSError: [Errno 28] No space left on device",
     ),
 }
 
@@ -179,7 +176,7 @@ class TestGame(unittest.TestCase):
 
     def download(self, error: Exception) -> Download:
         """Run a download that fails with the given error, and return it."""
-        download = Download([URL], GAMEDIR)
+        download = Download([URL], Path("/path/to/gamedir"))
         with (
             mock.patch.object(Download, "request", side_effect=error),
             mock.patch("shutil.rmtree"),
@@ -189,7 +186,7 @@ class TestGame(unittest.TestCase):
         return download
 
     def test_download_errors(self) -> None:
-        """Each download error shows the reason why the download failed."""
+        """Each download error shows the full underlying error."""
         for name, (error, reason) in DOWNLOAD_ERRORS.items():
             with self.subTest(name):
                 self.assertEqual(self.download(error).error, MESSAGE.format(reason))

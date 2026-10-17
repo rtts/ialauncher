@@ -96,7 +96,9 @@ class Loading(TitleScreen):
         if self.slurp:
             return False
         if not self.games.games:
-            show_error("No games were found!\n\nThere are no games in {self.games_dir}")
+            show_error(
+                f"No games were found!\n\nThere are no games in {self.games_dir}"
+            )
             return False
         self.games.sort()
         return Browse(self.games)

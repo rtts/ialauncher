@@ -3,12 +3,11 @@
 import configparser
 import shlex
 import shutil
-import socket
 import ssl
 import subprocess
+import traceback
 from collections.abc import Callable
 from configparser import RawConfigParser
-from http.client import HTTPException, IncompleteRead
 from pathlib import Path
 from threading import Event, Thread
 from time import monotonic
@@ -32,16 +31,6 @@ EMULATOR_FAILED = pg.event.custom_type()
 CERTIFICATE_HINT = (
     "Visit https://archive.org/ in your web browser and then try again, it might help."
 )
-
-# How to describe download errors, checked in order.
-ERROR_WORDING: list[tuple[type[Exception] | tuple[type[Exception], ...], str]] = [
-    (TimeoutError, "The connection timed out"),
-    (ConnectionRefusedError, "Connection refused"),
-    ((ConnectionResetError, ssl.SSLEOFError), "Connection reset by peer"),
-    (ssl.SSLError, "TLS certificate error"),
-    ((IncompleteRead, ContentTooShortError), "Transferred a partial file"),
-]
-
 
 type Engine = Literal["dosbox", "scummvm"]
 
@@ -299,37 +288,17 @@ class Download(Thread):
         shutil.rmtree(self.gamedir, ignore_errors=True)
 
     def fail(self, error: Exception) -> None:
-        """Record an action that failed."""
-        reason = self.explain(error)
-        reason = reason[:1].upper() + reason[1:]
-        self.error = f"Failed to {self.action} {self.filename}\n\n{reason}"
-        print(f" {error!r} :(")
-
-    def explain(self, error: object) -> str:  # noqa: PLR0911
-        """Return an explanation for why it failed."""
-        if type(error) is URLError:
+        """Record an action that failed, with the full error."""
+        if type(error) is URLError and isinstance(error.reason, Exception):
             error = error.reason  # The actual error is inside
         if isinstance(error, HTTPError):
-            return f"{error.code} {error.reason}"
-        if (
-            isinstance(error, socket.gaierror)
-            and error.strerror == "getaddrinfo failed"
-        ):
-            # That's what Windows says for all DNS errors
-            return "Temporary failure in name resolution"
-        if isinstance(error, PermissionError):
-            return f"Not allowed to write to {self.gamedir.parent}"
+            reason = f"{error.code} {error.reason}"
+        else:
+            reason = "".join(traceback.format_exception_only(error)).strip()
         if isinstance(error, ssl.SSLCertVerificationError):
-            return (
-                f"TLS certificate error: {error.reason}: {error.verify_message}"
-                f"\n\n{CERTIFICATE_HINT}"
-            )
-        for types, wording in ERROR_WORDING:
-            if isinstance(error, types):
-                return wording
-        if isinstance(error, OSError) and error.strerror:
-            return error.strerror
-        return repr(error) if isinstance(error, HTTPException) else str(error)
+            reason += f"\n\n{CERTIFICATE_HINT}"
+        self.error = f"Failed to {self.action} {self.filename}\n\n{reason}"
+        print(" failed :(")
 
     def download(self) -> None:
         """Download each URL (unless it already was) and unpack it."""
@@ -391,7 +360,7 @@ class Download(Thread):
                     print("." * new_dots, end="", flush=True)
                     dots += new_dots
         if done < total:
-            msg = f"Download failed: got only {done} out of {total} bytes"
+            msg = f"retrieval incomplete: got only {done} out of {total} bytes"
             raise ContentTooShortError(msg, (str(dest), response.headers))
 
     def report(self, done: int, total: int) -> None:
