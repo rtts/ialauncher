@@ -20,15 +20,8 @@ def main() -> None:
     )
     parser.add_argument(
         "--fullscreen",
-        dest="fullscreen",
-        action="store_true",
-        help="Start in fullscreen mode (default)",
-    )
-    parser.add_argument(
-        "--no-fullscreen",
-        dest="no_fullscreen",
-        action="store_true",
-        help="Don't start in fullscreen mode",
+        action=argparse.BooleanOptionalAction,
+        help="Start in fullscreen mode (default) or in a window",
     )
     parser.add_argument(
         "--slurp",
@@ -37,7 +30,7 @@ def main() -> None:
         help=(
             "Slurp mode: downloads ALL games from the Internet Archive, one by "
             "one. This will take days to finish. Please don't do this for no "
-            "reason; the Internet Archive has limited bandwith. Also, consider "
+            "reason; the Internet Archive has limited bandwidth. Also, consider "
             "donating first."
         ),
     )
@@ -61,8 +54,8 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    if args.fullscreen ^ args.no_fullscreen:
-        options.fullscreen = args.fullscreen or not args.no_fullscreen
+    if args.fullscreen is not None:
+        options.fullscreen = args.fullscreen
     if args.slideshow is not None:
         options.slideshow = args.slideshow
     if args.captures_dir is not None:
