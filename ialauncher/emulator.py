@@ -137,7 +137,9 @@ operating system.
 
 Alternatively, if you installed {name} in a non-standard
 location, set the PATH environment variable to point to the
-{name} directory.
+{name} directory, or start IA Launcher like this:
+
+    ialauncher --{name.lower()} path/to/{name.lower()}
         """
         raise EmulatorError(msg)
     return command
