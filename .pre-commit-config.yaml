@@ -21,6 +21,6 @@ repos:
         pass_filenames: false
       - id: tabs
         name: tabs
-        entry: " {8}"
-        language: pygrep
+        entry: 'sed -i -E "s/ {8}/\t/g"'
+        language: system
         files: (^|/)metadata\.ini$
