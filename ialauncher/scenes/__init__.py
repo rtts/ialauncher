@@ -11,7 +11,7 @@ import pygame as pg
 
 from ialauncher import engine
 from ialauncher.cheats import cheat
-from ialauncher.utils import gradient, letterbox
+from ialauncher.utils import gradient, letterbox, sharp_scale
 
 CYAN = (0, 204, 255)
 MAGENTA = (255, 0, 204)
@@ -105,5 +105,5 @@ class TitleScreen(Scene):
         progress.width = int(progress.width * fraction)
         canvas.blit(self.gradient, self.BAR, progress)
         screen.fill(BLACK)
-        target = screen.subsurface(letterbox(screen.get_rect()))
-        pg.transform.scale(canvas, target.get_size(), target)
+        target = letterbox(screen.get_rect())
+        screen.blit(sharp_scale(canvas, target.size), target)

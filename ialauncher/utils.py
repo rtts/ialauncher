@@ -28,6 +28,25 @@ def letterbox(rect: pg.Rect) -> pg.Rect:
     return letterboxed
 
 
+def sharp_scale(image: pg.Surface, size: tuple[int, int]) -> pg.Surface:
+    """Emulate DOSBox Staging's "sharp" shader.
+
+    Scale up by the largest integer factor with nearest neighbor, then
+    smoothly scale to final size.
+    """
+    width, height = image.get_size()
+    prescaled = (
+        max(1, size[0] // width) * width,
+        max(1, size[1] // height) * height,
+    )
+    image = image.convert(32)
+    if prescaled != (width, height):
+        image = pg.transform.scale(image, prescaled)
+    if prescaled == size:
+        return image
+    return pg.transform.smoothscale(image, size)
+
+
 def gradient(
     size: tuple[int, int], start: tuple[int, int, int], end: tuple[int, int, int]
 ) -> pg.Surface:

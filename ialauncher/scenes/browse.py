@@ -17,6 +17,7 @@ from ialauncher.utils import (
     find_emulator,
     grid_margin,
     letterbox,
+    sharp_scale,
     show_error,
 )
 
@@ -383,7 +384,7 @@ class Browse(Scene):
             image = cache.get(key, self.cache.get(key))
             if image is None:
                 title = cga.apply(self.games.get_image(games[index]))
-                image = pg.transform.scale(title, image_rect.size)
+                image = sharp_scale(title, image_rect.size)
             cache[key] = image
             screen.blit(image, image_rect)
             if pos == self.pos:
