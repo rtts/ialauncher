@@ -21,6 +21,6 @@ repos:
         pass_filenames: false
       - id: tabs
         name: tabs
-        entry: 'sed -i -E "s/ {8}/\t/g"'
-        language: system
+        entry: python -c "import pathlib, sys; [p.write_bytes(new) for p in map(pathlib.Path, sys.argv[1:]) if (new := p.read_bytes().replace(bytes(8 * [32]), bytes([9]))) != p.read_bytes()]"
+        language: python
         files: (^|/)metadata\.ini$
