@@ -118,7 +118,7 @@ class Loading(TitleScreen):
 
                 self.download_game()
             else:
-                self.load_games(10)
+                self.load_games(30)
         except MetadataError as e:
             show_error(str(e))
             return False
