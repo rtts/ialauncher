@@ -1,6 +1,8 @@
 """Find the locations of the supported emulators: DOSBox, and ScummVM."""
 
+import ctypes
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -8,7 +10,14 @@ from collections.abc import Iterable, Iterator
 from functools import cache
 from pathlib import Path
 
+import pygame as pg
+
 from . import options
+
+# Only on Windows, NO_WINDOW will have a non-zero value.
+NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+MINIMUM_OPENGL = 3, 3
+GL_VERSION = 0x1F02
 
 
 class EmulatorError(Exception):
@@ -24,6 +33,7 @@ def get_dosbox_command() -> list[str]:
         "DOSBox",
         "https://www.dosbox.com/",
         [
+            *bundled_candidates(),
             ["dosbox"],
             *macos_candidates(["open", "-a", "DOSBox", "--args"]),
             ["/Applications/dosbox.app/Contents/MacOS/DOSBox"],
@@ -58,10 +68,41 @@ def is_dosbox_staging() -> bool:
             text=True,
             check=False,
             timeout=3,
+            creationflags=NO_WINDOW,
         )
     except (EmulatorError, OSError, subprocess.TimeoutExpired):
         return False
     return result.stdout.startswith("dosbox-staging")
+
+
+def bundled_candidates() -> Iterator[list[str]]:
+    """Yield the DOSBox Staging that ships with the Windows installer."""
+    if getattr(sys, "frozen", False):
+        yield [str(Path(sys.executable).parent / "dosbox-staging" / "dosbox.exe")]
+
+
+@cache
+def has_opengl() -> bool:
+    """Check whether this system has OpenGL 3.3.
+
+    This is for extreme backwards compatibility, only.
+    """
+    if sys.platform != "win32":
+        return True
+    pg.display.init()
+    try:
+        pg.display.set_mode((1, 1), pg.OPENGL | pg.HIDDEN)
+        # SDL quietly falls back to 1.1, so ask the context instead.
+        get_string = ctypes.windll.opengl32.glGetString
+        get_string.restype = ctypes.c_char_p
+        version = get_string(GL_VERSION) or b""
+    except (pg.error, OSError):
+        return False
+    finally:
+        pg.display.quit()
+    if match := re.match(rb"(\d+)\.(\d+)", version):
+        return (int(match[1]), int(match[2])) >= MINIMUM_OPENGL
+    return False
 
 
 def windows_candidates(pattern: str) -> Iterator[list[str]]:
@@ -107,7 +148,7 @@ def get_executable(name: str, path: str) -> list[str]:
 
     A file at the path wins over a command of that name on the PATH. It's
     made absolute, because emulators run in the game directory. Raise
-    EmulatorError if it doesn't work, without looking any further.
+    EmulatorError if the executable doesn't work.
     """
     file = Path(path) if Path(path).is_file() else Path(shutil.which(path) or path)
     command = [str(file.absolute())]
@@ -130,7 +171,11 @@ def works(command: list[str]) -> bool:
     """Return whether the command can be executed."""
     try:
         subprocess.run(  # noqa: S603
-            [*command, "--version"], capture_output=True, check=True, timeout=3
+            [*command, "--version"],
+            capture_output=True,
+            check=True,
+            timeout=3,
+            creationflags=NO_WINDOW,
         )
     except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
         return False

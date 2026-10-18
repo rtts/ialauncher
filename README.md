@@ -7,14 +7,8 @@ collection](https://archive.org/details/softwarelibrary_msdos_games)**
 IA Launcher is a graphical games launcher for all those gorgeous
 MS-DOS games from yestermillenium. It uses the Internet Archive to
 download games on-the-fly and DOSBox to play them offline. Visit the
-[IA Launcher website](https://ialauncher.created.today/games.htm) for
+[IA Launcher website](https://ialauncher.created.today/index.htm) for
 a list of all the included games.
-
-**Hurrah! IA Launcher now has its own Windows installer! You can
-download it [here](https://rtts.eu/ialauncher-3.0.0-amd64.msi).**
-
-You can also install IA Launcher using `pip3 install ialauncher` on
-any operating system. Continue reading for detailed instructions.
 
 ![Screenshot of IA Launcher](https://i.imgur.com/WQhGrQy.jpg)
 
@@ -40,14 +34,16 @@ installing the following dependencies:
 - [DOSBox](https://www.dosbox.com/) version 0.74 or higher
 
 *New! [DOSBox Staging](https://www.dosbox-staging.org/) is now also
-officially supported!* \o/
+officially supported! The [Windows
+installer](https://rtts.eu/ialauncher-3.0.0-amd64.msi) even comes with
+DOSBox Staging included inside the box!*
 
 Then, install IA Launcher using `pip3`:
 
     pip3 install ialauncher
 
-Start the program with the `ialauncher` command. To see the available
-options, use `ialauncher --help`.
+Finally, start the program with the `ialauncher` command. To see the
+available options, use `ialauncher --help`.
 
 
 Special Keys

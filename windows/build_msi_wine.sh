@@ -7,6 +7,8 @@ cd "$(dirname "$0")/.."
 
 PYTHON_VERSION=3.14.8
 DOSBOX_VERSION=0.74-3
+STAGING_VERSION=0.83.0
+STAGING_SHA256=725b915e325a6d410ce30a10989fd492fdad07f6611fff40ff77f160478810f4
 
 export WINEDEBUG=-all
 prefix="${WINEPREFIX:-$HOME/.wine}"
@@ -40,10 +42,25 @@ echo "Copying source files ..."
 mkdir "$work/src"
 git ls-files -z | tar --null -T - -cf - | tar -xf - -C "$work/src"
 
+echo "Downloading DOSBox Staging $STAGING_VERSION ..."
+zip="dosbox-staging-windows-x64-v$STAGING_VERSION.zip"
+curl -sSfL -o "$work/$zip" \
+    "https://github.com/dosbox-staging/dosbox-staging/releases/download/v$STAGING_VERSION/$zip"
+echo "$STAGING_SHA256  $work/$zip" | sha256sum -c --quiet
+unzip -q "$work/$zip" -d "$work/staging" -x "*/dosbox_with_debugger.exe"
+mv "$work/staging/dosbox-staging-v$STAGING_VERSION" "$work/dosbox-staging"
+
 echo "Building MSI ..."
 mkdir -p dist
 log=dist/build_msi_wine.log
-if ! (cd "$work/src" && wine "$python" windows/setup_win.py bdist_msi) >"$log" 2>&1; then
+# Add DOSBox Staging between freezing and packaging, because cx_Freeze
+# would leave out its Visual C++ runtime DLLs.
+if ! (
+    cd "$work/src" &&
+    wine "$python" windows/setup_win.py build_exe &&
+    mv "$work/dosbox-staging" build/exe.*/ &&
+    wine "$python" windows/setup_win.py bdist_msi --skip-build
+) >"$log" 2>&1; then
     tail -n 20 "$log"
     echo "Build failed, see $log"
     exit 1

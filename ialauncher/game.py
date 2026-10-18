@@ -6,6 +6,7 @@ import shutil
 import ssl
 import subprocess
 import traceback
+from collections import deque
 from collections.abc import Callable
 from configparser import RawConfigParser
 from pathlib import Path
@@ -19,12 +20,20 @@ from zipfile import ZipFile
 
 import pygame as pg
 
-from .emulator import get_dosbox_command, get_scummvm_command, is_dosbox_staging
+from .emulator import (
+    NO_WINDOW,
+    get_dosbox_command,
+    get_scummvm_command,
+    has_opengl,
+    is_dosbox_staging,
+)
 from .iso import ISOFile
 from .utils import tls_context
 
 # A game that exits within this many seconds probably has a wrong start command.
 QUICK_EXIT = 3
+# Show this many lines of emulator output when the emulator fails.
+OUTPUT_LINES = 5
 EMULATOR_FAILED = pg.event.custom_type()
 
 # Browsers make Windows fetch missing root certificates, Python doesn't.
@@ -86,8 +95,8 @@ class Game:
             return get_scummvm_command()
         return get_dosbox_command()
 
-    def start(self, *, autorun: bool = True) -> None:
-        r"""Start the game.
+    def start(self, *, autorun: bool = True) -> "Emulator":
+        r"""Start the game and return the thread that runs the emulator.
 
         There are two modes:
 
@@ -115,8 +124,7 @@ class Game:
         Raises EmulatorError if DOSBox (or ScummVM) isn't installed.
         """
         if self.engine == "scummvm":
-            self.start_scummvm(autorun=autorun)
-            return
+            return self.start_scummvm(autorun=autorun)
 
         dosbox = get_dosbox_command()
         batfile = self.gamedir / "dosbox.bat"
@@ -125,6 +133,8 @@ class Game:
         # DOSBox loads the user's config instead, Staging always does.
         if is_dosbox_staging():
             dosbox_args = [".", "-fullscreen", "--nolocalconf", "--set", "shader=sharp"]
+            if not has_opengl():
+                dosbox_args.extend(["--set", "output=texture"])
         else:
             dosbox_args = [".", "-fullscreen", "-userconf"]
 
@@ -152,9 +162,11 @@ class Game:
 
         # Hand the game over to the DOSBox thread
         command = [*dosbox, *dosbox_args]
-        DOSBox(self, command, batfile=batfile, autorun=autorun).start()
+        thread = DOSBox(self, command, batfile=batfile, autorun=autorun)
+        thread.start()
+        return thread
 
-    def start_scummvm(self, *, autorun: bool = True) -> None:
+    def start_scummvm(self, *, autorun: bool = True) -> "Emulator":
         """Start the game with ScummVM.
 
         Use `scummvm_game` as the target. Savegames are stored in the
@@ -166,7 +178,9 @@ class Game:
         if autorun and self.scummvm_game:
             args.extend([*self.scummvm_args, self.scummvm_game])
 
-        Emulator(self, [*scummvm, *args]).start()
+        thread = Emulator(self, [*scummvm, *args])
+        thread.start()
+        return thread
 
     def save_emulator_start(self, emulator_start: str) -> None:
         """Change emulator_start, and save it to metadata.ini."""
@@ -203,13 +217,27 @@ class Emulator(Thread):
         """Prepare to run the game with the given emulator command."""
         self.game = game
         self.command = command
+        self.output: deque[str] = deque(maxlen=OUTPUT_LINES)
+        self.returncode = 0
         super().__init__(daemon=True)
 
     @override
     def run(self) -> None:
-        """Run the emulator and wait for it to exit."""
+        """Run the emulator, pass on its output, and wait for it to exit."""
         print("Executing:", shlex.join(self.command))
-        subprocess.run(self.command, cwd=self.game.gamedir, check=False)  # noqa: S603
+        with subprocess.Popen(  # noqa: S603
+            self.command,
+            cwd=self.game.gamedir,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            encoding="utf-8",
+            errors="replace",
+            creationflags=NO_WINDOW,
+        ) as process:
+            for line in process.stdout or ():
+                print(line, end="")
+                self.output.append(line.rstrip())
+        self.returncode = process.returncode
 
 
 class DOSBox(Emulator):
@@ -238,6 +266,9 @@ class DOSBox(Emulator):
                 "Press Alt-Enter to open DOSBox and try to start\n"
                 "the game manually. Good luck!"
             )
+            if self.returncode:
+                output = "\n".join(self.output)
+                message += f"\n\nDOSBox exited with code {self.returncode}:\n{output}"
             pg.event.post(pg.event.Event(EMULATOR_FAILED, message=message))
 
         if not self.autorun and self.batfile.is_file():

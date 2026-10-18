@@ -3,6 +3,7 @@
 import argparse
 
 from . import options
+from .emulator import has_opengl
 from .engine import run
 from .scenes.loading import Loading
 
@@ -50,6 +51,7 @@ def main() -> None:
     if args.scummvm is not None:
         options.scummvm_executable = args.scummvm
 
+    has_opengl()
     run(
         Loading(slurp=args.slurp),
         title="IA Launcher",

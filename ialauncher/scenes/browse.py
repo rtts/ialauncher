@@ -10,7 +10,7 @@ import pygame as pg
 from ialauncher import options
 from ialauncher.cga import cga
 from ialauncher.engine import NextScene
-from ialauncher.game import EMULATOR_FAILED, Game
+from ialauncher.game import EMULATOR_FAILED, Emulator, Game
 from ialauncher.gamelist import SEARCH_TIMEOUT, GameList
 from ialauncher.utils import (
     ASPECT_RATIO,
@@ -49,6 +49,8 @@ class Browse(Scene):
         self.shift = 0  # The pixels of the top row that are scrolled out of view
         self.cache: dict[tuple[int, tuple[int, int], int | None], pg.Surface] = {}
         self.menu: Menu | None = None
+        self.emulators: dict[str, Emulator] = {}  # By game identifier
+        self.enter_held = False  # To ignore Enter's key repeat
         self.slideshow = options.slideshow
         self.set_slideshow(enabled=bool(options.slideshow))
         self.set_cursor(pg.SYSTEM_CURSOR_HAND)
@@ -212,6 +214,9 @@ class Browse(Scene):
 
     def start(self, game: Game, mod: int) -> None:
         """Download the game if needed and start it."""
+        emulator = self.emulators.get(game.identifier)
+        if emulator is not None and emulator.is_alive():
+            return  # Never run the same game twice
         if not find_emulator(game):
             return
         if mod & pg.KMOD_SHIFT:
@@ -220,7 +225,7 @@ class Browse(Scene):
             Download(game).run(self.screen)
         if game.is_ready():
             # Start playing (spawns a new thread)
-            game.start(autorun=not mod & pg.KMOD_ALT)
+            self.emulators[game.identifier] = game.start(autorun=not mod & pg.KMOD_ALT)
 
     def follow(self) -> None:
         """Move the position to the current game with the least scrolling.
@@ -276,6 +281,8 @@ class Browse(Scene):
             if event.key == pg.K_ESCAPE:
                 return False
             self.handle_key(event)
+        elif event.type == pg.KEYUP and event.key == pg.K_RETURN:
+            self.enter_held = False
         self.follow()
         return None
 
@@ -325,7 +332,8 @@ class Browse(Scene):
         # (Re)start the timer that removes the query from the screen
         if self.games.query:
             pg.time.set_timer(SEARCH_EXPIRED, SEARCH_TIMEOUT, loops=1)
-        if event.key == pg.K_RETURN:
+        if event.key == pg.K_RETURN and not self.enter_held:
+            self.enter_held = True
             self.play(event.mod)
 
     def navigate(self, event: pg.event.Event) -> None:
