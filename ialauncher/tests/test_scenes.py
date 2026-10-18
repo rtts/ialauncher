@@ -68,7 +68,7 @@ class TestBrowse(HeadlessTestCase):
             yield key(pg.K_RETURN)
 
     def test_ready_only(self) -> Script:
-        """Tab shows only the ready games, and Ctrl-Enter adds or removes one."""
+        """Tab cycles through all, ready and unready games; Ctrl-Enter adds/removes."""
         ready: set[str] = set()
 
         def download(game: Game) -> mock.Mock:
@@ -92,7 +92,7 @@ class TestBrowse(HeadlessTestCase):
 
         # Without ready games, Tab does nothing
         yield key(pg.K_TAB)
-        self.assertFalse(games.ready_only)
+        self.assertIsNone(games.ready)
         self.assertEqual(len(games.games), total)
 
         # Add two games, and show only those
@@ -103,7 +103,7 @@ class TestBrowse(HeadlessTestCase):
         yield key(pg.K_RETURN, mod=pg.KMOD_CTRL)
         self.assertEqual(ready, {prince, current()})
         yield key(pg.K_TAB)
-        self.assertTrue(games.ready_only)
+        self.assertTrue(games.ready)
         self.assertEqual(sorted(g.identifier for g in games.games), sorted(ready))
 
         # Removing a game hides it, removing the last one shows all games
@@ -111,16 +111,18 @@ class TestBrowse(HeadlessTestCase):
         self.assertEqual(len(games.games), 1)
         yield key(pg.K_RETURN, mod=pg.KMOD_CTRL)
         self.assertFalse(ready)
-        self.assertFalse(games.ready_only)
+        self.assertIsNone(games.ready)
         self.assertEqual(len(games.games), total)
 
-        # Tab shows all games again
+        # Tab shows the ready games, the unready games, then all games again
         yield key(pg.K_RETURN, mod=pg.KMOD_CTRL)
         yield key(pg.K_TAB)
         self.assertEqual(len(games.games), 1)
         yield key(pg.K_TAB)
+        self.assertEqual(len(games.games), total - 1)
+        self.assertNotIn(current(), ready)
+        yield key(pg.K_TAB)
         self.assertEqual(len(games.games), total)
-        self.assertEqual(current(), next(iter(ready)))
 
         self.assertIsNone((yield key(pg.K_ESCAPE)))
 

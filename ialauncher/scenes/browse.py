@@ -29,6 +29,10 @@ GRID_LARGER = {pg.K_MINUS, pg.K_KP_MINUS}
 GRID_SMALLER = {pg.K_PLUS, pg.K_EQUALS, pg.K_KP_PLUS}
 ADVANCE = pg.event.custom_type()
 SEARCH_EXPIRED = pg.event.custom_type()
+MESSAGE_EXPIRED = pg.event.custom_type()
+MESSAGE_TIMEOUT = 1000
+READY_MESSAGES = {None: "All", True: "Favorites", False: "Least favorites"}
+NEXT_READY = {None: True, True: False, False: None}
 MENU_FONT = "dejavusans,liberationsans,arial,helvetica,sans"
 MENU_ITEMS = [
     ("Start game", "Enter", 0),
@@ -50,6 +54,7 @@ class Browse(Scene):
         self.shift = 0.0  # The pixels of the top row that are scrolled out of view
         self.cache: dict[tuple[int, tuple[int, int], int | None], pg.Surface] = {}
         self.menu: Menu | None = None
+        self.message_until = 0
         self.emulators: dict[str, Emulator] = {}  # By game identifier
         self.enter_held = False  # To ignore Enter's key repeat
         self.slideshow = options.slideshow
@@ -95,6 +100,11 @@ class Browse(Scene):
     def menu_font(self) -> pg.font.Font:
         """The font of the menu."""
         return pg.font.SysFont(MENU_FONT, 12)
+
+    @cached_property
+    def message_font(self) -> pg.font.Font:
+        """The font of the message."""
+        return pg.font.SysFont(MENU_FONT, 20)
 
     @property
     def area(self) -> pg.Rect:
@@ -196,9 +206,9 @@ class Browse(Scene):
                 return True
         return False
 
-    def show_ready(self, *, ready_only: bool) -> None:
-        """Show only the games that are ready to play, or all games."""
-        self.games.show_ready(ready_only=ready_only)
+    def show_ready(self, *, ready: bool | None) -> None:
+        """Show only the games that are (not) ready to play, or all games (None)."""
+        self.games.show_ready(ready=ready)
 
         # Keep the current game in the same cell
         offset = self.pos - self.top
@@ -221,7 +231,7 @@ class Browse(Scene):
             self.start(game, mod)
 
         # The game may have become ready, or not
-        self.show_ready(ready_only=self.games.ready_only)
+        self.show_ready(ready=self.games.ready)
 
     def add_or_remove(self, game: Game) -> None:
         """Download the game without starting it, or remove it if it's ready."""
@@ -375,7 +385,9 @@ class Browse(Scene):
             self.games.backspace()
         elif event.key == pg.K_TAB:
             self.games.reset_search()
-            self.show_ready(ready_only=not self.games.ready_only)
+            self.show_ready(ready=NEXT_READY[self.games.ready])
+            self.message_until = pg.time.get_ticks() + MESSAGE_TIMEOUT
+            pg.time.set_timer(MESSAGE_EXPIRED, MESSAGE_TIMEOUT, loops=1)
         elif handler := self.handlers.get(event.key):
             self.games.reset_search()
             handler()
@@ -422,6 +434,8 @@ class Browse(Scene):
             )
         if self.games.query:
             self.draw_query(screen)
+        if pg.time.get_ticks() < self.message_until:
+            self.draw_message(screen)
         if self.menu:
             self.menu.draw(screen)
 
@@ -434,6 +448,16 @@ class Browse(Scene):
         rect.topleft = (margin, margin)
         screen.fill(BLACK, rect)
         screen.blit(image, image.get_rect(center=rect.center))
+
+    def draw_message(
+        self, screen: pg.Surface, padding: tuple[int, int] = (24, 16)
+    ) -> None:
+        """Draw which games are shown in the middle of the screen."""
+        message = READY_MESSAGES[self.games.ready]
+        image = self.message_font.render(message, ANTIALIAS, BLACK)
+        rect = image.get_rect(center=screen.get_rect().center)
+        screen.fill(MAGENTA, rect.inflate(2 * padding[0], 2 * padding[1]))
+        screen.blit(image, rect)
 
 
 class Menu:
