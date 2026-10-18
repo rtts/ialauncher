@@ -129,12 +129,11 @@ class Game:
         dosbox = get_dosbox_command()
         batfile = self.gamedir / "dosbox.bat"
         conffile = self.gamedir / "dosbox.conf"
-        # Don't load an untrusted dosbox.conf from the game directory.
-        # DOSBox loads the user's config instead, Staging always does.
         if is_dosbox_staging():
             dosbox_args = [".", "-fullscreen", "--nolocalconf", "--set", "shader=sharp"]
             if not has_opengl():
                 dosbox_args.extend(["--set", "output=texture"])
+            dosbox_args.extend(["-c", "mixer master 88 /noshow"])
         else:
             dosbox_args = [".", "-fullscreen", "-userconf"]
 
