@@ -13,9 +13,9 @@ from ialauncher.engine import NextScene
 from ialauncher.game import EMULATOR_FAILED, Game
 from ialauncher.gamelist import SEARCH_TIMEOUT, GameList
 from ialauncher.utils import (
+    ASPECT_RATIO,
     find_emulator,
     grid_margin,
-    grid_rows,
     letterbox,
     show_error,
 )
@@ -45,6 +45,7 @@ class Browse(Scene):
         self.games.random_game()
         self.cols = 1
         self.top = self.pos = self.games.current_game
+        self.shift = 0  # The pixels of the top row that are scrolled out of view
         self.cache: dict[tuple[int, tuple[int, int], int | None], pg.Surface] = {}
         self.menu: Menu | None = None
         self.slideshow = options.slideshow
@@ -99,9 +100,14 @@ class Browse(Scene):
         return self.screen.get_rect().inflate(-2, -2)
 
     @property
-    def rows(self) -> int:
-        """The number of rows in the grid."""
-        return grid_rows(self.cols, self.area.size)
+    def row_height(self) -> int:
+        """The height of a row of 4:3 tiles that fill the width of the grid."""
+        rect = self.area
+        if self.cols == 1:
+            return rect.height
+        margin = grid_margin(self.cols)
+        tile_width = rect.width / self.cols - 2 * margin
+        return max(1, round(tile_width / ASPECT_RATIO) + 2 * margin)
 
     @property
     @override
@@ -112,36 +118,43 @@ class Browse(Scene):
         return self.cols > 1 and self.area.collidepoint(pg.mouse.get_pos())
 
     def cells(self) -> Iterator[tuple[int, pg.Rect]]:
-        """Yield the position and rectangle of every visible cell."""
+        """Yield the position and rectangle of every (partly) visible cell."""
         rect = self.area
-        rows, cols = self.rows, self.cols
-        for i in range(rows * cols):
-            row, col = divmod(i, cols)
-            x, y = rect.width * col // cols, rect.height * row // rows
-            cell = pg.Rect(
-                x,
-                y,
-                rect.width * (col + 1) // cols - x,
-                rect.height * (row + 1) // rows - y,
-            ).move(rect.topleft)
-            yield self.top + i, cell
+        cols, height = self.cols, self.row_height
+        row = 0
+        while (y := row * height - self.shift) < rect.height:
+            for col in range(cols):
+                x = rect.width * col // cols
+                width = rect.width * (col + 1) // cols - x
+                cell = pg.Rect(x, y, width, height).move(rect.topleft)
+                yield self.top + row * cols + col, cell
+            row += 1
 
-    def rows_to_scroll(self, pos: int) -> int:
-        """Return the rows to scroll (negative is up) to bring pos into view."""
-        rows, cols = self.rows, self.cols
-        if pos < self.top:
-            return (pos - self.top) // cols
-        if pos >= self.top + rows * cols:
-            return (pos - self.top) // cols - rows + 1
+    def pixels_to_scroll(self, pos: int) -> int:
+        """Return the pixels to scroll (negative is up) to bring pos fully into view.
+
+        Scrolling up aligns its row with the top of the grid, scrolling
+        down aligns it with the bottom.
+        """
+        height = self.row_height
+        top = (pos - self.top) // self.cols * height - self.shift
+        bottom = top + height
+        if top < 0:
+            return top
+        if bottom > self.area.height:
+            return min(top, bottom - self.area.height)
         return 0
 
     def scroll(self) -> None:
         """Scroll the grid to bring the selected position into view."""
-        self.top += self.rows_to_scroll(self.pos) * self.cols
+        pixels = self.shift + self.pixels_to_scroll(self.pos)
+        rows, self.shift = divmod(pixels, self.row_height)
+        self.top += rows * self.cols
 
     def resize(self, cols: int) -> None:
         """Change the number of columns."""
         self.cols = max(1, cols)
+        self.shift = 0
         self.cache = {}
         self.scroll()
 
@@ -218,7 +231,9 @@ class Browse(Scene):
         if self.pos % total == current:
             return
         below = self.top + (current - self.top) % total
-        self.pos = min(below, below - total, key=lambda p: abs(self.rows_to_scroll(p)))
+        self.pos = min(
+            below, below - total, key=lambda p: abs(self.pixels_to_scroll(p))
+        )
         self.scroll()
 
     def handle_menu(self, menu: "Menu", event: pg.event.Event) -> bool:
@@ -358,7 +373,7 @@ class Browse(Scene):
         screen.fill(BLACK)
         for pos, cell in self.cells():
             if cols > 1:
-                image_rect = cell.inflate(-2 * margin, -2 * margin)
+                image_rect = letterbox(cell.inflate(-2 * margin, -2 * margin))
             else:
                 image_rect = letterbox(cell)
 

@@ -88,7 +88,7 @@ class TitleScreen(Scene):
     """
 
     RESOLUTION = 320, 200
-    BAR = pg.Rect(101, 170, 116, 9)
+    BAR = pg.Rect(102, 171, 116, 8)
 
     def __init__(self) -> None:
         """Load the title screen and draw the progress bar gradient."""
@@ -105,7 +105,5 @@ class TitleScreen(Scene):
         progress.width = int(progress.width * fraction)
         canvas.blit(self.gradient, self.BAR, progress)
         screen.fill(BLACK)
-        # The title screen is designed for square pixels, whatever DOSBox does
-        width, height = self.RESOLUTION
-        target = screen.subsurface(letterbox(screen.get_rect(), width / height))
+        target = screen.subsurface(letterbox(screen.get_rect()))
         pg.transform.scale(canvas, target.get_size(), target)
