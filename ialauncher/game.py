@@ -189,7 +189,9 @@ class Game:
         """Change emulator_start, and save it to metadata.ini."""
         self.emulator_start = emulator_start
         self.config["metadata"]["emulator_start"] = emulator_start
-        with (self.path / "metadata.ini").open("w", encoding="utf-8") as f:
+        with (self.path / "metadata.ini").open(
+            "w", encoding="utf-8", newline="\n"
+        ) as f:
             self.config.write(f)
 
     def is_ready(self) -> bool:
