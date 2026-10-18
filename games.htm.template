@@ -80,7 +80,7 @@
                 if (games[i].toLowerCase().indexOf(query) != -1) {
                     var url = 'https://raw.githubusercontent.com/rtts/ialauncher/main/games/' + escape(games[i]) + '/title.png'
                     document.write('<A TITLE="' + games[i] + '" HREF="' + url + '" ONCLICK="return popup(this.href, ' + i + ')">')
-                    document.write('<IMG BORDER=0 SRC="' + url + '" WIDTH=80 HEIGHT=60 ALT="' + games[i] + '"></A>\n')
+                    document.write('<IMG BORDER=0 SRC="gif/' + escape(games[i]) + '.gif" WIDTH=80 HEIGHT=60 ALT="' + games[i] + '"></A>\n')
                 }
             }
             // -->
@@ -88,7 +88,7 @@
 
           <NOSCRIPT>
           {% for game in games %}
-          <A TITLE="{{ game }}" HREF="https://raw.githubusercontent.com/rtts/ialauncher/main/games/{{ game | urlencode }}/title.png"><IMG BORDER=0 SRC="https://raw.githubusercontent.com/rtts/ialauncher/main/games/{{ game | urlencode }}/title.png" WIDTH=80 HEIGHT=60 ALT="{{ game }}"></A>
+          <A TITLE="{{ game }}" HREF="https://raw.githubusercontent.com/rtts/ialauncher/main/games/{{ game | urlencode }}/title.png"><IMG BORDER=0 SRC="gif/{{ game | urlencode }}.gif" WIDTH=80 HEIGHT=60 ALT="{{ game }}"></A>
           {% endfor %}
           </NOSCRIPT>
         </TD>
