@@ -1,6 +1,8 @@
 """Command-line entry point of IA Launcher."""
 
 import argparse
+import io
+import sys
 
 from . import options
 from .emulator import has_opengl
@@ -10,6 +12,9 @@ from .scenes.loading import Loading
 
 def main() -> None:
     """Parse the command-line arguments and start IA Launcher."""
+    # Print what the console's encoding can't show as "?" instead of crashing
+    if isinstance(sys.stdout, io.TextIOWrapper):
+        sys.stdout.reconfigure(errors="replace")
     parser = argparse.ArgumentParser(
         description="DOSBox frontend for the Internet Archive MS-DOS games collection"
     )

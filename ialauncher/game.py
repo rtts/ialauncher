@@ -30,6 +30,8 @@ from .emulator import (
 from .iso import ISOFile
 from .utils import tls_context
 
+# DOS writes files in a code page, not UTF-8; every byte decodes in cp437.
+DOS_ENCODING = "cp437"
 # A game that exits within this many seconds probably has a wrong start command.
 QUICK_EXIT = 3
 # Show this many lines of emulator output when the emulator fails.
@@ -71,7 +73,7 @@ class Game:
             msg = "Missing title.png"
             raise ValueError(msg)
         self.config = RawConfigParser()
-        self.config.read(self.path / "metadata.ini")
+        self.config.read(self.path / "metadata.ini", encoding="utf-8")
         metadata = self.config["metadata"]
         self.title = metadata["title"]
         self.year = metadata["year"]
@@ -138,23 +140,25 @@ class Game:
             dosbox_args = [".", "-fullscreen", "-userconf"]
 
         if self.dosbox_conf:
-            conffile.write_text(self.dosbox_conf)
+            conffile.write_text(self.dosbox_conf, encoding=DOS_ENCODING)
             dosbox_args.extend(["-conf", "dosbox.conf"])
 
         if self.emulator_start:
             if autorun:
                 dosbox_args[0] = "dosbox.bat"
-                batfile.write_text("@echo off\ncls\n" + self.emulator_start)
+                batfile.write_text(
+                    "@echo off\ncls\n" + self.emulator_start, encoding=DOS_ENCODING
+                )
 
             else:
-                batfile.write_text(self.emulator_start)
+                batfile.write_text(self.emulator_start, encoding=DOS_ENCODING)
 
         else:
             autorun = False
             if not batfile.is_file():
                 # Provide empty dosbox.bat for easy autocomplete
                 # (and correct filename capitalization!)
-                batfile.write_text("\n")
+                batfile.write_text("\n", encoding=DOS_ENCODING)
 
         if autorun:
             dosbox_args.append("-exit")
@@ -185,7 +189,7 @@ class Game:
         """Change emulator_start, and save it to metadata.ini."""
         self.emulator_start = emulator_start
         self.config["metadata"]["emulator_start"] = emulator_start
-        with (self.path / "metadata.ini").open("w") as f:
+        with (self.path / "metadata.ini").open("w", encoding="utf-8") as f:
             self.config.write(f)
 
     def is_ready(self) -> bool:
@@ -271,7 +275,8 @@ class DOSBox(Emulator):
             pg.event.post(pg.event.Event(EMULATOR_FAILED, message=message))
 
         if not self.autorun and self.batfile.is_file():
-            emulator_start = self.batfile.read_text().rstrip("\r\n")
+            batch = self.batfile.read_text(encoding=DOS_ENCODING)
+            emulator_start = batch.rstrip("\r\n")
             if emulator_start and emulator_start != game.emulator_start:
                 game.save_emulator_start(emulator_start)
 
