@@ -39,19 +39,15 @@ installing the following dependencies:
 - [Python](https://www.python.org/) version 3.12 or higher
 - [DOSBox](https://www.dosbox.com/) version 0.74 or higher
 
-*Note from the future: DOSBox is getting a bit long in the tooth (the
-last release was in 2019) so you may want to look into using a more
-modern alternative such as [DOSBox
-Staging](https://www.dosbox-staging.org/). It should be a drop-in
-replacement!*
+*New! [DOSBox Staging](https://www.dosbox-staging.org/) is now also
+officially supported!* \o/
 
-Now you can install IA Launcher using `pip`. Open a command-line
-window and type the following command:
+Then, install IA Launcher using `pip3`:
 
     pip3 install ialauncher
 
-You can now launch the interface using the `ialauncher` command. To
-see the available options, type `ialauncher --help`.
+Start the program with the `ialauncher` command. To see the available
+options, use `ialauncher --help`.
 
 
 Special Keys
@@ -71,8 +67,7 @@ Special Keys
 
 During gameplay, you should also be familiar with the [DOSBox Special
 Keys](https://www.dosbox.com/wiki/Special_Keys). The most important
-key is `Ctrl-F9`, which immediately exits DOSBox and returns to IA
-Launcher.
+key is `Ctrl-F9`, which exits DOSBox and returns to IA Launcher.
 
 
 Troubleshooting

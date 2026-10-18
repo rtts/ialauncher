@@ -6,13 +6,12 @@ from typing import TYPE_CHECKING
 
 import pygame as pg
 
-from ialauncher.emulator import EmulatorError
+from ialauncher.emulator import EmulatorError, is_dosbox_staging
 
 if TYPE_CHECKING:
     from ialauncher.game import Game
 
 GRID_MARGIN = 5
-FULLSCREEN_ASPECT_RATIO = 16 / 10
 TILE_ASPECT_RATIO = 3 / 2
 
 
@@ -40,10 +39,23 @@ def grid_rows(cols: int, size: tuple[int, int]) -> int:
     return min(sorted(candidates), key=error)
 
 
-def letterbox(rect: pg.Rect) -> pg.Rect:
-    """Return a letterboxed rect adhering to FULLSCREEN_ASPECT_RATIO."""
-    width = min(rect.width, round(rect.height * FULLSCREEN_ASPECT_RATIO))
-    height = min(rect.height, round(rect.width / FULLSCREEN_ASPECT_RATIO))
+def fullscreen_aspect_ratio() -> float:
+    """Return the aspect ratio of a 320x200 game in fullscreen DOSBox.
+
+    DOSBox shows square pixels (16:10), but DOSBox Staging stretches
+    them vertically like a CRT monitor did (4:3).
+    """
+    return 4 / 3 if is_dosbox_staging() else 16 / 10
+
+
+def letterbox(rect: pg.Rect, ratio: float | None = None) -> pg.Rect:
+    """Return a letterboxed rect adhering to the ratio.
+
+    The ratio defaults to the fullscreen aspect ratio.
+    """
+    ratio = ratio or fullscreen_aspect_ratio()
+    width = min(rect.width, round(rect.height * ratio))
+    height = min(rect.height, round(rect.width / ratio))
     letterboxed = pg.Rect(0, 0, width, height)
     letterboxed.center = rect.center
     return letterboxed

@@ -12,7 +12,7 @@ from unittest import mock
 
 import pygame as pg
 
-from ialauncher import __main__, engine, options
+from ialauncher import __main__, engine, options, utils
 from ialauncher.cga import cga
 from ialauncher.cheats import cheats
 from ialauncher.game import Game
@@ -74,6 +74,9 @@ class HeadlessTestCase(unittest.TestCase):
             self.enterContext(mock.patch.object(options, name, value))
         self.enterContext(mock.patch.object(sys, "argv", list(self.argv)))
         self.enterContext(mock.patch.object(Game, "get_emulator", return_value=[]))
+        self.enterContext(
+            mock.patch.object(utils, "is_dosbox_staging", return_value=False)
+        )
         for method in ("download", "start"):
             error = AssertionError(f"The app tried to {method} a game")
             self.enterContext(mock.patch.object(Game, method, side_effect=error))

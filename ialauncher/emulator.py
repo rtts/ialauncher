@@ -48,6 +48,22 @@ def get_scummvm_command() -> list[str]:
     )
 
 
+@cache
+def is_dosbox_staging() -> bool:
+    """Return whether DOSBox is DOSBox Staging, or False if it isn't installed."""
+    try:
+        result = subprocess.run(  # noqa: S603
+            [*get_dosbox_command(), "--version"],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=3,
+        )
+    except (EmulatorError, OSError, subprocess.TimeoutExpired):
+        return False
+    return result.stdout.startswith("dosbox-staging")
+
+
 def windows_candidates(pattern: str) -> Iterator[list[str]]:
     """Yield the executables in Program Files that match the pattern."""
     for var in ("PROGRAMFILES", "PROGRAMFILES(X86)"):

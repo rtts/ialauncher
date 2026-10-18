@@ -19,7 +19,7 @@ from zipfile import ZipFile
 
 import pygame as pg
 
-from .emulator import get_dosbox_command, get_scummvm_command
+from .emulator import get_dosbox_command, get_scummvm_command, is_dosbox_staging
 from .iso import ISOFile
 from .utils import tls_context
 
@@ -121,11 +121,10 @@ class Game:
         dosbox = get_dosbox_command()
         batfile = self.gamedir / "dosbox.bat"
         conffile = self.gamedir / "dosbox.conf"
-        dosbox_args = [
-            ".",
-            "-fullscreen",
-            "-userconf",
-        ]  # Use --nolocalconf for DOSBox Staging
+        # Don't load an untrusted dosbox.conf from the game directory.
+        # DOSBox loads the user's config instead, Staging always does.
+        localconf = "--nolocalconf" if is_dosbox_staging() else "-userconf"
+        dosbox_args = [".", "-fullscreen", localconf]
 
         if self.dosbox_conf:
             conffile.write_text(self.dosbox_conf)
