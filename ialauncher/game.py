@@ -123,8 +123,10 @@ class Game:
         conffile = self.gamedir / "dosbox.conf"
         # Don't load an untrusted dosbox.conf from the game directory.
         # DOSBox loads the user's config instead, Staging always does.
-        localconf = "--nolocalconf" if is_dosbox_staging() else "-userconf"
-        dosbox_args = [".", "-fullscreen", localconf]
+        if is_dosbox_staging():
+            dosbox_args = [".", "-fullscreen", "--nolocalconf", "--set", "shader=sharp"]
+        else:
+            dosbox_args = [".", "-fullscreen", "-userconf"]
 
         if self.dosbox_conf:
             conffile.write_text(self.dosbox_conf)
