@@ -1,5 +1,6 @@
 """All games in a grid with infinite zoom and infinite scrolling."""
 
+import math
 from collections.abc import Callable, Iterator
 from contextlib import suppress
 from functools import cached_property
@@ -46,7 +47,7 @@ class Browse(Scene):
         self.games.random_game()
         self.cols = 1
         self.top = self.pos = self.games.current_game
-        self.shift = 0  # The pixels of the top row that are scrolled out of view
+        self.shift = 0.0  # The pixels of the top row that are scrolled out of view
         self.cache: dict[tuple[int, tuple[int, int], int | None], pg.Surface] = {}
         self.menu: Menu | None = None
         self.emulators: dict[str, Emulator] = {}  # By game identifier
@@ -103,14 +104,31 @@ class Browse(Scene):
         return self.screen.get_rect().inflate(-2, -2)
 
     @property
-    def row_height(self) -> int:
-        """The height of a row of 4:3 tiles that fill the width of the grid."""
+    def row_height(self) -> float:
+        """The height of a row of 4:3 cells that fill the width of the grid."""
         rect = self.area
         if self.cols == 1:
             return rect.height
+        return max(1, rect.width / self.cols / ASPECT_RATIO)
+
+    @property
+    def tile_size(self) -> tuple[int, int]:
+        """The size of the title screens, which fit in every cell."""
+        rect = self.area
+        if self.cols == 1:
+            return letterbox(rect).size
         margin = grid_margin(self.cols)
-        tile_width = rect.width / self.cols - 2 * margin
-        return max(1, round(tile_width / ASPECT_RATIO) + 2 * margin)
+        cell = pg.Rect(0, 0, rect.width // self.cols, int(self.row_height))
+        return letterbox(cell.inflate(-2 * margin, -2 * margin)).size
+
+    def row_top(self, row: int) -> int:
+        """Return the top of a row in whole pixels, relative to the grid.
+
+        Like the columns, each row is rounded separately, so that the
+        rows fill the grid without gaps. On a 4:3 screen, as many rows
+        as columns fit exactly.
+        """
+        return math.floor(row * self.row_height - self.shift)
 
     @property
     @override
@@ -123,9 +141,10 @@ class Browse(Scene):
     def cells(self) -> Iterator[tuple[int, pg.Rect]]:
         """Yield the position and rectangle of every (partly) visible cell."""
         rect = self.area
-        cols, height = self.cols, self.row_height
+        cols = self.cols
         row = 0
-        while (y := row * height - self.shift) < rect.height:
+        while (y := self.row_top(row)) < rect.height:
+            height = self.row_top(row + 1) - y
             for col in range(cols):
                 x = rect.width * col // cols
                 width = rect.width * (col + 1) // cols - x
@@ -139,9 +158,8 @@ class Browse(Scene):
         Scrolling up aligns its row with the top of the grid, scrolling
         down aligns it with the bottom.
         """
-        height = self.row_height
-        top = (pos - self.top) // self.cols * height - self.shift
-        bottom = top + height
+        row = (pos - self.top) // self.cols
+        top, bottom = self.row_top(row), self.row_top(row + 1)
         if top < 0:
             return top
         if bottom > self.area.height:
@@ -152,12 +170,12 @@ class Browse(Scene):
         """Scroll the grid to bring the selected position into view."""
         pixels = self.shift + self.pixels_to_scroll(self.pos)
         rows, self.shift = divmod(pixels, self.row_height)
-        self.top += rows * self.cols
+        self.top += int(rows) * self.cols
 
     def resize(self, cols: int) -> None:
         """Change the number of columns."""
         self.cols = max(1, cols)
-        self.shift = 0
+        self.shift = 0.0
         self.cache = {}
         self.scroll()
 
@@ -379,12 +397,11 @@ class Browse(Scene):
         cache: dict[tuple[int, tuple[int, int], int | None], pg.Surface] = {}
         selected = None
         margin = grid_margin(cols)
+        size = self.tile_size
         screen.fill(BLACK)
         for pos, cell in self.cells():
-            if cols > 1:
-                image_rect = letterbox(cell.inflate(-2 * margin, -2 * margin))
-            else:
-                image_rect = letterbox(cell)
+            image_rect = pg.Rect((0, 0), size)
+            image_rect.center = cell.center
 
             # Only keep the scaled images that are currently visible
             index = pos % len(games)
