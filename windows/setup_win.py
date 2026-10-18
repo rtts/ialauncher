@@ -23,6 +23,7 @@ setup(
             "packages": ["ialauncher", "games"],
             "excludes": ["pygame.docs"],
             "include_msvcr": True,
+            "include_files": [("LICENSE", "LICENSE.txt")],
             "replace_paths": [("*", ""), (root, "")],
         },
         "bdist_msi": {
