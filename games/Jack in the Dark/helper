@@ -1,0 +1,237 @@
+#!/usr/bin/env python3
+"""Recreate title.png for Jack in the Dark from the game's own data.
+
+The game never shows its own name, so the title screen is composed the way
+the game draws its opening credits: the parchment background (ITD_RESS.PAK
+entry 2) with the text set in the credits font (ITD_RESS.PAK entry 1), in
+the credits color, centered on the same axis as the credits.
+
+ITD_RESS.PAK is read from Jack_in_the_Dark_1993.zip, so launch the game
+once before running this.
+
+Uses only the Python standard library.
+"""
+
+import argparse
+import struct
+import sys
+import zipfile
+import zlib
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+ARCHIVE = HERE / "Jack_in_the_Dark_1993.zip"
+PAK = "AJACK/ITD_RESS.PAK"
+BACKGROUND, FONT = 2, 1  # ITD_RESS.PAK entries
+TEXT_COLOR = 26  # palette index used by the credits
+TEXT_AXIS = 154  # x coordinate the credits are centered on
+WIDTH, HEIGHT = 320, 200
+
+STORED, IMPLODED, DEFLATED = 0, 1, 4  # PAK compression methods
+MAX_CODE_LENGTH = 16
+LONG_LENGTH = 63  # length code followed by 8 extra bits
+
+
+# --------------------------------------------------------------------------
+# PKWARE "implode" decompression, as used by Infogrames' PAK archives.
+# Ported from FITD's unpack.cpp (after Mark Adler's explode.c).
+# --------------------------------------------------------------------------
+
+type CodeTable = dict[tuple[int, int], int]
+
+
+class BitReader:
+    """Read a byte stream least significant bit first."""
+
+    def __init__(self, data: bytes) -> None:
+        """Start reading at the beginning of data."""
+        self.data, self.pos, self.buf, self.count = data, 0, 0, 0
+
+    def byte(self) -> int:
+        """Return the next whole byte, or 0 past the end."""
+        b = self.data[self.pos] if self.pos < len(self.data) else 0
+        self.pos += 1
+        return b
+
+    def bits(self, n: int) -> int:
+        """Return the next n bits."""
+        while self.count < n:
+            self.buf |= self.byte() << self.count
+            self.count += 8
+        value = self.buf & ((1 << n) - 1)
+        self.buf >>= n
+        self.count -= n
+        return value
+
+
+def read_tree(reader: BitReader, n: int) -> CodeTable:
+    """Read the bit lengths of an n-symbol code and return a decoding table."""
+    lengths = []
+    for _ in range(reader.byte() + 1):
+        b = reader.byte()
+        lengths += [(b & 0xF) + 1] * ((b >> 4) + 1)
+    if len(lengths) != n:
+        msg = "corrupt code tree"
+        raise ValueError(msg)
+    # Canonical codes, shortest first, ties broken by symbol value
+    table, code = {}, 0
+    for length in range(1, MAX_CODE_LENGTH + 1):
+        for symbol, symbol_length in enumerate(lengths):
+            if symbol_length == length:
+                table[length, code] = symbol
+                code += 1
+        code <<= 1
+    return table
+
+
+def decode(reader: BitReader, table: CodeTable) -> int:
+    """Read one coded symbol."""
+    code = length = 0
+    while length < MAX_CODE_LENGTH:
+        code = code << 1 | (reader.bits(1) ^ 1)  # implode stores codes inverted
+        length += 1
+        if (length, code) in table:
+            return table[length, code]
+    msg = "invalid code"
+    raise ValueError(msg)
+
+
+def explode(data: bytes, size: int, flags: int) -> bytes:
+    """Decompress size bytes of imploded data."""
+    reader = BitReader(data)
+    literals = read_tree(reader, 256) if flags & 4 else None
+    lengths = read_tree(reader, 64)
+    distances = read_tree(reader, 64)
+    min_length = 3 if literals else 2
+    low_bits = 7 if flags & 2 else 6
+    out = bytearray()
+    while len(out) < size:
+        if reader.bits(1):
+            out.append(decode(reader, literals) if literals else reader.bits(8))
+            continue
+        distance = reader.bits(low_bits)
+        distance += (decode(reader, distances) << low_bits) + 1
+        symbol = decode(reader, lengths)
+        length = symbol + min_length
+        if symbol == LONG_LENGTH:
+            length += reader.bits(8)
+        for _ in range(length):
+            start = len(out) - distance
+            out.append(out[start] if start >= 0 else 0)
+    return bytes(out[:size])
+
+
+def pak_entry(pak: bytes, index: int) -> bytes:
+    """Return the decompressed contents of a PAK archive entry."""
+    offset = struct.unpack_from("<I", pak, (index + 1) * 4)[0]
+    extra = struct.unpack_from("<I", pak, offset)[0]
+    header = offset + (extra or 4)
+    disc, size, flag, info, name = struct.unpack_from("<IIBBH", pak, header)
+    data = pak[header + 12 + name :][:disc]
+    if flag == STORED:
+        return data[:size]
+    if flag == IMPLODED:
+        return explode(data, size, info)
+    if flag == DEFLATED:
+        return zlib.decompress(data, -15)[:size]
+    msg = f"unknown compression {flag} in entry {index}"
+    raise ValueError(msg)
+
+
+# --------------------------------------------------------------------------
+# Font rendering, as done by the engine's PrintFont
+# --------------------------------------------------------------------------
+
+
+class Font:
+    """A bitmap font from the Alone in the Dark engine."""
+
+    def __init__(self, data: bytes, word_space: int = 2, letter_space: int = 0) -> None:
+        """Parse the font header and glyph table."""
+        align = data[0]
+        self.height = data[2]
+        self.stride = data[3] or struct.unpack_from("<H", data, 4)[0]
+        self.table = struct.unpack_from(">H", data, 6)[0] - align * 2
+        self.data, self.glyphs = data, data[8:]
+        self.word_space, self.letter_space = word_space, letter_space
+
+    def glyph(self, char: int) -> tuple[int, int]:
+        """Return the width and bit offset of a character."""
+        value = struct.unpack_from(">H", self.data, self.table + char * 2)[0]
+        return value >> 12, value & 0xFFF
+
+    def draw(self, pixels: bytearray, x: int, y: int, text: str, color: int) -> None:
+        """Plot text into a screen of palette indices."""
+        for char in text.encode("latin-1"):
+            width, bit = self.glyph(char)
+            if not width:
+                x += self.word_space + self.letter_space
+                continue
+            for row in range(self.height):
+                line = self.glyphs[row * self.stride :]
+                for col in range(width):
+                    b = bit + col
+                    if line[b >> 3] & (0x80 >> (b & 7)):
+                        pixels[(y + row) * WIDTH + x + col] = color
+            x += width + self.letter_space
+
+    def ink_box(self, text: str) -> tuple[int, int, int, int]:
+        """Return the left, top, right and bottom of the pixels text covers."""
+        probe = bytearray(WIDTH * 32)
+        self.draw(probe, 0, 0, text, 1)
+        ink = [i for i, v in enumerate(probe) if v]
+        xs, ys = [i % WIDTH for i in ink], [i // WIDTH for i in ink]
+        return min(xs), min(ys), max(xs) + 1, max(ys) + 1
+
+
+# --------------------------------------------------------------------------
+
+
+def write_png(path: Path, pixels: bytes, palette: bytes) -> None:
+    """Save a screen of palette indices as a palettized PNG."""
+
+    def chunk(kind: bytes, data: bytes) -> bytes:
+        body = kind + data
+        return struct.pack(">I", len(data)) + body + struct.pack(">I", zlib.crc32(body))
+
+    rows = b"".join(b"\0" + pixels[y * WIDTH : (y + 1) * WIDTH] for y in range(HEIGHT))
+    path.write_bytes(
+        b"\x89PNG\r\n\x1a\n"
+        + chunk(b"IHDR", struct.pack(">IIBBBBB", WIDTH, HEIGHT, 8, 3, 0, 0, 0))
+        + chunk(b"PLTE", palette)
+        + chunk(b"IDAT", zlib.compress(rows, 9))
+        + chunk(b"IEND", b"")
+    )
+
+
+def load_pak() -> bytes:
+    """Read ITD_RESS.PAK from the downloaded game."""
+    if not ARCHIVE.exists():
+        sys.exit(f"{ARCHIVE.name} not found; launch the game once to download it")
+    return zipfile.ZipFile(ARCHIVE).read(PAK)
+
+
+def main() -> None:
+    """Compose the title screen and save it."""
+    parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+    parser.add_argument("-t", "--text", default="Jack in the Dark")
+    parser.add_argument("-o", "--output", type=Path, default=HERE / "title.png")
+    args = parser.parse_args()
+
+    pak = load_pak()
+    background = pak_entry(pak, BACKGROUND)
+    pixels, palette = bytearray(background[:64000]), background[64000:64768]
+    font = Font(pak_entry(pak, FONT))
+
+    left, top, right, bottom = font.ink_box(args.text)
+    x = TEXT_AXIS - (left + right) // 2
+    y = HEIGHT // 2 - (top + bottom) // 2
+    font.draw(pixels, x, y, args.text, TEXT_COLOR)
+
+    # Expand the 6-bit VGA palette to 8 bits, as DOSBox does
+    write_png(args.output, bytes(pixels), bytes(c << 2 | c >> 4 for c in palette))
+    print(f"Wrote {args.output}")
+
+
+if __name__ == "__main__":
+    main()
