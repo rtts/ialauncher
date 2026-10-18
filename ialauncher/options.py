@@ -5,3 +5,5 @@ They can be overridden with command-line arguments.
 
 fullscreen: bool = True
 slideshow = 10
+dosbox_executable: str | None = None
+scummvm_executable: str | None = None

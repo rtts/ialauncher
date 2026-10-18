@@ -24,6 +24,16 @@ def main() -> None:
         help="Start in fullscreen mode (default) or in a window",
     )
     parser.add_argument(
+        "--dosbox",
+        metavar="PATH",
+        help="Run DOSBox from PATH instead of looking for it",
+    )
+    parser.add_argument(
+        "--scummvm",
+        metavar="PATH",
+        help="Run ScummVM from PATH instead of looking for it",
+    )
+    parser.add_argument(
         "--slurp",
         dest="slurp",
         action="store_true",
@@ -35,6 +45,10 @@ def main() -> None:
         options.fullscreen = args.fullscreen
     if args.slideshow is not None:
         options.slideshow = args.slideshow
+    if args.dosbox is not None:
+        options.dosbox_executable = args.dosbox
+    if args.scummvm is not None:
+        options.scummvm_executable = args.scummvm
 
     run(
         Loading(slurp=args.slurp),

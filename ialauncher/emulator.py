@@ -1,11 +1,14 @@
 """Find the locations of the supported emulators: DOSBox, and ScummVM."""
 
 import os
+import shutil
 import subprocess
 import sys
 from collections.abc import Iterable, Iterator
 from functools import cache
 from pathlib import Path
+
+from . import options
 
 
 class EmulatorError(Exception):
@@ -15,6 +18,8 @@ class EmulatorError(Exception):
 @cache
 def get_dosbox_command() -> list[str]:
     """Return the command that runs DOSBox."""
+    if options.dosbox_executable:
+        return get_executable("DOSBox", options.dosbox_executable)
     return get_command(
         "DOSBox",
         "https://www.dosbox.com/",
@@ -30,6 +35,8 @@ def get_dosbox_command() -> list[str]:
 @cache
 def get_scummvm_command() -> list[str]:
     """Return the command that runs ScummVM."""
+    if options.scummvm_executable:
+        return get_executable("ScummVM", options.scummvm_executable)
     return get_command(
         "ScummVM",
         "https://www.scummvm.org/",
@@ -74,6 +81,25 @@ operating system.
 Alternatively, if you installed {name} in a non-standard
 location, set the PATH environment variable to point to the
 {name} directory.
+        """
+        raise EmulatorError(msg)
+    return command
+
+
+def get_executable(name: str, path: str) -> list[str]:
+    """Return the command for the executable given on the command line.
+
+    A file at the path wins over a command of that name on the PATH. It's
+    made absolute, because emulators run in the game directory. Raise
+    EmulatorError if it doesn't work, without looking any further.
+    """
+    file = Path(path) if Path(path).is_file() else Path(shutil.which(path) or path)
+    command = [str(file.absolute())]
+    if not works(command):
+        option = f"--{name.lower()}"
+        msg = f"""
+This game needs {name} to play, but {path},
+given with {option}, could not be run.
         """
         raise EmulatorError(msg)
     return command
