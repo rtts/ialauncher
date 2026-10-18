@@ -19,3 +19,8 @@ repos:
         additional_dependencies: [pygame-ce]
         always_run: true
         pass_filenames: false
+      - id: tabs
+        name: tabs
+        entry: " {8}"
+        language: pygrep
+        files: (^|/)metadata\.ini$
