@@ -242,6 +242,7 @@ class Browse(Scene):
         """Download the game if needed and start it."""
         emulator = self.emulators.get(game.identifier)
         if emulator is not None and emulator.is_alive():
+            print(f"Not starting {game.identifier}!")
             return  # Never run the same game twice
         if not find_emulator(game):
             return
