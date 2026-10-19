@@ -143,6 +143,10 @@ class Game:
             conffile.write_text(self.dosbox_conf, encoding=DOS_ENCODING)
             dosbox_args.extend(["-conf", "dosbox.conf"])
 
+        # Copy patch files to C:\
+        for file in self.path.glob("patches/*"):
+            shutil.copy(file, self.gamedir)
+
         if self.emulator_start:
             if autorun:
                 dosbox_args[0] = "dosbox.bat"
