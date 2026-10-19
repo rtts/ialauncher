@@ -103,10 +103,6 @@
 ;          the handle in ax, or setting the carry flag on error
 ;     42h  seek handle bx to cx:dx from the start of the file (al = 0)
 ;     40h  write cx bytes from ds:dx to handle bx
-;
-; A .COM program can quit with ret: DOS starts it with a 0 on the stack, and
-; offset 0 of its segment holds an int 20h, which ends the program. DOS then
-; closes the file.
 
         org     100h
 
