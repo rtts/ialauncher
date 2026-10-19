@@ -28,7 +28,10 @@ from .download import Download
 GRID_LARGER = {pg.K_MINUS, pg.K_KP_MINUS}
 GRID_SMALLER = {pg.K_PLUS, pg.K_EQUALS, pg.K_KP_PLUS}
 COMMAND_KEYS = {pg.K_SPACE} | GRID_LARGER | GRID_SMALLER  # Unless filtering
+KEEP_SLIDESHOW = {pg.K_ESCAPE, pg.K_TAB, pg.K_BACKSPACE}
 ADVANCE = pg.event.custom_type()
+BLINK = pg.event.custom_type()
+BLINK_INTERVAL = 1000
 MESSAGE_EXPIRED = pg.event.custom_type()
 MESSAGE_TIMEOUT = 1000
 READY_MESSAGES = {None: "All", True: "Favorites", False: "Least favorites"}
@@ -89,8 +92,12 @@ class Browse(Scene):
             pg.mouse.set_cursor(cursor)
 
     def set_slideshow(self, *, enabled: bool) -> None:
-        """Start or stop the slideshow."""
-        pg.time.set_timer(ADVANCE, self.slideshow * 1000 if enabled else 0)
+        """Start or stop the slideshow, and the dot that blinks while it runs."""
+        self.slideshow_running = enabled and self.slideshow > 0
+        self.dot_visible = False  # The first blink shows it
+        running = self.slideshow_running
+        pg.time.set_timer(ADVANCE, self.slideshow * 1000 if running else 0)
+        pg.time.set_timer(BLINK, BLINK_INTERVAL if running else 0)
 
     @cached_property
     def font(self) -> pg.font.Font:
@@ -295,16 +302,16 @@ class Browse(Scene):
             return None
         if event.type == ADVANCE:
             self.gamelist.random_game()
+        elif event.type == BLINK:
+            self.dot_visible = self.slideshow_running and not self.dot_visible
         elif event.type == EMULATOR_FAILED:
             show_error(event.message)
         elif event.type in (pg.MOUSEMOTION, pg.MOUSEBUTTONDOWN):
             self.handle_mouse(event)
         elif event.type == pg.MOUSEWHEEL:
             self.handle_wheel(event)
-        elif event.type == pg.KEYDOWN:
-            if event.key == pg.K_ESCAPE and not self.gamelist.query:
-                return False
-            self.handle_key(event)
+        elif event.type == pg.KEYDOWN and not self.handle_key(event):
+            return False
         elif event.type == pg.KEYUP and event.key == pg.K_RETURN:
             self.enter_held = False
         self.follow()
@@ -343,45 +350,66 @@ class Browse(Scene):
             self.top += delta
             self.select(self.pos + delta)
 
-    def handle_key(self, event: pg.event.Event) -> None:
-        """Handle a keystroke, except Escape without a filter (which quits)."""
-        if self.filter(event):
-            self.set_slideshow(enabled=False)
+    def escape(self) -> bool:
+        """Clear the filter, else switch to 1x1; return False if neither applied."""
+        if self.gamelist.query:
+            self.gamelist.clear_filter()
             self.reshow()
-            return
-        self.set_slideshow(enabled=event.key == pg.K_SPACE)
+        elif self.cols > 1:
+            self.resize(1)
+        else:
+            return False
+        return True
+
+    def handle_key(self, event: pg.event.Event) -> bool:
+        """Handle a keystroke; return False to quit."""
+        if event.key == pg.K_ESCAPE:
+            return self.escape()
+        added = self.filter(event)
+        if added:
+            self.reshow()
+        elif self.typeable(event) and event.key not in COMMAND_KEYS:
+            return True  # No game matches the character, so ignore it
+        if event.key not in KEEP_SLIDESHOW:
+            self.set_slideshow(enabled=event.key == pg.K_SPACE)
+        if added and event.key != pg.K_SPACE:  # Space also jumps to a random game
+            return True
         self.navigate(event)
         if event.key in ARROW_KEYS:
             self.show_ready(ready=self.gamelist.ready)
         if event.key == pg.K_RETURN and not self.enter_held:
             self.enter_held = True
             self.play(event.mod)
+        return True
 
     def filter(self, event: pg.event.Event) -> bool:
-        """Clear the filter, or add the typed character to it if any game matches.
+        """Add the typed character to the filter if any game matches.
 
-        Escape and Backspace clear the filter. Space, plus and minus
-        only add to the filter once it has been started with another
-        key. Return whether the key was used for the filter.
+        Space, plus and minus only add to the filter once it has been
+        started with another key. Return whether the character was added.
         """
-        if event.key in (pg.K_ESCAPE, pg.K_BACKSPACE):
-            self.gamelist.clear_filter()
-            return True
-        char = event.unicode
-        if not char or not char.isprintable():
+        if not self.typeable(event):
             return False
         if not self.gamelist.query and event.key in COMMAND_KEYS:
             return False
-        return self.gamelist.add_to_filter(char)
+        return self.gamelist.add_to_filter(event.unicode)
+
+    @staticmethod
+    def typeable(event: pg.event.Event) -> bool:
+        """Return whether the keystroke types a character."""
+        return bool(event.unicode) and event.unicode.isprintable()
 
     def navigate(self, event: pg.event.Event) -> None:
-        """Zoom, move, or jump, depending on the key."""
+        """Zoom, move, jump, or clear the filter, depending on the key."""
         cols = self.cols
         grid = cols > 1
         grid_moves = {pg.K_RIGHT: 1, pg.K_LEFT: -1, pg.K_DOWN: cols, pg.K_UP: -cols}
         if event.key == pg.K_SPACE and grid:
             self.resize(1)
             self.gamelist.random_game()
+        elif event.key == pg.K_BACKSPACE:
+            self.gamelist.clear_filter()
+            self.reshow()
         elif event.key in GRID_LARGER:
             self.resize(cols + 2)
         elif event.key in GRID_SMALLER:
@@ -397,7 +425,7 @@ class Browse(Scene):
 
     @override
     def update(self, screen: pg.Surface) -> None:
-        """Draw the visible title screens, the filter, and the menu."""
+        """Draw the visible title screens and everything on top of them."""
         self.scroll()
         if self.menu and self.menu.highlighted is None:
             cursor = pg.SYSTEM_CURSOR_ARROW
@@ -433,8 +461,14 @@ class Browse(Scene):
             pg.draw.rect(
                 screen, MAGENTA, selected.inflate(2 * border, 2 * border), border
             )
+        self.draw_overlays(screen)
+
+    def draw_overlays(self, screen: pg.Surface) -> None:
+        """Draw the filter, the dot, the message, and the menu, if any."""
         if self.gamelist.query:
             self.draw_query(screen)
+        if self.dot_visible:
+            self.draw_dot(screen)
         if pg.time.get_ticks() < self.message_until:
             self.draw_message(screen)
         if self.menu:
@@ -449,6 +483,13 @@ class Browse(Scene):
         rect.midbottom = screen.get_rect().midbottom
         screen.fill(BLACK, rect)
         screen.blit(image, image.get_rect(center=rect.center))
+
+    def draw_dot(self, screen: pg.Surface, size: int = 8, margin: int = 16) -> None:
+        """Draw the slideshow dot in the bottom right corner of the 4:3 area."""
+        rect = pg.Rect(0, 0, size, size)
+        rect.bottomright = letterbox(screen.get_rect()).bottomright
+        rect.move_ip(-margin, -margin)
+        pg.draw.ellipse(screen, MAGENTA, rect)
 
     def draw_message(
         self, screen: pg.Surface, padding: tuple[int, int] = (24, 16)

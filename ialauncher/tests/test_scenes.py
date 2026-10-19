@@ -128,10 +128,14 @@ class TestBrowse(HeadlessTestCase):
         self.assertEqual(shown(), matching("&"))
         self.assertIn("Apples & Oranges", shown())
 
-        # Escape erases the filter, and quits without one
+        # Escape erases the filter, then switches the grid to 1x1, then quits
+        self.assertEqual(browse.cols, 3)
         yield key(pg.K_ESCAPE)
         self.assertEqual(gamelist.query, "")
         self.assertEqual(shown(), library)
+        self.assertEqual(browse.cols, 3)
+        yield key(pg.K_ESCAPE)
+        self.assertEqual(browse.cols, 1)
         self.assertIsNone((yield key(pg.K_ESCAPE)))
 
     def test_filter_drawn(self) -> Script:
