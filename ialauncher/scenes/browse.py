@@ -12,7 +12,7 @@ from ialauncher import options
 from ialauncher.cga import cga
 from ialauncher.engine import NextScene
 from ialauncher.game import EMULATOR_FAILED, Emulator, Game
-from ialauncher.gamelist import SEARCH_TIMEOUT, GameList
+from ialauncher.gamelist import Gamelist
 from ialauncher.utils import (
     ASPECT_RATIO,
     find_emulator,
@@ -27,8 +27,8 @@ from .download import Download
 
 GRID_LARGER = {pg.K_MINUS, pg.K_KP_MINUS}
 GRID_SMALLER = {pg.K_PLUS, pg.K_EQUALS, pg.K_KP_PLUS}
+COMMAND_KEYS = {pg.K_SPACE} | GRID_LARGER | GRID_SMALLER  # Unless filtering
 ADVANCE = pg.event.custom_type()
-SEARCH_EXPIRED = pg.event.custom_type()
 MESSAGE_EXPIRED = pg.event.custom_type()
 MESSAGE_TIMEOUT = 1000
 READY_MESSAGES = {None: "All", True: "Favorites", False: "Least favorites"}
@@ -46,12 +46,12 @@ MENU_ITEMS = [
 class Browse(Scene):
     """All games in a grid with infinite zoom and infinite scrolling."""
 
-    def __init__(self, games: GameList) -> None:
+    def __init__(self, gamelist: Gamelist) -> None:
         """Show a random game, full screen."""
-        self.games = games
-        self.games.random_game()
+        self.gamelist = gamelist
+        self.gamelist.random_game()
         self.cols = 1
-        self.top = self.pos = self.games.current_game
+        self.top = self.pos = self.gamelist.current_game
         self.shift = 0.0  # The pixels of the top row that are scrolled out of view
         self.cache: dict[tuple[int, tuple[int, int], int | None], pg.Surface] = {}
         self.menu: Menu | None = None
@@ -62,11 +62,11 @@ class Browse(Scene):
         self.set_slideshow(enabled=bool(options.slideshow))
         self.set_cursor(pg.SYSTEM_CURSOR_HAND)
         self.handlers: dict[int, Callable[[], None]] = {
-            pg.K_RIGHT: self.games.next_game,
-            pg.K_LEFT: self.games.previous_game,
-            pg.K_DOWN: self.games.next_letter,
-            pg.K_UP: self.games.previous_letter,
-            pg.K_SPACE: self.games.random_game,
+            pg.K_RIGHT: self.gamelist.next_game,
+            pg.K_LEFT: self.gamelist.previous_game,
+            pg.K_DOWN: self.gamelist.next_game,
+            pg.K_UP: self.gamelist.previous_game,
+            pg.K_SPACE: self.gamelist.random_game,
         }
         super().__init__()
 
@@ -75,9 +75,9 @@ class Browse(Scene):
         """Jump to random game after switching CGA mode with cheat code."""
         if not super().intercept(event):
             return False
-        self.games.reset_search()
+        self.gamelist.clear_filter()
         self.resize(1)
-        self.games.random_game()
+        self.gamelist.random_game()
         self.follow()
         self.set_slideshow(enabled=True)
         return True
@@ -94,8 +94,8 @@ class Browse(Scene):
 
     @cached_property
     def font(self) -> pg.font.Font:
-        """The font of the search query."""
-        return pg.font.SysFont("monospace", 24)
+        """The font of the filter."""
+        return pg.font.SysFont(MENU_FONT, 16)
 
     @cached_property
     def menu_font(self) -> pg.font.Font:
@@ -193,7 +193,7 @@ class Browse(Scene):
     def select(self, pos: int) -> None:
         """Select the game at the given position."""
         self.pos = pos
-        self.games.current_game = pos % len(self.games.games)
+        self.gamelist.current_game = pos % len(self.gamelist.games)
         self.scroll()
 
     def point(self, point: tuple[int, int]) -> bool:
@@ -202,18 +202,19 @@ class Browse(Scene):
             if cell.collidepoint(point):
                 if pos != self.pos:
                     self.set_slideshow(enabled=False)
-                    self.games.reset_search()
                     self.select(pos)
                 return True
         return False
 
     def show_ready(self, *, ready: bool | None) -> None:
         """Show only the games that are (not) ready to play, or all games (None)."""
-        self.games.show_ready(ready=ready)
+        self.gamelist.show_ready(ready=ready)
+        self.reshow()
 
-        # Keep the current game in the same cell
+    def reshow(self) -> None:
+        """Keep the current game in the same cell after the shown games changed."""
         offset = self.pos - self.top
-        self.pos = self.games.current_game
+        self.pos = self.gamelist.current_game
         self.top = self.pos - offset
         self.cache = {}
         self.scroll()
@@ -224,8 +225,7 @@ class Browse(Scene):
         With Ctrl, download the game without starting it, or remove it
         if it was ready.
         """
-        self.games.reset_search()
-        game = self.games.get_current_game()
+        game = self.gamelist.get_current_game()
         if mod & pg.KMOD_CTRL:
             self.add_or_remove(game)
         else:
@@ -257,10 +257,10 @@ class Browse(Scene):
     def follow(self) -> None:
         """Move the position to the current game with the least scrolling.
 
-        The current game may have been changed by a jump or search.
+        The current game may have been changed by a jump or the filter.
         """
-        total = len(self.games.games)
-        current = self.games.current_game
+        total = len(self.gamelist.games)
+        current = self.gamelist.current_game
         if self.pos % total == current:
             return
         below = self.top + (current - self.top) % total
@@ -294,10 +294,7 @@ class Browse(Scene):
         if self.menu and self.handle_menu(self.menu, event):
             return None
         if event.type == ADVANCE:
-            self.games.reset_search()
-            self.games.random_game()
-        elif event.type == SEARCH_EXPIRED:
-            self.games.reset_search()
+            self.gamelist.random_game()
         elif event.type == EMULATOR_FAILED:
             show_error(event.message)
         elif event.type in (pg.MOUSEMOTION, pg.MOUSEBUTTONDOWN):
@@ -305,7 +302,7 @@ class Browse(Scene):
         elif event.type == pg.MOUSEWHEEL:
             self.handle_wheel(event)
         elif event.type == pg.KEYDOWN:
-            if event.key == pg.K_ESCAPE:
+            if event.key == pg.K_ESCAPE and not self.gamelist.query:
                 return False
             self.handle_key(event)
         elif event.type == pg.KEYUP and event.key == pg.K_RETURN:
@@ -328,7 +325,7 @@ class Browse(Scene):
         """Open the menu of the current game at the given position."""
         self.menu = Menu(
             self.menu_font,
-            self.games.get_current_game(),
+            self.gamelist.get_current_game(),
             pos,
             self.screen.get_rect(),
         )
@@ -339,65 +336,68 @@ class Browse(Scene):
             return
         if pg.key.get_mods() & pg.KMOD_CTRL:
             self.set_slideshow(enabled=False)
-            self.games.reset_search()
             self.resize(self.cols - 2 * event.y)
         elif self.show_mouse:
             self.set_slideshow(enabled=False)
-            self.games.reset_search()
             delta = -event.y * self.cols
             self.top += delta
             self.select(self.pos + delta)
 
     def handle_key(self, event: pg.event.Event) -> None:
-        """Handle a keystroke other than Escape."""
-        if event.key != pg.K_SPACE:
+        """Handle a keystroke, except Escape without a filter (which quits)."""
+        if self.filter(event):
             self.set_slideshow(enabled=False)
-        elif not self.games.is_searching():
-            self.set_slideshow(enabled=True)
+            self.reshow()
+            return
+        self.set_slideshow(enabled=event.key == pg.K_SPACE)
         self.navigate(event)
         if event.key in ARROW_KEYS:
-            self.show_ready(ready=self.games.ready)
-
-        # (Re)start the timer that removes the query from the screen
-        if self.games.query:
-            pg.time.set_timer(SEARCH_EXPIRED, SEARCH_TIMEOUT, loops=1)
+            self.show_ready(ready=self.gamelist.ready)
         if event.key == pg.K_RETURN and not self.enter_held:
             self.enter_held = True
             self.play(event.mod)
 
+    def filter(self, event: pg.event.Event) -> bool:
+        """Clear the filter, or add the typed character to it if any game matches.
+
+        Escape and Backspace clear the filter. Space, plus and minus
+        only add to the filter once it has been started with another
+        key. Return whether the key was used for the filter.
+        """
+        if event.key in (pg.K_ESCAPE, pg.K_BACKSPACE):
+            self.gamelist.clear_filter()
+            return True
+        char = event.unicode
+        if not char or not char.isprintable():
+            return False
+        if not self.gamelist.query and event.key in COMMAND_KEYS:
+            return False
+        return self.gamelist.add_to_filter(char)
+
     def navigate(self, event: pg.event.Event) -> None:
-        """Search, zoom, move, or jump, depending on the key."""
+        """Zoom, move, or jump, depending on the key."""
         cols = self.cols
         grid = cols > 1
         grid_moves = {pg.K_RIGHT: 1, pg.K_LEFT: -1, pg.K_DOWN: cols, pg.K_UP: -cols}
-        if event.key == pg.K_SPACE and self.games.is_searching():
-            self.games.search(" ")
-        elif event.key == pg.K_SPACE and grid:
+        if event.key == pg.K_SPACE and grid:
             self.resize(1)
-            self.games.random_game()
-        elif event.key in GRID_LARGER and not self.games.is_searching():
+            self.gamelist.random_game()
+        elif event.key in GRID_LARGER:
             self.resize(cols + 2)
-        elif event.key in GRID_SMALLER and not self.games.is_searching():
+        elif event.key in GRID_SMALLER:
             self.resize(cols - 2)
         elif grid and event.key in grid_moves:
-            self.games.reset_search()
             self.select(self.pos + grid_moves[event.key])
-        elif event.key == pg.K_BACKSPACE:
-            self.games.backspace()
         elif event.key == pg.K_TAB:
-            self.games.reset_search()
-            self.show_ready(ready=NEXT_READY[self.games.ready])
+            self.show_ready(ready=NEXT_READY[self.gamelist.ready])
             self.message_until = pg.time.get_ticks() + MESSAGE_TIMEOUT
             pg.time.set_timer(MESSAGE_EXPIRED, MESSAGE_TIMEOUT, loops=1)
         elif handler := self.handlers.get(event.key):
-            self.games.reset_search()
             handler()
-        elif event.unicode.isprintable() and event.unicode:
-            self.games.search(event.unicode)
 
     @override
     def update(self, screen: pg.Surface) -> None:
-        """Draw the visible title screens, the search query, and the menu."""
+        """Draw the visible title screens, the filter, and the menu."""
         self.scroll()
         if self.menu and self.menu.highlighted is None:
             cursor = pg.SYSTEM_CURSOR_ARROW
@@ -406,7 +406,7 @@ class Browse(Scene):
         if cursor != self.cursor:
             self.set_cursor(cursor)
         cols = self.cols
-        games = self.games.games
+        games = self.gamelist.games
         cache: dict[tuple[int, tuple[int, int], int | None], pg.Surface] = {}
         selected = None
         margin = grid_margin(cols)
@@ -421,7 +421,7 @@ class Browse(Scene):
             key = index, image_rect.size, cga.palette
             image = cache.get(key, self.cache.get(key))
             if image is None:
-                title = cga.apply(self.games.get_image(games[index]))
+                title = cga.apply(self.gamelist.get_image(games[index]))
                 image = sharp_scale(title, image_rect.size)
             cache[key] = image
             screen.blit(image, image_rect)
@@ -433,7 +433,7 @@ class Browse(Scene):
             pg.draw.rect(
                 screen, MAGENTA, selected.inflate(2 * border, 2 * border), border
             )
-        if self.games.query:
+        if self.gamelist.query:
             self.draw_query(screen)
         if pg.time.get_ticks() < self.message_until:
             self.draw_message(screen)
@@ -441,12 +441,12 @@ class Browse(Scene):
             self.menu.draw(screen)
 
     def draw_query(
-        self, screen: pg.Surface, margin: int = 15, padding: int = 8
+        self, screen: pg.Surface, padding: tuple[int, int] = (16, 8)
     ) -> None:
-        """Draw the search query in the top left corner."""
-        image = self.font.render(self.games.query, ANTIALIAS, WHITE)
-        rect = image.get_rect().inflate(2 * padding, 2 * padding)
-        rect.topleft = (margin, margin)
+        """Draw the filter centered at the bottom of the screen."""
+        image = self.font.render(self.gamelist.query, ANTIALIAS, WHITE)
+        rect = image.get_rect().inflate(2 * padding[0], 2 * padding[1])
+        rect.midbottom = screen.get_rect().midbottom
         screen.fill(BLACK, rect)
         screen.blit(image, image.get_rect(center=rect.center))
 
@@ -454,7 +454,7 @@ class Browse(Scene):
         self, screen: pg.Surface, padding: tuple[int, int] = (24, 16)
     ) -> None:
         """Draw which games are shown in the middle of the screen."""
-        message = READY_MESSAGES[self.games.ready]
+        message = READY_MESSAGES[self.gamelist.ready]
         image = self.message_font.render(message, ANTIALIAS, BLACK)
         rect = image.get_rect(center=screen.get_rect().center)
         screen.fill(MAGENTA, rect.inflate(2 * padding[0], 2 * padding[1]))

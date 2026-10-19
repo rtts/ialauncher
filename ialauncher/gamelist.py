@@ -7,20 +7,18 @@ import pygame as pg
 
 from .game import Game
 
-SEARCH_TIMEOUT = 1000
 
-
-class GameList:
+class Gamelist:
     """The list of games."""
 
     def __init__(self) -> None:
         """Start with an empty list."""
         self.all_games: list[Game] = []
-        self.games = self.all_games  # The games that are shown
+        self.ready_games = self.all_games  # The games to be shown, pre-filter
+        self.games = self.all_games  # The games to be shown, post-filter
         self.ready: bool | None = None
         self.current_game = 0
         self.query = ""
-        self.last_keypress = 0
 
     def add(self, game_dir: Path) -> None:
         """Add the game in the given directory."""
@@ -33,17 +31,48 @@ class GameList:
     def show_ready(self, *, ready: bool | None) -> None:
         """Show only the games that are (not) ready to play, or all games (None).
 
-        If no game matches, show all games. Keep the current game, or
-        select the next one that is shown.
+        If no game matches, show all games. Keep the filter, unless no
+        ready game matches it.
         """
-        shown = [g for g in self.all_games if g.is_ready() == ready]
+        ready_games = [g for g in self.all_games if g.is_ready() == ready]
+        self.ready = ready if ready_games else None
+        self.ready_games = ready_games or self.all_games
+        games = self.matching(self.query)
+        if not games:
+            self.query = ""
+        self.show(games or self.ready_games)
+
+    def show(self, games: list[Game]) -> None:
+        """Show the given games; keep the current game, or select the next one."""
         current = self.get_current_game().identifier.lower()
-        self.ready = ready if shown else None
-        self.games = shown or self.all_games
+        self.games = games
         self.current_game = next(
             (i for i, g in enumerate(self.games) if g.identifier.lower() >= current),
             0,
         )
+
+    def matching(self, query: str) -> list[Game]:
+        """Return the ready games whose identifier contains the query, ignoring case."""
+        query = query.lower()
+        return [g for g in self.ready_games if query in g.identifier.lower()]
+
+    def add_to_filter(self, char: str) -> bool:
+        """Add a character to the filter, unless no ready game would match.
+
+        Return whether the character was added.
+        """
+        games = self.matching(self.query + char)
+        if not games:
+            return False
+        self.query += char
+        self.show(games)
+        return True
+
+    def clear_filter(self) -> None:
+        """Show all ready games again."""
+        if self.query:
+            self.query = ""
+            self.show(self.ready_games)
 
     def get_image(self, game: Game) -> pg.Surface:
         """Return the title screen of the given game."""
@@ -54,26 +83,6 @@ class GameList:
     def get_current_game(self) -> Game:
         """Return the current game."""
         return self.games[self.current_game]
-
-    def next_letter(self) -> None:
-        """Jump to the next game with different letter."""
-        letter = self.get_current_game().identifier.lower()[0]
-        for game in self.games[self.current_game :]:
-            if not game.identifier.lower().startswith(letter):
-                break
-            self.current_game += 1
-        if self.current_game >= len(self.games):
-            self.current_game = 0
-
-    def previous_letter(self) -> None:
-        """Jump to the first game that starts with previous game's letter."""
-        letter = self.games[
-            (self.current_game - 1) % len(self.games)
-        ].identifier.lower()[0]
-        for i, game in enumerate(self.games):
-            if game.identifier.lower().startswith(letter):
-                self.current_game = i
-                break
 
     def next_game(self) -> None:
         """Move to the next game, wrapping around at the end."""
@@ -86,39 +95,3 @@ class GameList:
     def random_game(self) -> None:
         """Jump to a random game."""
         self.current_game = random.randrange(len(self.games))  # noqa: S311
-
-    def is_searching(self) -> bool:
-        """Return whether a search query was typed recently."""
-        return (
-            bool(self.query)
-            and pg.time.get_ticks() - self.last_keypress <= SEARCH_TIMEOUT
-        )
-
-    def reset_search(self) -> None:
-        """Forget the search query."""
-        self.query = ""
-
-    def search(self, char: str) -> None:
-        """Add a character to the query and jump to the first match."""
-        if not self.is_searching():
-            self.reset_search()
-        self.last_keypress = pg.time.get_ticks()
-        self.find(self.query + char)
-
-    def backspace(self) -> None:
-        """Remove the last character of the query and jump to the first match."""
-        if not self.is_searching():
-            self.reset_search()
-            return
-        self.last_keypress = pg.time.get_ticks()
-        self.query = self.query[:-1]
-        if self.query:
-            self.find(self.query)
-
-    def find(self, query: str) -> None:
-        """Jump to the first game that starts with the query, if any."""
-        for i, game in enumerate(self.games):
-            if game.identifier.lower().startswith(query.lower()):
-                self.current_game = i
-                self.query = query
-                break

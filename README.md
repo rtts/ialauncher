@@ -51,7 +51,8 @@ Special Keys
 
 - Space: start slideshow
 - Arrow keys: navigate through the games list
-- A-Z: start searching
+- A-Z: start filtering
+- Backspace: clear the filter
 - Enter: launch the selected game
 - Shift-Enter: reset game state before starting game
 - Alt-Enter: open DOSBox without starting the game
