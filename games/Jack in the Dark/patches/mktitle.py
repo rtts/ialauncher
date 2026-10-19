@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Recreate title.png for Jack in the Dark from the game's own data.
 
 The game never shows its own name, so the title screen is composed the way
@@ -6,25 +5,18 @@ the game draws its opening credits: the parchment background (ITD_RESS.PAK
 entry 2) with the text set in the credits font (ITD_RESS.PAK entry 1), in
 the credits color.
 
-The layout copies the Alone in the Dark title screen: two lines, the font
+The layout mimics the Alone in the Dark title screen: two lines, the font
 doubled in size, at the same baselines and around the same center.
-
-ITD_RESS.PAK is read from Jack_in_the_Dark_1993.zip, so launch the game
-once before running this.
-
-Uses only the Python standard library.
 """
 
 import struct
 import sys
-import zipfile
 import zlib
 from pathlib import Path
 
-HERE = Path(__file__).resolve().parent
-ARCHIVE = HERE / "Jack_in_the_Dark_1993.zip"
-OUTPUT = HERE / "title.png"
-PAK = "AJACK/ITD_RESS.PAK"
+GAME = Path(__file__).resolve().parent.parent
+PAK = GAME / "dosbox_drive_c" / "AJACK" / "ITD_RESS.PAK"
+OUTPUT = GAME / "title.png"
 BACKGROUND, FONT = 2, 1  # ITD_RESS.PAK entries
 TITLE = "Jack", "in the Dark"
 TEXT_COLOR = 26  # palette index used by the credits
@@ -215,16 +207,11 @@ def write_png(path: Path, pixels: bytes, palette: bytes) -> None:
     )
 
 
-def load_pak() -> bytes:
-    """Read ITD_RESS.PAK from the downloaded game."""
-    if not ARCHIVE.exists():
-        sys.exit(f"{ARCHIVE.name} not found; launch the game once to download it")
-    return zipfile.ZipFile(ARCHIVE).read(PAK)
-
-
 def main() -> None:
     """Compose the title screen and save it."""
-    pak = load_pak()
+    if not PAK.exists():
+        sys.exit(f"{PAK.name} not found; launch the game once to download it")
+    pak = PAK.read_bytes()
     background = pak_entry(pak, BACKGROUND)
     pixels, palette = bytearray(background[:64000]), background[64000:64768]
     font = Font(pak_entry(pak, FONT))

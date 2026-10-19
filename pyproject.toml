@@ -42,5 +42,8 @@ force-exclude = true
 select = ["ALL"]
 ignore = ["COM812", "CPY001", "D203", "D213", "PT", "T201"]
 
+[tool.ruff.lint.per-file-ignores]
+"games/*/patches/*.py" = ["INP001"]  # standalone scripts, not modules
+
 [tool.ty.src]
 exclude = ["windows"]
