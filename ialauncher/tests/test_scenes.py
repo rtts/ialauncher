@@ -106,21 +106,29 @@ class TestBrowse(HeadlessTestCase):
         self.assertTrue(games.ready)
         self.assertEqual(sorted(g.identifier for g in games.games), sorted(ready))
 
-        # Removing a game hides it, removing the last one shows all games
+        # Removing a game keeps it shown until the next arrow key
         yield key(pg.K_RETURN, mod=pg.KMOD_CTRL)
-        self.assertEqual(len(games.games), 1)
-        yield key(pg.K_RETURN, mod=pg.KMOD_CTRL)
-        self.assertFalse(ready)
-        self.assertIsNone(games.ready)
-        self.assertEqual(len(games.games), total)
+        self.assertEqual(len(ready), 1)
+        self.assertEqual(len(games.games), 2)
+        yield key(pg.K_RIGHT)
+        self.assertTrue(games.ready)
+        self.assertEqual([g.identifier for g in games.games], list(ready))
 
-        # Tab shows the ready games, the unready games, then all games again
-        yield key(pg.K_RETURN, mod=pg.KMOD_CTRL)
+        # Tab shows the unready games, all games, then the ready games again
         yield key(pg.K_TAB)
-        self.assertEqual(len(games.games), 1)
-        yield key(pg.K_TAB)
+        self.assertIs(games.ready, False)  # noqa: FBT003
         self.assertEqual(len(games.games), total - 1)
         self.assertNotIn(current(), ready)
+        yield key(pg.K_TAB)
+        self.assertIsNone(games.ready)
+        self.assertEqual(len(games.games), total)
+        yield key(pg.K_TAB)
+        self.assertEqual(len(games.games), 1)
+
+        # Removing the last game keeps it shown too
+        yield key(pg.K_RETURN, mod=pg.KMOD_CTRL)
+        self.assertFalse(ready)
+        self.assertEqual(len(games.games), 1)
         yield key(pg.K_TAB)
         self.assertEqual(len(games.games), total)
 

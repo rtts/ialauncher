@@ -33,6 +33,7 @@ MESSAGE_EXPIRED = pg.event.custom_type()
 MESSAGE_TIMEOUT = 1000
 READY_MESSAGES = {None: "All", True: "Favorites", False: "Least favorites"}
 NEXT_READY = {None: True, True: False, False: None}
+ARROW_KEYS = {pg.K_RIGHT, pg.K_LEFT, pg.K_DOWN, pg.K_UP}
 MENU_FONT = "dejavusans,liberationsans,arial,helvetica,sans"
 MENU_ITEMS = [
     ("Start game", "Enter", 0),
@@ -230,9 +231,6 @@ class Browse(Scene):
         else:
             self.start(game, mod)
 
-        # The game may have become ready, or not
-        self.show_ready(ready=self.games.ready)
-
     def add_or_remove(self, game: Game) -> None:
         """Download the game without starting it, or remove it if it's ready."""
         if game.is_ready():
@@ -356,6 +354,8 @@ class Browse(Scene):
         elif not self.games.is_searching():
             self.set_slideshow(enabled=True)
         self.navigate(event)
+        if event.key in ARROW_KEYS:
+            self.show_ready(ready=self.games.ready)
 
         # (Re)start the timer that removes the query from the screen
         if self.games.query:
