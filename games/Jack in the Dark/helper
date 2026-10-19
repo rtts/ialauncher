@@ -4,7 +4,10 @@
 The game never shows its own name, so the title screen is composed the way
 the game draws its opening credits: the parchment background (ITD_RESS.PAK
 entry 2) with the text set in the credits font (ITD_RESS.PAK entry 1), in
-the credits color, centered on the same axis as the credits.
+the credits color.
+
+The layout copies the Alone in the Dark title screen: two lines, the font
+doubled in size, at the same baselines and around the same center.
 
 ITD_RESS.PAK is read from Jack_in_the_Dark_1993.zip, so launch the game
 once before running this.
@@ -12,7 +15,6 @@ once before running this.
 Uses only the Python standard library.
 """
 
-import argparse
 import struct
 import sys
 import zipfile
@@ -21,10 +23,16 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 ARCHIVE = HERE / "Jack_in_the_Dark_1993.zip"
+OUTPUT = HERE / "title.png"
 PAK = "AJACK/ITD_RESS.PAK"
 BACKGROUND, FONT = 2, 1  # ITD_RESS.PAK entries
+TITLE = "Jack", "in the Dark"
 TEXT_COLOR = 26  # palette index used by the credits
-TEXT_AXIS = 154  # x coordinate the credits are centered on
+TEXT_AXIS = 150  # x coordinate the Alone in the Dark title is centered on
+BASELINES = 112, 148  # baselines of the Alone in the Dark title lines
+SCALE = 2  # matches the letter size of the Alone in the Dark title
+TUCK = {"J": 4, "D": 2}  # columns to tuck the next letter under the bar
+FONT_BASELINE = 13  # row of the font the letters stand on
 WIDTH, HEIGHT = 320, 200
 
 STORED, IMPLODED, DEFLATED = 0, 1, 4  # PAK compression methods
@@ -161,23 +169,26 @@ class Font:
         return value >> 12, value & 0xFFF
 
     def draw(self, pixels: bytearray, x: int, y: int, text: str, color: int) -> None:
-        """Plot text into a screen of palette indices."""
+        """Plot text into a screen of palette indices, each dot SCALE pixels wide."""
         for char in text.encode("latin-1"):
             width, bit = self.glyph(char)
             if not width:
-                x += self.word_space + self.letter_space
+                x += (self.word_space + self.letter_space) * SCALE
                 continue
             for row in range(self.height):
                 line = self.glyphs[row * self.stride :]
                 for col in range(width):
                     b = bit + col
-                    if line[b >> 3] & (0x80 >> (b & 7)):
-                        pixels[(y + row) * WIDTH + x + col] = color
-            x += width + self.letter_space
+                    if not line[b >> 3] & (0x80 >> (b & 7)):
+                        continue
+                    for dy in range(SCALE):
+                        start = (y + row * SCALE + dy) * WIDTH + x + col * SCALE
+                        pixels[start : start + SCALE] = bytes([color]) * SCALE
+            x += (width + self.letter_space - TUCK.get(chr(char), 0)) * SCALE
 
     def ink_box(self, text: str) -> tuple[int, int, int, int]:
         """Return the left, top, right and bottom of the pixels text covers."""
-        probe = bytearray(WIDTH * 32)
+        probe = bytearray(WIDTH * self.height * SCALE)
         self.draw(probe, 0, 0, text, 1)
         ink = [i for i, v in enumerate(probe) if v]
         xs, ys = [i % WIDTH for i in ink], [i // WIDTH for i in ink]
@@ -213,24 +224,20 @@ def load_pak() -> bytes:
 
 def main() -> None:
     """Compose the title screen and save it."""
-    parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    parser.add_argument("-t", "--text", default="Jack in the Dark")
-    parser.add_argument("-o", "--output", type=Path, default=HERE / "title.png")
-    args = parser.parse_args()
-
     pak = load_pak()
     background = pak_entry(pak, BACKGROUND)
     pixels, palette = bytearray(background[:64000]), background[64000:64768]
     font = Font(pak_entry(pak, FONT))
 
-    left, top, right, bottom = font.ink_box(args.text)
-    x = TEXT_AXIS - (left + right) // 2
-    y = HEIGHT // 2 - (top + bottom) // 2
-    font.draw(pixels, x, y, args.text, TEXT_COLOR)
+    for line, baseline in zip(TITLE, BASELINES, strict=True):
+        left, _, right, _ = font.ink_box(line)
+        x = TEXT_AXIS - (left + right) // 2
+        y = baseline - FONT_BASELINE * SCALE
+        font.draw(pixels, x, y, line, TEXT_COLOR)
 
     # Expand the 6-bit VGA palette to 8 bits, as DOSBox does
-    write_png(args.output, bytes(pixels), bytes(c << 2 | c >> 4 for c in palette))
-    print(f"Wrote {args.output}")
+    write_png(OUTPUT, bytes(pixels), bytes(c << 2 | c >> 4 for c in palette))
+    print(f"Wrote {OUTPUT}")
 
 
 if __name__ == "__main__":
