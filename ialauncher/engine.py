@@ -43,7 +43,7 @@ def run(scene: NextScene, title: str = "Game", *, fullscreen: bool = True) -> No
     """
     pg.mixer.pre_init(44100, -16, 1, allowedchanges=0)
     pg.init()
-    pg.key.set_repeat(250, 25)
+    pg.key.set_repeat(250, 50)
     pg.event.set_blocked(pg.TEXTINPUT)
     pg.display.set_caption(title)
     screen = set_mode(fullscreen=fullscreen)
