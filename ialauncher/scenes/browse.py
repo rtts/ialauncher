@@ -440,6 +440,8 @@ class Browse(Scene):
         if self.skip_frame:
             self.skip_frame = False
             return
+        if min(self.tile_size) < 1:
+            self.resize(self.cols)
         self.scroll()
         if self.menu and self.menu.highlighted is None:
             cursor = pg.SYSTEM_CURSOR_ARROW
