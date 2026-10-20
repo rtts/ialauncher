@@ -29,7 +29,7 @@ def kb_int(event: pg.event.Event) -> bool:
         return True
     released = event.key in held_keys and not pg.key.get_pressed()[event.key]
     held_keys.add(event.key)
-    if pg.event.get(pg.KEYDOWN) and not released:
+    if pg.event.get(pg.KEYDOWN) and not released and event.key == pg.K_MINUS:
         speaker.start()
     else:
         speaker.stop()  # The keystrokes stopped piling up
