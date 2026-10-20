@@ -29,6 +29,9 @@ import pygame as pg
 
 type NextScene = Scene | Literal[False] | None
 
+QUIT_KEYS = {(pg.K_q, pg.KMOD_CTRL), (pg.K_w, pg.KMOD_CTRL), (pg.K_x, pg.KMOD_ALT)}
+window_size = [640, 400]
+
 
 def run(scene: NextScene, title: str = "Game", *, fullscreen: bool = True) -> None:
     """Initialize pygame and run the outer game loop, starting with scene.
@@ -39,18 +42,19 @@ def run(scene: NextScene, title: str = "Game", *, fullscreen: bool = True) -> No
     pg.init()
     pg.key.set_repeat(250, 25)
     pg.display.set_caption(title)
-
-    if fullscreen:
-        info = pg.display.Info()
-        size = info.current_w, info.current_h
-        screen = pg.display.set_mode(size, flags=pg.FULLSCREEN)
-    else:
-        size = 640, 400
-        screen = pg.display.set_mode(size, flags=pg.RESIZABLE)
-
+    screen = set_mode(fullscreen=fullscreen)
     while scene:
         pg.event.clear()
         scene = scene.run(screen)
+
+
+def set_mode(*, fullscreen: bool) -> pg.Surface:
+    """Set display mode to windowed or fullscreen."""
+    if fullscreen:
+        if pg.display.get_surface() and not pg.display.is_fullscreen():
+            window_size[:] = pg.display.get_window_size()
+        return pg.display.set_mode(flags=pg.FULLSCREEN)
+    return pg.display.set_mode(window_size, flags=pg.RESIZABLE)
 
 
 class Scene(ABC):
@@ -101,9 +105,16 @@ class Scene(ABC):
             if next_scene is not None:
                 return next_scene
             for event in self.get_events():
-                if event.type == pg.QUIT:
+                if event.type == pg.QUIT or (
+                    event.type == pg.KEYDOWN
+                    and any(event.key == k and event.mod & m for k, m in QUIT_KEYS)
+                ):
+                    # Propagate the QUIT event:
+                    pg.event.post(pg.event.Event(pg.QUIT))
                     return None
-                if not self.intercept(event):
+                if event.type == pg.KEYDOWN and event.key == pg.K_F11:
+                    set_mode(fullscreen=not pg.display.is_fullscreen())
+                elif not self.intercept(event):
                     next_scene = self.handle(event)
                     if next_scene is not None:
                         return next_scene

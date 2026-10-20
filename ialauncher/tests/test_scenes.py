@@ -10,6 +10,7 @@ from ialauncher.game import Game
 from ialauncher.scenes import BLACK, WHITE
 from ialauncher.scenes import browse as browse_scene
 from ialauncher.scenes.browse import Browse
+from ialauncher.scenes.download import Download
 from ialauncher.scenes.loading import Loading
 
 from .support import HeadlessTestCase, Script, key, text
@@ -172,6 +173,24 @@ class TestBrowse(HeadlessTestCase):
         yield from self.wait_for(Browse)
         with self.assertRaisesRegex(AssertionError, "tried to"):
             yield key(pg.K_RETURN)
+
+    def test_quit_while_downloading(self) -> Script:
+        """Closing the window during a download cancels it and quits the app."""
+        thread = mock.Mock(progress=0.0, error=None)
+        thread.is_alive.return_value = True  # The download never finishes
+
+        def download(game: Game) -> None:
+            game.download_thread = thread
+
+        self.enterContext(mock.patch.object(Game, "is_ready", return_value=False))
+        self.enterContext(mock.patch.object(Game, "download", download))
+        yield from self.wait_for(Browse)
+        yield key(pg.K_RETURN)
+        yield from self.wait_for(Download)
+
+        # Download runs inside Browse, which must quit too
+        self.assertIsNone((yield pg.event.Event(pg.QUIT)))
+        thread.cancel.assert_called_once()
 
     def test_ready_only(self) -> Script:
         """Tab cycles through all, ready and unready games; Ctrl-Enter adds/removes."""
