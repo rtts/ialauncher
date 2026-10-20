@@ -8,7 +8,7 @@ import pygame as pg
 # - It produces exactly 50 samples per wave at 44.1 kHz
 # - It was chosen to prevent undertones due to aliasing
 # - It is 3.9 cents sharp of note A5 in concert pitch
-# - It is 28.1 cents flat of the original IBM PC BIOS
+# - It is 28.1 cents flat of the original IBM PC's power-on beep
 BEEP_FREQUENCY = 882
 BEEP_AMPLITUDE = 4096
 BEEP_DURATION = 0.088

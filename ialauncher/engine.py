@@ -27,6 +27,8 @@ from typing import Literal
 
 import pygame as pg
 
+from ialauncher.bios import held_keys, kb_int
+
 type NextScene = Scene | Literal[False] | None
 
 QUIT_KEYS = {(pg.K_q, pg.KMOD_CTRL), (pg.K_w, pg.KMOD_CTRL), (pg.K_x, pg.KMOD_ALT)}
@@ -39,12 +41,15 @@ def run(scene: NextScene, title: str = "Game", *, fullscreen: bool = True) -> No
     Scenes run continuously until no more scenes are returned, and then
     the game is over.
     """
+    pg.mixer.pre_init(44100, -16, 1, allowedchanges=0)
     pg.init()
     pg.key.set_repeat(250, 25)
+    pg.event.set_blocked(pg.TEXTINPUT)
     pg.display.set_caption(title)
     screen = set_mode(fullscreen=fullscreen)
     while scene:
         pg.event.clear()
+        held_keys.clear()
         scene = scene.run(screen)
 
 
@@ -105,6 +110,8 @@ class Scene(ABC):
             if next_scene is not None:
                 return next_scene
             for event in self.get_events():
+                if not kb_int(event):
+                    continue
                 if event.type == pg.QUIT or (
                     event.type == pg.KEYDOWN
                     and any(event.key == k and event.mod & m for k, m in QUIT_KEYS)

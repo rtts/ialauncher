@@ -5,6 +5,5 @@ The environment is set up here, before any test module imports pygame.
 
 import os
 
-os.environ["SDL_VIDEODRIVER"] = "dummy"
-os.environ["SDL_AUDIODRIVER"] = "dummy"
+os.environ["SDL_VIDEODRIVER"] = "dummy"  # But the sound is real, to hear it
 os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "1"

@@ -6,6 +6,7 @@ from unittest import mock
 import pygame as pg
 
 import games as gd
+from ialauncher import bios
 from ialauncher.game import Game
 from ialauncher.scenes import BLACK, WHITE
 from ialauncher.scenes import browse as browse_scene
@@ -174,6 +175,69 @@ class TestBrowse(HeadlessTestCase):
         with self.assertRaisesRegex(AssertionError, "tried to"):
             yield key(pg.K_RETURN)
 
+    def test_key_repeat_pileup(self) -> Script:
+        """Key repeats that pile up during slow frames are dropped with a beep."""
+        speaker = bios.speaker
+        start = self.enterContext(
+            mock.patch.object(speaker, "start", wraps=speaker.start)
+        )
+        stop = self.enterContext(mock.patch.object(speaker, "stop", wraps=speaker.stop))
+        browse = yield from self.wait_for(Browse)
+        minus, release = key(pg.K_MINUS)
+
+        # The text input of each repeat would pile up too, so it's blocked
+        self.assertTrue(pg.event.get_blocked(pg.TEXTINPUT))
+
+        # While the key is held, each repeat zooms out
+        yield minus
+        yield minus
+        self.assertEqual(browse.cols, 5)
+        start.assert_not_called()
+
+        # When repeats pile up, all but the current one are dropped, and it
+        # beeps for as long as they keep piling up
+        yield [minus] * 5
+        self.assertEqual(browse.cols, 7)
+        stop.reset_mock()  # It was called while silent, which does nothing
+        yield [minus] * 5
+        self.assertEqual(browse.cols, 9)
+        self.assertEqual(start.call_count, 2)
+        stop.assert_not_called()
+
+        # A repeat with no others queued behind it stops the beep
+        yield minus
+        self.assertEqual(browse.cols, 11)
+        stop.assert_called_once()
+
+        # Once the key is released, its queued repeats are dropped silently
+        yield [minus, minus, release]
+        self.assertEqual(browse.cols, 11)
+        self.assertEqual(start.call_count, 2)
+
+        # But a short press always counts, however slow the frame
+        yield key(pg.K_MINUS)
+        self.assertEqual(browse.cols, 13)
+        yield key(pg.K_ESCAPE)
+        self.assertIsNone((yield key(pg.K_ESCAPE)))
+
+    def test_key_tapping_pileup(self) -> Script:
+        """Taps of a key that pile up during a slow frame are dropped with a beep."""
+        speaker = bios.speaker
+        start = self.enterContext(
+            mock.patch.object(speaker, "start", wraps=speaker.start)
+        )
+        browse = yield from self.wait_for(Browse)
+        yield key(pg.K_MINUS) * 4
+        self.assertEqual(browse.cols, 3)
+        start.assert_called_once()
+
+        # A single tap still counts, without a beep
+        yield key(pg.K_MINUS)
+        self.assertEqual(browse.cols, 5)
+        start.assert_called_once()
+        yield key(pg.K_ESCAPE)
+        self.assertIsNone((yield key(pg.K_ESCAPE)))
+
     def test_quit_while_downloading(self) -> Script:
         """Closing the window during a download cancels it and quits the app."""
         thread = mock.Mock(progress=0.0, error=None)
@@ -272,7 +336,8 @@ class TestBrowse(HeadlessTestCase):
 
         # Holding Enter starts the game once, even after the emulator exits
         running = True
-        yield [enter, enter, enter]
+        for _ in range(3):
+            yield enter
         self.assertEqual(start.call_count, 1)
         running = False
         yield enter

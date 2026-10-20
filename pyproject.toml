@@ -40,7 +40,7 @@ force-exclude = true
 
 [tool.ruff.lint]
 select = ["ALL"]
-ignore = ["COM812", "CPY001", "D203", "D213", "PT", "T201"]
+ignore = ["COM812", "CPY001", "D203", "D213", "PT", "T201", "FIX002", "TD003"]
 
 [tool.ruff.lint.per-file-ignores]
 "games/*/patches/*.py" = ["INP001"]  # standalone scripts, not modules

@@ -46,6 +46,7 @@ MENU_ITEMS = [
 ]
 
 
+# TODO(JJ): Split up into two separate scenes.
 class Browse(Scene):
     """All games in a grid with infinite zoom and infinite scrolling."""
 
@@ -56,9 +57,10 @@ class Browse(Scene):
         self.cols = 1
         self.top = self.pos = self.gamelist.current_game
         self.shift = 0.0  # The pixels of the top row that are scrolled out of view
-        self.cache: dict[tuple[int, tuple[int, int], int | None], pg.Surface] = {}
+        self.cache: dict[tuple[Game, tuple[int, int], int | None], pg.Surface] = {}
         self.menu: Menu | None = None
         self.message_until = 0
+        self.skip_frame = False  # Nothing changed since the last frame
         self.emulators: dict[str, Emulator] = {}  # By game identifier
         self.enter_held = False  # To ignore Enter's key repeat
         self.slideshow = options.slideshow
@@ -94,7 +96,7 @@ class Browse(Scene):
     def set_slideshow(self, *, enabled: bool) -> None:
         """Start or stop the slideshow, and the dot that blinks while it runs."""
         self.slideshow_running = enabled and self.slideshow > 0
-        self.dot_visible = False  # The first blink shows it
+        self.dot_visible = False
         running = self.slideshow_running
         pg.time.set_timer(ADVANCE, self.slideshow * 1000 if running else 0)
         pg.time.set_timer(BLINK, BLINK_INTERVAL if running else 0)
@@ -193,6 +195,8 @@ class Browse(Scene):
     def resize(self, cols: int) -> None:
         """Change the number of columns."""
         self.cols = max(1, cols)
+        while min(self.tile_size) < 1:
+            self.cols -= 2
         self.shift = 0.0
         self.cache = {}
         self.scroll()
@@ -223,7 +227,6 @@ class Browse(Scene):
         offset = self.pos - self.top
         self.pos = self.gamelist.current_game
         self.top = self.pos - offset
-        self.cache = {}
         self.scroll()
 
     def play(self, mod: int) -> None:
@@ -279,7 +282,9 @@ class Browse(Scene):
     def handle_menu(self, menu: "Menu", event: pg.event.Event) -> bool:
         """Handle an event while the menu is open; return True if it was consumed."""
         if event.type == pg.MOUSEMOTION:
-            menu.highlighted = menu.item_at(event.pos)
+            highlighted = menu.item_at(event.pos)
+            self.skip_frame = highlighted == menu.highlighted
+            menu.highlighted = highlighted
             return True
         if event.type in (pg.KEYDOWN, pg.MOUSEBUTTONDOWN, pg.MOUSEWHEEL, ADVANCE):
             self.menu = None
@@ -322,7 +327,9 @@ class Browse(Scene):
         if self.cols == 1:
             return
         if event.type == pg.MOUSEMOTION:
+            pos = self.pos
             self.point(event.pos)
+            self.skip_frame = self.pos == pos
         elif event.button == pg.BUTTON_LEFT and self.point(event.pos):
             self.play(pg.key.get_mods())
         elif event.button == pg.BUTTON_RIGHT and self.point(event.pos):
@@ -425,7 +432,14 @@ class Browse(Scene):
 
     @override
     def update(self, screen: pg.Surface) -> None:
-        """Draw the visible title screens and everything on top of them."""
+        """Draw the visible title screens and everything on top of them.
+
+        Skip the frame if the last event changed nothing, like a mouse
+        movement within the selected cell.
+        """
+        if self.skip_frame:
+            self.skip_frame = False
+            return
         self.scroll()
         if self.menu and self.menu.highlighted is None:
             cursor = pg.SYSTEM_CURSOR_ARROW
@@ -435,7 +449,7 @@ class Browse(Scene):
             self.set_cursor(cursor)
         cols = self.cols
         games = self.gamelist.games
-        cache: dict[tuple[int, tuple[int, int], int | None], pg.Surface] = {}
+        cache: dict[tuple[Game, tuple[int, int], int | None], pg.Surface] = {}
         selected = None
         margin = grid_margin(cols)
         size = self.tile_size
@@ -443,14 +457,15 @@ class Browse(Scene):
         for pos, cell in self.cells():
             image_rect = pg.Rect((0, 0), size)
             image_rect.center = cell.center
-
-            # Only keep the scaled images that are currently visible
-            index = pos % len(games)
-            key = index, image_rect.size, cga.palette
+            game = games[pos % len(games)]
+            key = game, image_rect.size, cga.palette
             image = cache.get(key, self.cache.get(key))
             if image is None:
-                title = cga.apply(self.gamelist.get_image(games[index]))
-                image = sharp_scale(title, image_rect.size)
+                if cols == 1:
+                    title = pg.image.load(game.titlescreen)
+                else:
+                    title = game.get_titlescreen(image_rect.size)
+                image = sharp_scale(cga.apply(title), image_rect.size)
             cache[key] = image
             screen.blit(image, image_rect)
             if pos == self.pos:

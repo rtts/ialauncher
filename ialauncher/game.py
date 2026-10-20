@@ -37,6 +37,7 @@ QUICK_EXIT = 3
 # Show this many lines of emulator output when the emulator fails.
 OUTPUT_LINES = 5
 EMULATOR_FAILED = pg.event.custom_type()
+TITLESCREEN_SIZE = 320, 200
 
 # Browsers make Windows fetch missing root certificates, Python doesn't.
 CERTIFICATE_HINT = (
@@ -58,7 +59,7 @@ class Game:
         self.path = path
         self.identifier = path.name
         self.download_thread: Download | None = None
-        self.cached_image: pg.Surface | None = None
+        self.thumbnails: dict[tuple[int, int], pg.Surface] = {}
         self.titlescreen = path / "title.png"
         try:
             self.configure()
@@ -197,6 +198,29 @@ class Game:
             "w", encoding="utf-8", newline="\n"
         ) as f:
             self.config.write(f)
+
+    def load_titlescreen(self) -> None:
+        """Create thumbnails."""
+        image = pg.image.load(self.titlescreen)
+        if image.get_size() != TITLESCREEN_SIZE:
+            image = pg.transform.smoothscale(image.convert(24), TITLESCREEN_SIZE)
+        self.thumbnails = {TITLESCREEN_SIZE: image}
+        image = image.convert(24)
+
+        # The thumbnails form a mipmap pyramid, after Lance Williams,
+        # "Pyramidal Parametrics" (SIGGRAPH 1983).
+        width, height = TITLESCREEN_SIZE
+        while (width, height) != (1, 1):
+            width, height = (width + 1) // 2, (height + 1) // 2
+            image = pg.transform.smoothscale(image, (width, height))
+            self.thumbnails[width, height] = image
+
+    def get_titlescreen(self, size: tuple[int, int]) -> pg.Surface:
+        """Given the tile size, return the correct thumbnail to use."""
+        for (width, height), thumbnail in reversed(self.thumbnails.items()):
+            if size[0] <= width and size[1] <= height:
+                return thumbnail
+        return self.thumbnails[TITLESCREEN_SIZE]
 
     def is_ready(self) -> bool:
         """Return whether the game has been downloaded."""

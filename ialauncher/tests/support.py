@@ -1,27 +1,58 @@
 """Support for headless testing of IA Launcher."""
 
+import copy
 import functools
 import os
 import random
 import sys
 import tempfile
 import unittest
+from collections import defaultdict
 from collections.abc import Callable, Generator
 from inspect import GEN_CREATED, GEN_SUSPENDED, getgeneratorstate, isgeneratorfunction
+from pathlib import Path
 from unittest import mock
 
 import pygame as pg
 
-from ialauncher import __main__, engine, options
+from ialauncher import __main__, bios, engine, options
 from ialauncher.cga import cga
 from ialauncher.cheats import cheats
 from ialauncher.game import Game
+from ialauncher.gamelist import Gamelist
 
 type Step = pg.event.Event | list[pg.event.Event] | None
 type Script = Generator[Step, engine.Scene | None, None]
 
 TICK = pg.event.custom_type()
 MAX_FRAMES = 10_000  # 300 is typical
+
+# The games by directory, loaded once for all tests
+games: dict[Path, Game] = {}
+add_game = Gamelist.add
+
+
+def add_game_once(gamelist: Gamelist, game_dir: Path) -> None:
+    """Add a copy of the game, so that only the first test loads it."""
+    if game_dir not in games:
+        add_game(gamelist, game_dir)
+        games[game_dir] = copy.copy(gamelist.all_games[-1])
+    else:
+        gamelist.all_games.append(copy.copy(games[game_dir]))
+
+
+def finish_sound() -> None:
+    """Stop the speaker, and let the sound play out, but not forever.
+
+    Without a sound device, like on a GitHub runner, there is none.
+    """
+    bios.speaker.stop()
+    deadline = pg.time.get_ticks() + 1000
+    while pg.mixer.get_init() and pg.mixer.get_busy():
+        if pg.time.get_ticks() > deadline:
+            break
+        pg.time.wait(10)
+
 
 # In the original pygame, pg.event.peek() has a reference-counting bug
 # that causes a use-after-free that segfaults Python, hence the
@@ -38,9 +69,15 @@ def key(key: int, mod: int = pg.KMOD_NONE, unicode: str = "") -> list[pg.event.E
     ]
 
 
-def text(string: str) -> list[pg.event.Event]:
+class Typing(list[pg.event.Event]):
+    """The events of typing text, which are sent one keystroke per frame."""
+
+
+def text(string: str) -> Typing:
     """Return the events of typing a string."""
-    return [event for char in string for event in key(ord(char.lower()), unicode=char)]
+    return Typing(
+        event for char in string for event in key(ord(char.lower()), unicode=char)
+    )
 
 
 def scripted(
@@ -74,10 +111,12 @@ class HeadlessTestCase(unittest.TestCase):
             self.enterContext(mock.patch.object(options, name, value))
         self.enterContext(mock.patch.object(sys, "argv", list(self.argv)))
         self.enterContext(mock.patch.object(Game, "get_emulator", return_value=[]))
+        self.enterContext(mock.patch.object(Gamelist, "add", add_game_once))
         for method in ("download", "start"):
             error = AssertionError(f"The app tried to {method} a game")
             self.enterContext(mock.patch.object(Game, method, side_effect=error))
         self.addCleanup(pg.quit)
+        self.addCleanup(finish_sound)
         self.addCleanup(cga.set_palette, None)
         cheats.typed = ""
         random.seed(0)
@@ -97,6 +136,8 @@ class HeadlessTestCase(unittest.TestCase):
         If the test fails, the last frame is saved as a screenshot.
         """
         scenes: list[engine.Scene] = []  # The running scenes, innermost last
+        self.pressed: set[int] = set()  # The keys held down after the last step
+        self.typing: list[pg.event.Event] = []  # The keystrokes still to type
         frames = 0
         run, flip = engine.Scene.run, pg.display.flip
 
@@ -116,11 +157,11 @@ class HeadlessTestCase(unittest.TestCase):
 
             # Wait until the app has handled all events.
             if not pg.event.peek():
-                for event in self.next_events(script, scenes[-1]):
-                    pg.event.post(event)
+                self.post_step(script, scenes[-1])
 
         self.enterContext(mock.patch.object(engine.Scene, "run", run_scene))
         self.enterContext(mock.patch.object(pg.display, "flip", flip_display))
+        self.enterContext(mock.patch.object(pg.key, "get_pressed", self.get_pressed))
         try:
             self.play(script)
         except Exception as e:
@@ -130,6 +171,18 @@ class HeadlessTestCase(unittest.TestCase):
                 pg.image.save(screen, path)
                 e.add_note(f"Screenshot of the last frame: {path}")
             raise
+
+    def post(self, event: pg.event.Event) -> None:
+        """Post the event, and keep track of the keys it holds down."""
+        if event.type == pg.KEYDOWN:
+            self.pressed.add(event.key)
+        elif event.type == pg.KEYUP:
+            self.pressed.discard(event.key)
+        pg.event.post(event)
+
+    def get_pressed(self) -> defaultdict[int, bool]:
+        """Like the keyboard, report the keys held down after the last step."""
+        return defaultdict(bool, dict.fromkeys(self.pressed, True))
 
     def play(self, script: Script) -> None:
         """Run the app, then tell the script how it ended."""
@@ -145,6 +198,22 @@ class HeadlessTestCase(unittest.TestCase):
             self.fail("The app quit before the script finished")
         except StopIteration:
             pass
+
+    def post_step(self, script: Script, scene: engine.Scene) -> None:
+        """Post the events of the next step, or the next keystroke of typing.
+
+        The app handles one keystroke per frame, so typing posts one at a
+        time, like a person, instead of all at once.
+        """
+        if not self.typing:
+            events = self.next_events(script, scene)
+            if not isinstance(events, Typing):
+                for event in events:
+                    self.post(event)
+                return
+            self.typing = list(events)
+        for _ in range(2):  # Its KEYDOWN and KEYUP
+            self.post(self.typing.pop(0))
 
     def next_events(self, script: Script, scene: engine.Scene) -> list[pg.event.Event]:
         """Send the scene to the script, and return the events of its next step."""

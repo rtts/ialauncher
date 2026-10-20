@@ -3,8 +3,6 @@
 import random
 from pathlib import Path
 
-import pygame as pg
-
 from .game import Game
 
 
@@ -22,7 +20,9 @@ class Gamelist:
 
     def add(self, game_dir: Path) -> None:
         """Add the game in the given directory."""
-        self.all_games.append(Game(game_dir))
+        game = Game(game_dir)
+        game.load_titlescreen()
+        self.all_games.append(game)
 
     def sort(self) -> None:
         """Sort the games by identifier, ignoring case."""
@@ -73,12 +73,6 @@ class Gamelist:
         if self.query:
             self.query = ""
             self.show(self.ready_games)
-
-    def get_image(self, game: Game) -> pg.Surface:
-        """Return the title screen of the given game."""
-        if game.cached_image is None:
-            game.cached_image = pg.image.load(game.titlescreen)
-        return game.cached_image
 
     def get_current_game(self) -> Game:
         """Return the current game."""
