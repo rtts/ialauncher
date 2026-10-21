@@ -37,9 +37,14 @@ class Gamelist:
         self.all_games.sort(key=lambda game: game.identifier.lower())
 
     def load_titlescreens(self) -> None:
-        """Load the title screens in the background, starting with the current game."""
-        games = self.games[self.current_game :] + self.games[: self.current_game]
-        self.loader = GameLoader(games)
+        """Load the title screens in the background."""
+        count = len(self.games)
+        order = dict.fromkeys(
+            (self.current_game + sign * step) % count
+            for step in range(count // 2 + 1)
+            for sign in (-1, 1)
+        )
+        self.loader = GameLoader([self.games[i] for i in order])
         self.loader.start()
 
     def stop_loading(self) -> None:
