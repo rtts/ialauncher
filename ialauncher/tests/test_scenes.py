@@ -55,6 +55,17 @@ class TestBrowse(HeadlessTestCase):
         yield key(pg.K_DOWN)
         self.assertEqual(browse.pos, pos + 3)
         self.assertEqual(gamelist.current_game, browse.pos % len(gamelist.games))
+
+        # Moving past the right or left edge scrolls the columns sideways
+        pos = browse.pos
+        for _ in range(3):
+            yield key(pg.K_RIGHT)
+        self.assertEqual(browse.pos, pos + 3)
+        self.assertEqual((browse.pos - browse.top) % 3, 2)
+        for _ in range(3):
+            yield key(pg.K_LEFT)
+        self.assertEqual(browse.pos, pos)
+        self.assertEqual((browse.pos - browse.top) % 3, 0)
         yield key(pg.K_PLUS)
         self.assertEqual(browse.cols, 1)
 

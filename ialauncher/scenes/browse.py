@@ -422,7 +422,11 @@ class Browse(Scene):
         elif event.key in GRID_SMALLER:
             self.resize(cols - 2)
         elif grid and event.key in grid_moves:
-            self.select(self.pos + grid_moves[event.key])
+            move = grid_moves[event.key]
+            col = (self.pos - self.top) % cols
+            if (move, col) in {(1, cols - 1), (-1, 0)}:
+                self.top += move
+            self.select(self.pos + move)
         elif event.key == pg.K_TAB:
             self.show_ready(ready=NEXT_READY[self.gamelist.ready])
             self.message_until = pg.time.get_ticks() + MESSAGE_TIMEOUT
