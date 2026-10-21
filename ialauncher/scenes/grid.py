@@ -32,7 +32,7 @@ GRID_SCROLLS = {
     pg.K_DOWN: (1, 0),
     pg.K_UP: (-1, 0),
 }
-MIN_COLS = 2
+MIN_COLS = 3
 MOUSE_EXPIRED = pg.event.custom_type()
 MOUSE_TIMEOUT = 1000
 MENU_ITEMS = [
@@ -47,7 +47,7 @@ class Grid(Browse):
     """All games in a grid with infinite zoom and infinite scrolling."""
 
     def __init__(self) -> None:
-        """Initialize as a 2-column grid."""
+        """Initialize as a 3-column grid."""
         super().__init__()
         self.cols = MIN_COLS
         self.top = self.pos = gamelist.current_game
