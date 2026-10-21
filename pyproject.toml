@@ -29,6 +29,7 @@ include = [
     "/games/__init__.py",
     "/games/*/metadata.ini",
     "/games/*/title.png",
+    "/games/*/patches/*",
 ]
 
 [tool.hatch.build.targets.wheel]
