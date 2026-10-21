@@ -37,6 +37,7 @@ MESSAGE_TIMEOUT = 1000
 READY_MESSAGES = {None: "All", True: "Favorites", False: "Least favorites"}
 NEXT_READY = {None: True, True: False, False: None}
 ARROW_KEYS = {pg.K_RIGHT, pg.K_LEFT, pg.K_DOWN, pg.K_UP}
+EDGE_KEYS = {pg.K_PAGEUP, pg.K_PAGEDOWN, pg.K_HOME, pg.K_END}
 MENU_FONT = "dejavusans,liberationsans,arial,helvetica,sans"
 MENU_ITEMS = [
     ("Start game", "Enter", 0),
@@ -171,6 +172,26 @@ class Browse(Scene):
                 cell = pg.Rect(x, y, width, height).move(rect.topleft)
                 yield self.top + row * cols + col, cell
             row += 1
+
+    def visible_rows(self) -> range:
+        """Return the rows that are (partly) visible."""
+        last = 1
+        while self.row_top(last) < self.area.height:
+            last += 1
+        return range(last)
+
+    def edge(self, key: int) -> int:
+        """Return the position at the edge of the grid in the key's direction."""
+        cols = self.cols
+        row, col = divmod(self.pos - self.top, cols)
+        rows = self.visible_rows()
+        row, col = {
+            pg.K_PAGEUP: (rows[0], col),
+            pg.K_PAGEDOWN: (rows[-1], col),
+            pg.K_HOME: (row, 0),
+            pg.K_END: (row, cols - 1),
+        }[key]
+        return self.top + row * cols + col
 
     def pixels_to_scroll(self, pos: int) -> int:
         """Return the pixels to scroll (negative is up) to bring pos fully into view.
@@ -382,7 +403,7 @@ class Browse(Scene):
         if added and event.key != pg.K_SPACE:  # Space also jumps to a random game
             return True
         self.navigate(event)
-        if event.key in ARROW_KEYS:
+        if event.key in ARROW_KEYS | EDGE_KEYS:
             self.show_ready(ready=self.gamelist.ready)
         if event.key == pg.K_RETURN and not self.enter_held:
             self.enter_held = True
@@ -427,6 +448,8 @@ class Browse(Scene):
             if (move, col) in {(1, cols - 1), (-1, 0)}:
                 self.top += move
             self.select(self.pos + move)
+        elif grid and event.key in EDGE_KEYS:
+            self.select(self.edge(event.key))
         elif event.key == pg.K_TAB:
             self.show_ready(ready=NEXT_READY[self.gamelist.ready])
             self.message_until = pg.time.get_ticks() + MESSAGE_TIMEOUT
