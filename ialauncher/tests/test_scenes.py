@@ -58,7 +58,7 @@ class TestBrowse(HeadlessTestCase):
         pos, top = grid.pos, grid.top
         yield key(pg.K_DOWN)
         self.assertEqual((grid.pos, grid.top), (pos, top))
-        self.assertGreater(grid.shift, 0)
+        self.assertGreater(grid.scroll_y, 0)
         yield key(pg.K_DOWN)
         self.assertEqual((grid.pos, grid.top), (pos + 3, top + 3))
         self.assertEqual(gamelist.current_game, grid.pos % len(gamelist.games))
@@ -68,7 +68,7 @@ class TestBrowse(HeadlessTestCase):
 
         # Likewise, the first Up only brings the partly obscured top row into view
         yield key(pg.K_UP)
-        self.assertEqual((grid.pos, grid.top, grid.shift), (pos + 3, top + 3, 0))
+        self.assertEqual((grid.pos, grid.top, grid.scroll_y), (pos + 3, top + 3, 0))
         yield key(pg.K_UP)
         self.assertEqual((grid.pos, grid.top), (pos, top))
         yield key(pg.K_PLUS)

@@ -49,7 +49,7 @@ class Grid(Browse):
         super().__init__()
         self.cols = MIN_COLS
         self.top = self.pos = gamelist.current_game
-        self.shift = 0  # TODO(JJ): Rename to scroll()
+        self.scroll_y = 0
         self.cache: dict[tuple[Game, tuple[int, int], int | None], pg.Surface] = {}
         self.menu: Menu | None = None
         self.set_cursor(pg.SYSTEM_CURSOR_HAND)
@@ -99,10 +99,10 @@ class Grid(Browse):
         rows fill the grid without gaps. On a 4:3 screen, as many rows
         as columns fit exactly.
         """
-        return round(row * self.row_height - self.shift)
+        return round(row * self.row_height - self.scroll_y)
 
-    def bottom_shift(self) -> int:
-        """Return the shift that aligns the bottom row with the bottom of the grid."""
+    def bottom_scroll_y(self) -> int:
+        """Return the scroll_y that aligns the bottom row with the bottom edge."""
         height = self.screen.get_height()
         rows = 1
         while round(rows * self.row_height) < height:
@@ -128,7 +128,7 @@ class Grid(Browse):
         # column's left, and each row from its own top to the next
         # row's top, so cells differ in size by at most a pixel, but
         # always fill the grid exactly, without gaps or overlaps. The
-        # top row may be partly scrolled out of view by self.shift,
+        # top row may be partly scrolled out of view by self.scroll_y,
         # and the rows continue until one would start below the
         # bottom edge.
         xs = [width * col // cols for col in range(cols + 1)]
@@ -163,7 +163,7 @@ class Grid(Browse):
         self.cols = cols
         while self.cols > MIN_COLS and min(self.tile_size) < 1:
             self.cols -= 2
-        self.shift = 0
+        self.scroll_y = 0
         self.cache = {}
         self.top = self.pos
         mouse = pg.mouse.get_pos()
@@ -188,14 +188,14 @@ class Grid(Browse):
     def scroll_by(self, rows: int, cols: int = 0) -> None:
         """Scroll infinitely in all directions."""
         if rows > 0:
-            bottom_shift = self.bottom_shift()
-            if self.shift != bottom_shift:
+            bottom_scroll_y = self.bottom_scroll_y()
+            if self.scroll_y != bottom_scroll_y:
                 rows -= 1
-            self.shift = bottom_shift
+            self.scroll_y = bottom_scroll_y
         elif rows < 0:
-            if self.shift:
+            if self.scroll_y:
                 rows += 1
-            self.shift = 0
+            self.scroll_y = 0
 
         # The games form one long line that snakes through the rows,
         # and scrolling sideways slides that line along: scrolling
