@@ -201,9 +201,14 @@ class Game:
             self.config.write(f)
 
     def load_titlescreen(self) -> None:
-        """Create thumbnails."""
+        """Create thumbnails.
+
+        Title screens wider than TITLESCREEN_SIZE keep their original
+        size, and the next thumbnail is scaled down from that directly.
+        """
         image = pg.image.load(self.titlescreen)
-        if image.get_size() != TITLESCREEN_SIZE:
+        width, height = image.get_size()
+        if width <= TITLESCREEN_SIZE[0] and (width, height) != TITLESCREEN_SIZE:
             image = pg.transform.smoothscale(image.convert(24), TITLESCREEN_SIZE)
         self.thumbnails = {TITLESCREEN_SIZE: image}
         image = image.convert(24)
@@ -213,7 +218,6 @@ class Game:
         width, height = TITLESCREEN_SIZE
         while (width, height) != (1, 1):
             width, height = (width + 1) // 2, (height + 1) // 2
-            # TODO(JJ): We're always scaling 2x, so smoothscale is not needed.
             image = pg.transform.smoothscale(image, (width, height))
             self.thumbnails[width, height] = image
 
