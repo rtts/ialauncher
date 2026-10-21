@@ -14,7 +14,7 @@ from ialauncher import engine
 from ialauncher.cheats import cheat
 from ialauncher.engine import NextScene
 from ialauncher.game import EMULATOR_FAILED, Game
-from ialauncher.gamelist import gamelist
+from ialauncher.gamelist import LOADING_FAILED, gamelist
 from ialauncher.utils import find_emulator, gradient, letterbox, sharp_scale, show_error
 
 CYAN = (0, 204, 255)
@@ -39,7 +39,10 @@ class Scene(engine.Scene):
 
     @override
     def intercept(self, event: pg.event.Event) -> bool:
-        """Intercept keystrokes to check for cheats."""
+        """Quit with an error message when a game failed to load."""
+        if event.type == LOADING_FAILED:
+            show_error(event.message)
+            pg.event.post(pg.event.Event(pg.QUIT))
         return cheat(event)
 
 

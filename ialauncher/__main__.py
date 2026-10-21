@@ -7,6 +7,7 @@ import sys
 from . import options
 from .emulator import has_opengl
 from .engine import run
+from .gamelist import gamelist
 from .scenes.loading import Loading
 
 
@@ -57,11 +58,14 @@ def main() -> None:
         options.scummvm_executable = args.scummvm
 
     has_opengl()
-    run(
-        Loading(slurp=args.slurp),
-        title="IA Launcher",
-        fullscreen=options.fullscreen,
-    )
+    try:
+        run(
+            Loading(slurp=args.slurp),
+            title="IA Launcher",
+            fullscreen=options.fullscreen,
+        )
+    finally:
+        gamelist.stop_loading()
 
 
 if __name__ == "__main__":

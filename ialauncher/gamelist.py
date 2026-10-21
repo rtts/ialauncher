@@ -1,9 +1,18 @@
 """The list of games."""
 
 import random
+import traceback
 from pathlib import Path
+from threading import Event, Thread
+from typing import override
+
+import pygame as pg
 
 from .game import Game
+
+GAMES_LOADED = pg.event.custom_type()
+LOADING_FAILED = pg.event.custom_type()
+BATCH_SIZE = 30
 
 
 class Gamelist:
@@ -17,16 +26,26 @@ class Gamelist:
         self.ready: bool | None = None
         self.current_game = 0
         self.query = ""
+        self.loader: GameLoader | None = None
 
-    def add(self, game_dir: Path) -> None:
-        """Add the game in the given directory."""
-        game = Game(game_dir)
-        game.load_titlescreen()
-        self.all_games.append(game)
+    def add(self, game_dir: Path, metadata: dict[str, str] | None = None) -> None:
+        """Add the game in the given directory, without its title screen."""
+        self.all_games.append(Game(game_dir, metadata))
 
     def sort(self) -> None:
         """Sort the games by identifier, ignoring case."""
         self.all_games.sort(key=lambda game: game.identifier.lower())
+
+    def load_titlescreens(self) -> None:
+        """Load the title screens in the background, starting with the current game."""
+        games = self.games[self.current_game :] + self.games[: self.current_game]
+        self.loader = GameLoader(games)
+        self.loader.start()
+
+    def stop_loading(self) -> None:
+        """Stop loading the title screens, if that's still going on."""
+        if self.loader:
+            self.loader.stop()
 
     def show_ready(self, *, ready: bool | None) -> None:
         """Show only the games that are (not) ready to play, or all games (None).
@@ -91,6 +110,42 @@ class Gamelist:
     def random_game(self) -> None:
         """Jump to a random game."""
         self.current_game = random.randrange(len(self.games))  # noqa: S311
+
+
+class GameLoader(Thread):
+    """A thread that loads the title screens of games.
+
+    After every BATCH_SIZE games, and after the last one, it posts
+    GAMES_LOADED, so that the scene draws the new thumbnails.
+    If a title screen can't be loaded, it posts LOADING_FAILED
+    with the traceback, and stops.
+    """
+
+    def __init__(self, games: list[Game]) -> None:
+        """Prepare to load the title screens of the games, in order."""
+        self.games = games
+        self.stopped = Event()
+        super().__init__(daemon=True)
+
+    @override
+    def run(self) -> None:
+        """Load the title screens until all are loaded, or stop() is called."""
+        for count, game in enumerate(self.games, 1):
+            if self.stopped.is_set():
+                return
+            try:
+                game.load_titlescreen()
+            except Exception:  # noqa: BLE001
+                message = f"Failed to load {game.title}\n\n{traceback.format_exc()}"
+                pg.event.post(pg.event.Event(LOADING_FAILED, message=message))
+                return
+            if count % BATCH_SIZE == 0 or count == len(self.games):
+                pg.event.post(pg.event.Event(GAMES_LOADED))
+
+    def stop(self) -> None:
+        """Stop loading, and wait for the title screen being loaded."""
+        self.stopped.set()
+        self.join()
 
 
 gamelist = Gamelist()

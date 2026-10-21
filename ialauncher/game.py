@@ -1,6 +1,7 @@
 """A single game."""
 
 import configparser
+import json
 import shlex
 import shutil
 import ssl
@@ -9,6 +10,7 @@ import traceback
 from collections import deque
 from collections.abc import Callable
 from configparser import RawConfigParser
+from contextlib import suppress
 from pathlib import Path
 from threading import Event, Thread
 from time import monotonic
@@ -38,6 +40,7 @@ QUICK_EXIT = 3
 OUTPUT_LINES = 5
 EMULATOR_FAILED = pg.event.custom_type()
 TITLESCREEN_SIZE = 320, 200
+METADATA_CACHE = "metadata.json"
 
 # Browsers make Windows fetch missing root certificates, Python doesn't.
 CERTIFICATE_HINT = (
@@ -54,7 +57,7 @@ class MetadataError(Exception):
 class Game:
     """A game with metadata and a title screen."""
 
-    def __init__(self, path: Path) -> None:
+    def __init__(self, path: Path, metadata: dict[str, str] | None = None) -> None:
         """Create the game from its metadata, or raise MetadataError."""
         self.path = path
         self.identifier = path.name
@@ -63,19 +66,22 @@ class Game:
         self.thumbnails: dict[tuple[int, int], pg.Surface] = {}
         self.titlescreen = path / "title.png"
         try:
-            self.configure()
+            self.configure(given=metadata)
         except (KeyError, ValueError, configparser.Error) as e:
             reason = f"Missing {e}" if isinstance(e, KeyError) else str(e)
             msg = f"Invalid metadata for {self.identifier}\n\n{reason}"
             raise MetadataError(msg) from e
 
-    def configure(self) -> None:
-        """Read the metadata from metadata.ini, and check for title.png."""
-        if not self.titlescreen.is_file():
-            msg = "Missing title.png"
-            raise ValueError(msg)
+    def configure(self, *, given: dict[str, str] | None) -> None:
+        """Use the given metadata, or read metadata.ini and check for title.png."""
         self.config = RawConfigParser()
-        self.config.read(self.path / "metadata.ini", encoding="utf-8")
+        if given is None:
+            if not self.titlescreen.is_file():
+                msg = "Missing title.png"
+                raise ValueError(msg)
+            self.config.read(self.path / "metadata.ini", encoding="utf-8")
+        else:
+            self.config.read_dict({"metadata": given})
         metadata = self.config["metadata"]
         self.title = metadata["title"]
         self.year = metadata["year"]
@@ -146,7 +152,7 @@ class Game:
             dosbox_args.extend(["-conf", "dosbox.conf"])
 
         # Copy patch files to C:\
-        for file in self.path.glob("patches/*"):
+        for file in filter(Path.is_file, self.path.glob("patches/*")):
             shutil.copy(file, self.gamedir)
 
         if self.emulator_start:
@@ -192,25 +198,31 @@ class Game:
         return thread
 
     def save_emulator_start(self, emulator_start: str) -> None:
-        """Change emulator_start, and save it to metadata.ini."""
+        """Save emulator_start to metadata.ini and the cache."""
         self.emulator_start = emulator_start
         self.config["metadata"]["emulator_start"] = emulator_start
         with (self.path / "metadata.ini").open(
             "w", encoding="utf-8", newline="\n"
         ) as f:
             self.config.write(f)
+        cache = read_metadata_cache(self.path.parent)
+        if self.identifier in cache:
+            cache[self.identifier] = dict(self.config["metadata"])
+            write_metadata_cache(self.path.parent, cache)
 
     def load_titlescreen(self) -> None:
         """Create thumbnails.
 
         Title screens wider than TITLESCREEN_SIZE keep their original
         size, and the next thumbnail is scaled down from that directly.
+        The thumbnails appear all at once, so that another thread can
+        load them while this one draws them.
         """
         image = pg.image.load(self.titlescreen)
         width, height = image.get_size()
         if width <= TITLESCREEN_SIZE[0] and (width, height) != TITLESCREEN_SIZE:
             image = pg.transform.smoothscale(image.convert(24), TITLESCREEN_SIZE)
-        self.thumbnails = {TITLESCREEN_SIZE: image}
+        thumbnails = {TITLESCREEN_SIZE: image}
         image = image.convert(24)
 
         # The thumbnails form a mipmap pyramid, after Lance Williams,
@@ -219,14 +231,16 @@ class Game:
         while (width, height) != (1, 1):
             width, height = (width + 1) // 2, (height + 1) // 2
             image = pg.transform.smoothscale(image, (width, height))
-            self.thumbnails[width, height] = image
+            thumbnails[width, height] = image
+        self.thumbnails = thumbnails
 
-    def get_titlescreen(self, size: tuple[int, int]) -> pg.Surface:
-        """Given the tile size, return the correct thumbnail to use."""
-        for (width, height), thumbnail in reversed(self.thumbnails.items()):
+    def get_titlescreen(self, size: tuple[int, int]) -> pg.Surface | None:
+        """Given the tile size, return the correct thumbnail, if loaded yet."""
+        thumbnails = self.thumbnails
+        for (width, height), thumbnail in reversed(thumbnails.items()):
             if size[0] <= width and size[1] <= height:
                 return thumbnail
-        return self.thumbnails[TITLESCREEN_SIZE]
+        return thumbnails.get(TITLESCREEN_SIZE)
 
     def is_ready(self) -> bool:
         """Return whether the game has been downloaded."""
@@ -476,3 +490,18 @@ class Download(Thread):
         with ISOFile(isofile) as iso:
             for path, sector, size in iso.walk():
                 iso.extract(sector, size, self.gamedir / path)
+
+
+def read_metadata_cache(games_dir: Path) -> dict[str, dict[str, str]]:
+    """Return the cached metadata of all games, or nothing if it can't be read."""
+    try:
+        return json.loads((games_dir / METADATA_CACHE).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+
+
+def write_metadata_cache(games_dir: Path, cache: dict[str, dict[str, str]]) -> None:
+    """Cache the metadata of all games, unless the games are read-only."""
+    with suppress(OSError):
+        file = games_dir / METADATA_CACHE
+        file.write_text(json.dumps(cache, indent=4), encoding="utf-8")

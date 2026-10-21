@@ -325,6 +325,7 @@ class Grid(Browse):
         xs, ys = self.edges()
         rows = len(ys) - 1
         images = []
+        blank = pg.Surface(size)
 
         # Collect the image of each visible game, starting with
         # self.top, but only once per game, even when huge grids show
@@ -336,6 +337,9 @@ class Grid(Browse):
             image = self.cache.get(key)
             if image is None:
                 title = game.get_titlescreen(size)
+                if title is None:
+                    images.append(blank)
+                    continue
                 image = sharp_scale(cga.apply(title), size)
             cache[key] = image
             images.append(image)

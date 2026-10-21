@@ -32,10 +32,12 @@ games: dict[Path, Game] = {}
 add_game = Gamelist.add
 
 
-def add_game_once(gamelist: Gamelist, game_dir: Path) -> None:
+def add_game_once(
+    gamelist: Gamelist, game_dir: Path, metadata: dict[str, str] | None = None
+) -> None:
     """Add a copy of the game, so that only the first test loads it."""
     if game_dir not in games:
-        add_game(gamelist, game_dir)
+        add_game(gamelist, game_dir, metadata)
         games[game_dir] = copy.copy(gamelist.all_games[-1])
     else:
         gamelist.all_games.append(copy.copy(games[game_dir]))

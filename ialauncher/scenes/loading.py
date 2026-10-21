@@ -14,7 +14,7 @@ import pygame as pg
 
 import games as gd
 from ialauncher.engine import NextScene
-from ialauncher.game import MetadataError
+from ialauncher.game import MetadataError, read_metadata_cache
 from ialauncher.gamelist import gamelist
 from ialauncher.utils import show_error
 
@@ -29,11 +29,15 @@ class Loading(TitleScreen):
     """Title screen with progress bar while games are loading."""
 
     def __init__(self, *, slurp: bool = False) -> None:
-        """Find the directories of all games."""
+        """Find all games in the metadata cache, or else in their directories."""
         self.slurp = slurp
         self.games_dir = Path(gd.__file__).parent
-        self.todo = [
-            entry
+        cache = read_metadata_cache(self.games_dir)
+        self.todo: list[tuple[Path, dict[str, str] | None]] = [
+            (self.games_dir / identifier, metadata)
+            for identifier, metadata in cache.items()
+        ] or [
+            (entry, None)
             for entry in self.games_dir.iterdir()
             if (entry / "metadata.ini").exists()
         ]
@@ -73,8 +77,8 @@ class Loading(TitleScreen):
     def load_games(self, number_of_games: int) -> None:
         """Load the next N games."""
         while self.todo and number_of_games:
-            path = self.todo.pop()
-            gamelist.add(path)
+            path, metadata = self.todo.pop()
+            gamelist.add(path, metadata)
             number_of_games -= 1
 
     def download_game(self) -> None:
@@ -85,7 +89,7 @@ class Loading(TitleScreen):
                 return
             self.downloading = None
         if self.todo:
-            path = self.todo.pop()
+            path, _ = self.todo.pop()
             gamelist.add(path)
             self.downloading = gamelist.games[-1]
             self.downloading.download(unzip=False)
@@ -100,7 +104,9 @@ class Loading(TitleScreen):
             )
             return False
         gamelist.sort()
-        return Hero(slideshow=True)
+        hero = Hero(slideshow=True)
+        gamelist.load_titlescreens()
+        return hero
 
     @override
     def update(self, screen: pg.Surface) -> NextScene:

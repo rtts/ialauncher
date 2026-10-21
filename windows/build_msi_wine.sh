@@ -42,6 +42,9 @@ echo "Copying source files ..."
 mkdir "$work/src"
 git ls-files -z | tar --null -T - -cf - | tar -xf - -C "$work/src"
 
+echo "Writing the metadata of all games ..."
+(cd "$work/src" && python3 -c 'import games, pathlib; games.write_metadata(pathlib.Path("games/metadata.json"))')
+
 echo "Downloading DOSBox Staging $STAGING_VERSION ..."
 zip="dosbox-staging-windows-x64-v$STAGING_VERSION.zip"
 curl -sSfL -o "$work/$zip" \
