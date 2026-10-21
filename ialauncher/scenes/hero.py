@@ -30,7 +30,6 @@ class Hero(Browse):
         if slideshow:
             gamelist.random_game()
         self.slideshow_running = slideshow and options.slideshow > 0
-        self.enter_held = False  # To ignore Enter's key repeat.
         self.cache: dict[tuple[Game, tuple[int, int], int | None], pg.Surface] = {}
         self.handlers: dict[int, Callable[[], None]] = {
             pg.K_RIGHT: gamelist.next_game,
@@ -68,12 +67,9 @@ class Hero(Browse):
 
     @override
     def handle(self, event: pg.event.Event) -> NextScene:
-        """Advance the slideshow, and notice when Enter is released."""
+        """Advance the slideshow."""
         if event.type == ADVANCE:
             gamelist.random_game()
-        elif event.type == pg.KEYUP and event.key == pg.K_RETURN:
-            # TODO(JJ): Fix the bug that sometimes causes Enter to stop working.
-            self.enter_held = False
         return super().handle(event)
 
     @override
@@ -94,8 +90,7 @@ class Hero(Browse):
         """Zoom out, start the game, or move to another game."""
         if event.key in GRID_LARGER:
             return grid.Grid()
-        if event.key == pg.K_RETURN and not self.enter_held:
-            self.enter_held = True
+        if event.key == pg.K_RETURN and not event.repeat:
             self.play(event.mod)
         elif handler := self.handlers.get(event.key):
             handler()
