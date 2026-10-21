@@ -90,7 +90,7 @@ class Hero(Browse):
         """Zoom out, start the game, or move to another game."""
         if event.key in GRID_LARGER:
             return grid.Grid()
-        if event.key == pg.K_RETURN and not event.repeat:
+        if event.key == pg.K_RETURN:
             self.play(event.mod)
         elif handler := self.handlers.get(event.key):
             handler()

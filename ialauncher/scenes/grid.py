@@ -231,8 +231,7 @@ class Grid(Browse):
                     self.play(MENU_ITEMS[menu.highlighted][2])
                 return True
             if event.type == pg.KEYDOWN and event.key == pg.K_RETURN:
-                if not event.repeat:
-                    self.play(event.mod)
+                self.play(event.mod)
                 return True
             return event.type == pg.KEYDOWN and event.key == pg.K_ESCAPE
         return False

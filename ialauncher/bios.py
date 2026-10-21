@@ -26,8 +26,7 @@ def kb_int(event: pg.event.Event) -> bool:
         speaker.stop()
     if event.type != pg.KEYDOWN:
         return True
-    event.repeat = event.key in held_keys
-    released = event.repeat and not pg.key.get_pressed()[event.key]
+    released = event.key in held_keys and not pg.key.get_pressed()[event.key]
     held_keys.add(event.key)
     if pg.event.get(pg.KEYDOWN) and not released and event.key == pg.K_MINUS:
         speaker.start()
