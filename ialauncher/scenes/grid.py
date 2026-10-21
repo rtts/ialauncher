@@ -33,6 +33,8 @@ GRID_SCROLLS = {
     pg.K_UP: (-1, 0),
 }
 MIN_COLS = 3
+MOUSE_EXPIRED = pg.event.custom_type()
+MOUSE_TIMEOUT = 1000
 MENU_ITEMS = [
     ("Start game", "Enter", 0),
     ("Reset game state", "Shift-Enter", pg.KMOD_SHIFT),
@@ -52,6 +54,7 @@ class Grid(Browse):
         self.scroll_y = 0
         self.cache: dict[tuple[Game, tuple[int, int], int | None], pg.Surface] = {}
         self.menu: Menu | None = None
+        self.mouse_until = 0
         self.set_cursor(pg.SYSTEM_CURSOR_HAND)
 
     @override
@@ -112,8 +115,8 @@ class Grid(Browse):
     @property
     @override
     def show_mouse(self) -> bool:
-        """Show the mouse pointer."""
-        return True
+        """Show the mouse pointer while the menu is open, or the mouse is used."""
+        return self.menu is not None or pg.time.get_ticks() < self.mouse_until
 
     def edges(self) -> tuple[list[int], list[int]]:
         """Return the x of every column edge and the y of every row edge.
@@ -236,7 +239,12 @@ class Grid(Browse):
 
     @override
     def handle(self, event: pg.event.Event) -> NextScene:
-        """Let the menu handle the event first, if it's open."""
+        """Show the pointer while it's used, and let the menu handle events first."""
+        if event.type in (pg.MOUSEMOTION, pg.MOUSEBUTTONDOWN, pg.MOUSEWHEEL):
+            self.mouse_until = pg.time.get_ticks() + MOUSE_TIMEOUT
+            pg.time.set_timer(MOUSE_EXPIRED, MOUSE_TIMEOUT, loops=1)
+        elif event.type == MOUSE_EXPIRED:
+            self.skip_frame = True
         if self.menu and self.handle_menu(self.menu, event):
             return None
         return super().handle(event)
