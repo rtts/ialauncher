@@ -11,7 +11,6 @@ import pygame as pg
 # - It is 28.1 cents flat of the original IBM PC's power-on beep
 BEEP_FREQUENCY = 882
 BEEP_AMPLITUDE = 4096
-BEEP_DURATION = 0.088
 held_keys: set[int] = set()
 
 
@@ -42,22 +41,16 @@ class Speaker:
     def __init__(self) -> None:
         """Start silent."""
         self.channel: pg.mixer.Channel | None = None
-        self.started = 0
 
     def start(self) -> None:
-        """Beep until stop() is called, unless it's beeping already."""
+        """Start beeping."""
         if self.channel is None and (sound := square_wave()):
             self.channel = sound.play(loops=-1)
-            self.started = pg.time.get_ticks()
 
     def stop(self) -> None:
-        """Stop beeping, but fade out until the beep lasted BEEP_DURATION."""
+        """Stop beeping."""
         if self.channel is not None and pg.mixer.get_init():
-            elapsed = pg.time.get_ticks() - self.started
-            if (remaining := round(BEEP_DURATION * 1000) - elapsed) > 0:
-                self.channel.fadeout(remaining)
-            else:
-                self.channel.stop()
+            self.channel.stop()
         self.channel = None
 
 
