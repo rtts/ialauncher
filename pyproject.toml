@@ -32,9 +32,6 @@ include = [
     "/games/*/patches/*",
 ]
 
-[tool.hatch.build.targets.wheel]
-packages = ["ialauncher", "games"]
-
 [tool.ruff]
 extend-exclude = ["windows"]
 force-exclude = true
