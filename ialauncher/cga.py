@@ -1,5 +1,6 @@
 """Convert to CGA colors."""
 
+from functools import cache
 from weakref import WeakKeyDictionary
 
 import pygame as pg
@@ -64,15 +65,20 @@ class CGA:
         channels = (int.from_bytes(rgb[c::3].translate(LUMA[c])) for c in range(3))
         levels = sum(channels).to_bytes(len(rgb) // 3)
 
-        # Map each brightness to the nearest color of the palette.
-        targets = [(luma(color) + 85 * i) / 2 for i, color in enumerate(colors)]
-        nearest = [
-            min(range(4), key=lambda i: abs(targets[i] - level)) for level in range(256)
-        ]
         indexed = pg.image.frombytes(levels, size, "P")
-        indexed.set_palette([colors[i] for i in nearest])
-
+        indexed.set_palette(nearest_colors(palette))
         return indexed
+
+
+@cache
+def nearest_colors(palette: int) -> list[tuple[int, int, int]]:
+    """Return the nearest color of the palette for each brightness."""
+    colors = PALETTES[palette]
+    targets = [(luma(color) + 85 * i) / 2 for i, color in enumerate(colors)]
+    nearest = [
+        min(range(4), key=lambda i: abs(targets[i] - level)) for level in range(256)
+    ]
+    return [colors[i] for i in nearest]
 
 
 cga = CGA()
