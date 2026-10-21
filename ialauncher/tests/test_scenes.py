@@ -9,7 +9,7 @@ import games as gd
 from ialauncher import bios
 from ialauncher.game import Game
 from ialauncher.gamelist import gamelist
-from ialauncher.scenes import BLACK, WHITE
+from ialauncher.scenes import BLACK, MAGENTA
 from ialauncher.scenes import download as download_scene
 from ialauncher.scenes.download import Download
 from ialauncher.scenes.grid import Grid
@@ -154,25 +154,25 @@ class TestBrowse(HeadlessTestCase):
         self.assertIsNone((yield key(pg.K_ESCAPE)))
 
     def test_filter_drawn(self) -> Script:
-        """The filter is drawn in white on black, centered at the bottom."""
+        """The filter is drawn in black on magenta, centered on the screen."""
         browse = yield from self.wait_for(Hero)
         screen = browse.screen
 
         def assert_drawn(query: str) -> None:
-            width, height = browse.font.size(query)
-            box = pg.Rect(0, 0, width + 32, height + 16)
-            box.midbottom = screen.get_rect().midbottom
+            width, height = browse.message_font.size(query)
+            box = pg.Rect(0, 0, width + 48, height + 32)
+            box.center = screen.get_rect().center
             pixels = [
                 screen.get_at((x, y))[:3]
                 for x in range(box.left, box.right)
                 for y in range(box.top, box.bottom)
             ]
-            self.assertTrue(
-                all(r == g == b for r, g, b in pixels), "not white on black"
-            )
-            self.assertTrue(WHITE in pixels, f"{query!r} is not drawn")
+            self.assertTrue(all(g == 0 for _, g, _ in pixels), "not black on magenta")
+            self.assertTrue(BLACK in pixels, f"{query!r} is not drawn")
             corners = [box.topleft, (box.right - 1, box.bottom - 1)]
-            self.assertEqual([screen.get_at(c)[:3] for c in corners], [BLACK, BLACK])
+            self.assertEqual(
+                [screen.get_at(c)[:3] for c in corners], [MAGENTA, MAGENTA]
+            )
 
         # The filter is centered again whenever it changes
         yield text("Prince")

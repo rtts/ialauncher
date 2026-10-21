@@ -20,7 +20,6 @@ from ialauncher.utils import find_emulator, gradient, letterbox, sharp_scale, sh
 CYAN = (0, 204, 255)
 MAGENTA = (255, 0, 204)
 BLACK = (0, 0, 0)
-WHITE = (255, 255, 255)
 ANTIALIAS = True
 GRID_LARGER = {pg.K_MINUS, pg.K_KP_MINUS}
 GRID_SMALLER = {pg.K_PLUS, pg.K_EQUALS, pg.K_KP_PLUS}
@@ -30,13 +29,9 @@ BLINK = pg.event.custom_type()
 BLINK_INTERVAL = 1000
 MESSAGE_EXPIRED = pg.event.custom_type()
 MESSAGE_TIMEOUT = 1000
-QUERY_EXPIRED = pg.event.custom_type()
-QUERY_TIMEOUT = 1000
 READY_MESSAGES = {None: "All", True: "Favorites", False: "Least favorites"}
 NEXT_READY = {None: True, True: False, False: None}
-MENU_FONT = (
-    "dejavusans,liberationsans,arial,helvetica,sans"  # TODO(JJ): Rename to FONT.
-)
+FONT_FAMILY = "dejavusans,liberationsans,arial,helvetica,sans"
 
 
 class Scene(engine.Scene):
@@ -133,8 +128,8 @@ class Browse(Scene):
 
     def __init__(self) -> None:
         """Initialize."""
+        self.message = ""
         self.message_until = 0
-        self.query_until = 0
         self.skip_frame = False
         self.slideshow_running = False
         self.blinking = False
@@ -156,14 +151,9 @@ class Browse(Scene):
             pg.time.set_timer(BLINK, BLINK_INTERVAL if blinking else 0)
 
     @cached_property
-    def font(self) -> pg.font.Font:
-        """The font of the filter."""
-        return pg.font.SysFont(MENU_FONT, 16)
-
-    @cached_property
     def message_font(self) -> pg.font.Font:
         """The font of the message."""
-        return pg.font.SysFont(MENU_FONT, 20)
+        return pg.font.SysFont(FONT_FAMILY, 20)
 
     def show_ready(self, *, ready: bool | None) -> None:
         """Show only the games that are (not) ready to play, or all games (None)."""
@@ -248,10 +238,16 @@ class Browse(Scene):
         self.skip_frame = True
         return None
 
+    def show_message(self, message: str) -> None:
+        """Show a message that disappears by itself."""
+        self.message = message
+        self.message_until = pg.time.get_ticks() + MESSAGE_TIMEOUT
+        pg.time.set_timer(MESSAGE_EXPIRED, MESSAGE_TIMEOUT, loops=1)
+
     @property
-    def query_visible(self) -> bool:
-        """Whether the query is visible."""
-        return bool(gamelist.query) and pg.time.get_ticks() < self.query_until
+    def message_visible(self) -> bool:
+        """Whether the message is visible."""
+        return pg.time.get_ticks() < self.message_until
 
     def handle_key(self, event: pg.event.Event) -> NextScene:
         """Handle key event.
@@ -270,13 +266,13 @@ class Browse(Scene):
                 return self.escape()
             self.clear_filter()
             return None
+        typing = self.message_visible and self.message == gamelist.query
         new_query = self.typeable(event) and event.key not in COMMAND_KEYS
-        if new_query and gamelist.query and not self.query_visible:
+        if new_query and gamelist.query and not typing:
             self.clear_filter()
-        added = self.filter(event)
+        added = self.filter(event, typing=typing)
         if added:
-            self.query_until = pg.time.get_ticks() + QUERY_TIMEOUT
-            pg.time.set_timer(QUERY_EXPIRED, QUERY_TIMEOUT, loops=1)
+            self.show_message(gamelist.query)
             self.reshow()
         elif new_query:
             return None
@@ -287,23 +283,22 @@ class Browse(Scene):
             self.clear_filter()
         elif event.key == pg.K_TAB:
             self.show_ready(ready=NEXT_READY[gamelist.ready])
-            self.message_until = pg.time.get_ticks() + MESSAGE_TIMEOUT
-            pg.time.set_timer(MESSAGE_EXPIRED, MESSAGE_TIMEOUT, loops=1)
+            self.show_message(READY_MESSAGES[gamelist.ready])
         next_scene = self.navigate(event)
         if event.key in ARROW_KEYS:
             self.show_ready(ready=gamelist.ready)
         return next_scene
 
-    def filter(self, event: pg.event.Event) -> bool:
+    def filter(self, event: pg.event.Event, *, typing: bool) -> bool:
         """Add the typed character to the filter if any game matches.
 
         Space, plus and minus only add to the filter once it has been
-        started with another key, and while it is shown. Return whether
-        the character was added.
+        started with another key, and while it's being typed. Return
+        whether the character was added.
         """
         if not self.typeable(event):
             return False
-        if not self.query_visible and event.key in COMMAND_KEYS:
+        if not typing and event.key in COMMAND_KEYS:
             return False
         return gamelist.add_to_filter(event.unicode)
 
@@ -338,26 +333,13 @@ class Browse(Scene):
         """Draw the game(s)."""
 
     def draw_overlays(self, screen: pg.Surface) -> None:
-        """Draw the filter, the dots, and the message, if any."""
-        if self.query_visible:
-            self.draw_query(screen)
+        """Draw the dots and the message, if any."""
         if self.dot_visible and self.slideshow_running:
             self.draw_dot(screen, MAGENTA, right=True)
         if self.dot_visible and gamelist.query:
             self.draw_dot(screen, CYAN, right=False)
-        if pg.time.get_ticks() < self.message_until:
+        if self.message_visible:
             self.draw_message(screen)
-
-    # TODO(JJ): Use draw_message() for drawing the filter query.
-    def draw_query(
-        self, screen: pg.Surface, padding: tuple[int, int] = (16, 8)
-    ) -> None:
-        """Draw the filter query centered at the bottom of the screen."""
-        image = self.font.render(gamelist.query, ANTIALIAS, WHITE)
-        rect = image.get_rect().inflate(2 * padding[0], 2 * padding[1])
-        rect.midbottom = screen.get_rect().midbottom
-        screen.fill(BLACK, rect)
-        screen.blit(image, image.get_rect(center=rect.center))
 
     def dot_area(self, screen: pg.Surface) -> pg.Rect:
         """Return the area in whose bottom corners the dots are drawn."""
@@ -389,9 +371,8 @@ class Browse(Scene):
     def draw_message(
         self, screen: pg.Surface, padding: tuple[int, int] = (24, 16)
     ) -> None:
-        """Draw which games are shown in the middle of the screen."""
-        message = READY_MESSAGES[gamelist.ready]
-        image = self.message_font.render(message, ANTIALIAS, BLACK)
+        """Draw the message in the middle of the screen."""
+        image = self.message_font.render(self.message, ANTIALIAS, BLACK)
         rect = image.get_rect(center=screen.get_rect().center)
         screen.fill(MAGENTA, rect.inflate(2 * padding[0], 2 * padding[1]))
         screen.blit(image, rect)

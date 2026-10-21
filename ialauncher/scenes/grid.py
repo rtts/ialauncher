@@ -18,10 +18,10 @@ from . import (
     ANTIALIAS,
     BLACK,
     CYAN,
+    FONT_FAMILY,
     GRID_LARGER,
     GRID_SMALLER,
     MAGENTA,
-    MENU_FONT,
     Browse,
     hero,
 )
@@ -78,7 +78,7 @@ class Grid(Browse):
     @cached_property
     def menu_font(self) -> pg.font.Font:
         """The font of the menu."""
-        return pg.font.SysFont(MENU_FONT, 12)
+        return pg.font.SysFont(FONT_FAMILY, 12)
 
     @property
     def row_height(self) -> float:
@@ -346,7 +346,7 @@ class Grid(Browse):
 
     @override
     def draw_overlays(self, screen: pg.Surface) -> None:
-        """Draw the filter, the dot, the message, and the menu, if any."""
+        """Draw the dots, the message, and the menu, if any."""
         super().draw_overlays(screen)
         if self.menu:
             self.menu.draw(screen)
