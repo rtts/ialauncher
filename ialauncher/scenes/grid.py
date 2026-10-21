@@ -222,11 +222,14 @@ class Grid(Browse):
             menu.highlighted = highlighted
             return True
         if event.type in (pg.KEYDOWN, pg.MOUSEBUTTONDOWN, pg.MOUSEWHEEL):
-            # TODO(JJ): Handle Enter and its modifier keys the same way as Hero.
             self.menu = None
             if event.type == pg.MOUSEBUTTONDOWN and event.button == pg.BUTTON_LEFT:
                 if menu.highlighted is not None:
                     self.play(MENU_ITEMS[menu.highlighted][2])
+                return True
+            if event.type == pg.KEYDOWN and event.key == pg.K_RETURN:
+                if not event.repeat:
+                    self.play(event.mod)
                 return True
             return event.type == pg.KEYDOWN and event.key == pg.K_ESCAPE
         return False
