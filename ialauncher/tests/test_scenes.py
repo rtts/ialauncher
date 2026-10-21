@@ -8,10 +8,12 @@ import pygame as pg
 import games as gd
 from ialauncher import bios
 from ialauncher.game import Game
+from ialauncher.gamelist import gamelist
 from ialauncher.scenes import BLACK, WHITE
-from ialauncher.scenes import browse as browse_scene
-from ialauncher.scenes.browse import Browse
+from ialauncher.scenes import download as download_scene
 from ialauncher.scenes.download import Download
+from ialauncher.scenes.grid import Grid
+from ialauncher.scenes.hero import Hero
 from ialauncher.scenes.loading import Loading
 
 from .support import HeadlessTestCase, Script, key, text
@@ -32,8 +34,7 @@ class TestBrowse(HeadlessTestCase):
 
     def test_browse(self) -> Script:
         """Load the games, browse the title screens, and quit with Escape."""
-        browse = yield from self.wait_for(Browse)
-        gamelist = browse.gamelist
+        yield from self.wait_for(Hero)
         self.assertTrue(gamelist.games, "no games with a title screen were loaded")
         start = gamelist.current_game
         following = (start + 1) % len(gamelist.games)
@@ -49,25 +50,29 @@ class TestBrowse(HeadlessTestCase):
         yield key(pg.K_UP)
         self.assertEqual(gamelist.current_game, start)
 
+        # In grid view, the arrow keys scroll, keeping the selected cell.
+        # The first Down only brings the partly obscured bottom row into view.
         yield key(pg.K_MINUS)
-        self.assertEqual(browse.cols, 3)
-        pos = browse.pos
+        grid = yield from self.wait_for(Grid)
+        self.assertEqual(grid.cols, 3)
+        pos, top = grid.pos, grid.top
         yield key(pg.K_DOWN)
-        self.assertEqual(browse.pos, pos + 3)
-        self.assertEqual(gamelist.current_game, browse.pos % len(gamelist.games))
+        self.assertEqual((grid.pos, grid.top), (pos, top))
+        self.assertGreater(grid.shift, 0)
+        yield key(pg.K_DOWN)
+        self.assertEqual((grid.pos, grid.top), (pos + 3, top + 3))
+        self.assertEqual(gamelist.current_game, grid.pos % len(gamelist.games))
+        yield key(pg.K_RIGHT)
+        self.assertEqual((grid.pos, grid.top), (pos + 4, top + 4))
+        yield key(pg.K_LEFT)
 
-        # Moving past the right or left edge scrolls the columns sideways
-        pos = browse.pos
-        for _ in range(3):
-            yield key(pg.K_RIGHT)
-        self.assertEqual(browse.pos, pos + 3)
-        self.assertEqual((browse.pos - browse.top) % 3, 2)
-        for _ in range(3):
-            yield key(pg.K_LEFT)
-        self.assertEqual(browse.pos, pos)
-        self.assertEqual((browse.pos - browse.top) % 3, 0)
+        # Likewise, the first Up only brings the partly obscured top row into view
+        yield key(pg.K_UP)
+        self.assertEqual((grid.pos, grid.top, grid.shift), (pos + 3, top + 3, 0))
+        yield key(pg.K_UP)
+        self.assertEqual((grid.pos, grid.top), (pos, top))
         yield key(pg.K_PLUS)
-        self.assertEqual(browse.cols, 1)
+        yield from self.wait_for(Hero)
 
         yield text("prince")
         self.assertEqual(gamelist.query, "prince")
@@ -78,8 +83,7 @@ class TestBrowse(HeadlessTestCase):
 
     def test_filter(self) -> Script:
         """Typing filters the games on a substring of their identifier."""
-        browse = yield from self.wait_for(Browse)
-        gamelist = browse.gamelist
+        yield from self.wait_for(Hero)
         library = {
             entry.name
             for entry in Path(gd.__file__).parent.iterdir()
@@ -119,9 +123,9 @@ class TestBrowse(HeadlessTestCase):
 
         # Minus and plus zoom when they match no game
         yield text("-")
-        self.assertEqual(browse.cols, 3)
+        yield from self.wait_for(Grid)
         yield text("+")
-        self.assertEqual(browse.cols, 1)
+        yield from self.wait_for(Hero)
         self.assertEqual(gamelist.query, "PRINCE of p")
 
         # Backspace erases the entire filter
@@ -132,7 +136,7 @@ class TestBrowse(HeadlessTestCase):
         # Without a filter, minus zooms, even though it matches games
         self.assertTrue(matching("-"))
         yield text("-")
-        self.assertEqual(browse.cols, 3)
+        grid = yield from self.wait_for(Grid)
         self.assertEqual(gamelist.query, "")
 
         # Any character can be filtered on, if a game matches it
@@ -141,19 +145,17 @@ class TestBrowse(HeadlessTestCase):
         self.assertEqual(shown(), matching("&"))
         self.assertIn("Apples & Oranges", shown())
 
-        # Escape erases the filter, then switches the grid to 1x1, then quits
-        self.assertEqual(browse.cols, 3)
-        yield key(pg.K_ESCAPE)
+        # Escape erases the filter, then switches the grid to Hero, then quits
+        self.assertIs((yield key(pg.K_ESCAPE)), grid)
         self.assertEqual(gamelist.query, "")
         self.assertEqual(shown(), library)
-        self.assertEqual(browse.cols, 3)
         yield key(pg.K_ESCAPE)
-        self.assertEqual(browse.cols, 1)
+        yield from self.wait_for(Hero)
         self.assertIsNone((yield key(pg.K_ESCAPE)))
 
     def test_filter_drawn(self) -> Script:
         """The filter is drawn in white on black, centered at the bottom."""
-        browse = yield from self.wait_for(Browse)
+        browse = yield from self.wait_for(Hero)
         screen = browse.screen
 
         def assert_drawn(query: str) -> None:
@@ -182,7 +184,7 @@ class TestBrowse(HeadlessTestCase):
 
     def test_no_downloads(self) -> Script:
         """Pressing Enter fails the test instead of downloading or starting a game."""
-        yield from self.wait_for(Browse)
+        yield from self.wait_for(Hero)
         with self.assertRaisesRegex(AssertionError, "tried to"):
             yield key(pg.K_RETURN)
 
@@ -193,7 +195,7 @@ class TestBrowse(HeadlessTestCase):
             mock.patch.object(speaker, "start", wraps=speaker.start)
         )
         stop = self.enterContext(mock.patch.object(speaker, "stop", wraps=speaker.stop))
-        browse = yield from self.wait_for(Browse)
+        yield from self.wait_for(Hero)
         minus, release = key(pg.K_MINUS)
 
         # The text input of each repeat would pile up too, so it's blocked
@@ -201,6 +203,7 @@ class TestBrowse(HeadlessTestCase):
 
         # While the key is held, each repeat zooms out
         yield minus
+        browse = yield from self.wait_for(Grid)
         yield minus
         self.assertEqual(browse.cols, 5)
         start.assert_not_called()
@@ -237,8 +240,9 @@ class TestBrowse(HeadlessTestCase):
         start = self.enterContext(
             mock.patch.object(speaker, "start", wraps=speaker.start)
         )
-        browse = yield from self.wait_for(Browse)
+        yield from self.wait_for(Hero)
         yield key(pg.K_MINUS) * 4
+        browse = yield from self.wait_for(Grid)
         self.assertEqual(browse.cols, 3)
         start.assert_called_once()
 
@@ -259,11 +263,11 @@ class TestBrowse(HeadlessTestCase):
 
         self.enterContext(mock.patch.object(Game, "is_ready", return_value=False))
         self.enterContext(mock.patch.object(Game, "download", download))
-        yield from self.wait_for(Browse)
+        yield from self.wait_for(Hero)
         yield key(pg.K_RETURN)
         yield from self.wait_for(Download)
 
-        # Download runs inside Browse, which must quit too
+        # Download runs inside Hero, which must quit too
         self.assertIsNone((yield pg.event.Event(pg.QUIT)))
         thread.cancel.assert_called_once()
 
@@ -282,9 +286,8 @@ class TestBrowse(HeadlessTestCase):
                 Game, "reset", lambda game: ready.discard(game.identifier)
             )
         )
-        self.enterContext(mock.patch.object(browse_scene, "Download", download))
-        browse = yield from self.wait_for(Browse)
-        gamelist = browse.gamelist
+        self.enterContext(mock.patch.object(download_scene, "Download", download))
+        yield from self.wait_for(Hero)
         total = len(gamelist.games)
 
         def current() -> str:
@@ -342,7 +345,7 @@ class TestBrowse(HeadlessTestCase):
         start = mock.Mock(return_value=emulator)
         self.enterContext(mock.patch.object(Game, "is_ready", return_value=True))
         self.enterContext(mock.patch.object(Game, "start", start))
-        yield from self.wait_for(Browse)
+        yield from self.wait_for(Hero)
         enter, release = key(pg.K_RETURN)
 
         # Holding Enter starts the game once, even after the emulator exits

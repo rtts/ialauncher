@@ -15,11 +15,11 @@ import pygame as pg
 import games as gd
 from ialauncher.engine import NextScene
 from ialauncher.game import MetadataError
-from ialauncher.gamelist import Gamelist
+from ialauncher.gamelist import gamelist
 from ialauncher.utils import show_error
 
 from . import TitleScreen
-from .browse import Browse
+from .hero import Hero
 
 if TYPE_CHECKING:
     from ialauncher.game import Game
@@ -39,7 +39,6 @@ class Loading(TitleScreen):
         ]
         self.total = len(self.todo)
         self.downloading: Game | None = None
-        self.gamelist = Gamelist()
         super().__init__()
 
     @override
@@ -75,7 +74,7 @@ class Loading(TitleScreen):
         """Load the next N games."""
         while self.todo and number_of_games:
             path = self.todo.pop()
-            self.gamelist.add(path)
+            gamelist.add(path)
             number_of_games -= 1
 
     def download_game(self) -> None:
@@ -87,21 +86,21 @@ class Loading(TitleScreen):
             self.downloading = None
         if self.todo:
             path = self.todo.pop()
-            self.gamelist.add(path)
-            self.downloading = self.gamelist.games[-1]
+            gamelist.add(path)
+            self.downloading = gamelist.games[-1]
             self.downloading.download(unzip=False)
 
     def done(self) -> NextScene:
         """Choose the next scene."""
         if self.slurp:
             return False
-        if not self.gamelist.games:
+        if not gamelist.games:
             show_error(
                 f"No games were found!\n\nThere are no games in {self.games_dir}"
             )
             return False
-        self.gamelist.sort()
-        return Browse(self.gamelist)
+        gamelist.sort()
+        return Hero(slideshow=True)
 
     @override
     def update(self, screen: pg.Surface) -> NextScene:

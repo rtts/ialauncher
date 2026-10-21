@@ -59,6 +59,7 @@ class Game:
         self.path = path
         self.identifier = path.name
         self.download_thread: Download | None = None
+        self.emulator: Emulator | None = None
         self.thumbnails: dict[tuple[int, int], pg.Surface] = {}
         self.titlescreen = path / "title.png"
         try:
@@ -212,6 +213,7 @@ class Game:
         width, height = TITLESCREEN_SIZE
         while (width, height) != (1, 1):
             width, height = (width + 1) // 2, (height + 1) // 2
+            # TODO(JJ): We're always scaling 2x, so smoothscale is not needed.
             image = pg.transform.smoothscale(image, (width, height))
             self.thumbnails[width, height] = image
 

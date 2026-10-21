@@ -19,7 +19,7 @@ from ialauncher import __main__, bios, engine, options
 from ialauncher.cga import cga
 from ialauncher.cheats import cheats
 from ialauncher.game import Game
-from ialauncher.gamelist import Gamelist
+from ialauncher.gamelist import Gamelist, gamelist
 
 type Step = pg.event.Event | list[pg.event.Event] | None
 type Script = Generator[Step, engine.Scene | None, None]
@@ -112,6 +112,7 @@ class HeadlessTestCase(unittest.TestCase):
         self.enterContext(mock.patch.object(sys, "argv", list(self.argv)))
         self.enterContext(mock.patch.object(Game, "get_emulator", return_value=[]))
         self.enterContext(mock.patch.object(Gamelist, "add", add_game_once))
+        vars(gamelist).update(vars(Gamelist()))  # Start each test with no games
         for method in ("download", "start"):
             error = AssertionError(f"The app tried to {method} a game")
             self.enterContext(mock.patch.object(Game, method, side_effect=error))

@@ -53,7 +53,7 @@ Special Keys
 - Arrow keys: navigate through the games list
 - A-Z: start filtering
 - Backspace: clear the filter
-- Enter: launch the selected game
+- Enter or click: launch the game
 - Shift-Enter: reset game state before starting game
 - Alt-Enter: open DOSBox without starting the game
 - Ctrl-Enter: toggle whether the selected game is one of your favorites

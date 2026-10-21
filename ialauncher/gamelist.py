@@ -46,6 +46,8 @@ class Gamelist:
         """Show the given games; keep the current game, or select the next one."""
         current = self.get_current_game().identifier.lower()
         self.games = games
+
+        # TODO(JJ): Explain.
         self.current_game = next(
             (i for i, g in enumerate(self.games) if g.identifier.lower() >= current),
             0,
@@ -89,3 +91,6 @@ class Gamelist:
     def random_game(self) -> None:
         """Jump to a random game."""
         self.current_game = random.randrange(len(self.games))  # noqa: S311
+
+
+gamelist = Gamelist()
