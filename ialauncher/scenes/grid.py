@@ -3,6 +3,7 @@
 from collections.abc import Iterator
 from contextlib import suppress
 from functools import cached_property
+from itertools import pairwise, repeat
 from typing import override
 
 import pygame as pg
@@ -114,21 +115,41 @@ class Grid(Browse):
         """Show the mouse pointer."""
         return True
 
+    def edges(self) -> tuple[list[int], list[int]]:
+        """Return the x of every column edge and the y of every row edge.
+
+        Both lists start with the left or top edge of the first column
+        or row, and end with the right or bottom edge of the last one.
+        """
+        width, height = self.screen.get_size()
+        cols = self.cols
+
+        # Each column spans from width * col // cols to the next
+        # column's left, and each row from its own top to the next
+        # row's top, so cells differ in size by at most a pixel, but
+        # always fill the grid exactly, without gaps or overlaps. The
+        # top row may be partly scrolled out of view by self.shift,
+        # and the rows continue until one would start below the
+        # bottom edge.
+        xs = [width * col // cols for col in range(cols + 1)]
+        ys = [self.row_top(0)]
+        while ys[-1] < height:
+            ys.append(self.row_top(len(ys)))
+        return xs, ys
+
     def cells(self) -> Iterator[tuple[int, pg.Rect]]:
         """Yield the position and rectangle of every (partly) visible cell."""
-        rect = self.screen.get_rect()
+        xs, ys = self.edges()
         cols = self.cols
-        row = 0
 
-        # TODO(JJ): Explain.
-        while (y := self.row_top(row)) < rect.height:
-            height = self.row_top(row + 1) - y
-            for col in range(cols):
-                x = rect.width * col // cols
-                width = rect.width * (col + 1) // cols - x
-                cell = pg.Rect(x, y, width, height)
+        # The cells are numbered left to right, row by row, starting
+        # with self.top in the top left corner, and wrap around the
+        # list of games, so that position pos shows the game at
+        # pos % len(games).
+        for row, (y, next_y) in enumerate(pairwise(ys)):
+            for col, (x, next_x) in enumerate(pairwise(xs)):
+                cell = pg.Rect(x, y, next_x - x, next_y - y)
                 yield self.top + row * cols + col, cell
-            row += 1
 
     def zoom(self, cols: int) -> NextScene:
         """Change the number of columns or hand over to the Hero scene."""
@@ -166,7 +187,6 @@ class Grid(Browse):
 
     def scroll_by(self, rows: int, cols: int = 0) -> None:
         """Scroll infinitely in all directions."""
-        # TODO(JJ): Explain.
         if rows > 0:
             bottom_shift = self.bottom_shift()
             if self.shift != bottom_shift:
@@ -176,6 +196,12 @@ class Grid(Browse):
             if self.shift:
                 rows += 1
             self.shift = 0
+
+        # The games form one long line that snakes through the rows,
+        # and scrolling sideways slides that line along: scrolling
+        # right moves every game one cell to the left, and the first
+        # game of each row to the end of the row above it. Scrolling
+        # left does the opposite.
         delta = rows * self.cols + cols
         self.top += delta
         self.select(self.pos + delta)
@@ -274,23 +300,48 @@ class Grid(Browse):
 
     @override
     def draw(self, screen: pg.Surface) -> None:
-        """Draw the grid."""
+        """Draw the grid, one row at a time.
+
+        Look up each visible game's image once, even when huge grids
+        show the games more than once, then draw each row with one
+        fblits() call.
+        """
         if min(self.tile_size) < 1:
             self.resize(self.cols)
         games = gamelist.games
         cache: dict[tuple[Game, tuple[int, int], int | None], pg.Surface] = {}
-        size = self.tile_size
-        for pos, cell in self.cells():
-            image_rect = pg.Rect((0, 0), size)
-            image_rect.center = cell.center
+        size = width, height = self.tile_size
+        cols = self.cols
+        xs, ys = self.edges()
+        rows = len(ys) - 1
+        images = []
+
+        # Collect the image of each visible game, starting with
+        # self.top, but only once per game, even when huge grids show
+        # the games more than once. Reuse the last frame's images, and
+        # cache only these.
+        for pos in range(self.top, self.top + min(rows * cols, len(games))):
             game = games[pos % len(games)]
-            key = game, image_rect.size, cga.palette
-            image = cache.get(key, self.cache.get(key))
+            key = game, size, cga.palette
+            image = self.cache.get(key)
             if image is None:
-                title = game.get_titlescreen(image_rect.size)
-                image = sharp_scale(cga.apply(title), image_rect.size)
+                title = game.get_titlescreen(size)
+                image = sharp_scale(cga.apply(title), size)
             cache[key] = image
-            screen.blit(image, image_rect)
+            images.append(image)
+
+        # Repeat the list, so each row is one slice of it, even if the
+        # row wraps past the last game, or there are fewer games than
+        # columns.
+        images *= cols // len(images) + 2
+
+        # Same algorithm as cells(), see the explanation there.
+        lefts = [x + (next_x - x) // 2 - width // 2 for x, next_x in pairwise(xs)]
+        for row, (y, next_y) in enumerate(pairwise(ys)):
+            top = y + (next_y - y) // 2 - height // 2
+            start = row * cols % len(games)
+            row_images = images[start : start + cols]
+            screen.fblits(zip(row_images, zip(lefts, repeat(top)), strict=True))
         self.cache = cache
 
     @override

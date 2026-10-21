@@ -62,8 +62,7 @@ def gradient(
 def show_error(message: str) -> None:
     """Show the error to the user."""
     print(message)
-    if hasattr(pg.display, "message_box"):  # n/a in pygame
-        pg.display.message_box("IA Launcher", message, message_type="error")
+    pg.display.message_box("IA Launcher", message, message_type="error")
 
 
 def find_emulator(game: "Game") -> bool:

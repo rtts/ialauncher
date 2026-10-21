@@ -54,13 +54,6 @@ def finish_sound() -> None:
         pg.time.wait(10)
 
 
-# In the original pygame, pg.event.peek() has a reference-counting bug
-# that causes a use-after-free that segfaults Python, hence the
-# requirement to run the tests with pygame-ce.
-if not getattr(pg, "IS_CE", False):
-    sys.exit("You need pygame-ce to run the unittests.")
-
-
 def key(key: int, mod: int = pg.KMOD_NONE, unicode: str = "") -> list[pg.event.Event]:
     """Return the events of pressing and releasing a key."""
     return [
