@@ -32,7 +32,7 @@ GRID_SCROLLS = {
     pg.K_DOWN: (1, 0),
     pg.K_UP: (-1, 0),
 }
-MIN_COLS = 3
+MIN_COLS = 2
 MOUSE_EXPIRED = pg.event.custom_type()
 MOUSE_TIMEOUT = 1000
 MENU_ITEMS = [
@@ -47,7 +47,7 @@ class Grid(Browse):
     """All games in a grid with infinite zoom and infinite scrolling."""
 
     def __init__(self) -> None:
-        """Initialize as a 3-column grid."""
+        """Initialize as a 2-column grid."""
         super().__init__()
         self.cols = MIN_COLS
         self.top = self.pos = gamelist.current_game
@@ -165,7 +165,7 @@ class Grid(Browse):
         """Change the number of columns, keeping the selected game under the pointer."""
         self.cols = cols
         while self.cols > MIN_COLS and min(self.tile_size) < 1:
-            self.cols -= 2
+            self.cols -= 1
         self.scroll_y = 0
         self.cache = {}
         self.top = self.pos
@@ -274,7 +274,7 @@ class Grid(Browse):
         """Zoom with Ctrl and the mouse wheel, or scroll with the wheel alone."""
         if pg.key.get_mods() & pg.KMOD_CTRL:
             if event.y:
-                return self.zoom(self.cols - 2 * event.y)
+                return self.zoom(self.cols - event.y)
         elif event.x or event.y:
             self.scroll_by(-event.y, event.x)
         return None
@@ -290,9 +290,9 @@ class Grid(Browse):
         if event.key == pg.K_SPACE:
             return hero.Hero(slideshow=True)
         if event.key in GRID_LARGER:
-            return self.zoom(self.cols + 2)
+            return self.zoom(self.cols + 1)
         if event.key in GRID_SMALLER:
-            return self.zoom(self.cols - 2)
+            return self.zoom(self.cols - 1)
         if event.key in GRID_SCROLLS:
             self.scroll_by(*GRID_SCROLLS[event.key])
         return None
