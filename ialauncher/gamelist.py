@@ -79,9 +79,17 @@ class Gamelist:
         )
 
     def matching(self, query: str) -> list[Game]:
-        """Return the ready games whose identifier contains the query, ignoring case."""
+        """Return the ready games whose identifier contains the query, ignoring case.
+
+        Games whose year starts with the query match as well, so that
+        typing a year shows all games from that year.
+        """
         query = query.lower()
-        return [g for g in self.ready_games if query in g.identifier.lower()]
+        return [
+            g
+            for g in self.ready_games
+            if query in g.identifier.lower() or g.year.startswith(query)
+        ]
 
     def add_to_filter(self, char: str) -> bool:
         """Add a character to the filter, unless no ready game would match.

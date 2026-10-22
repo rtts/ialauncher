@@ -133,6 +133,13 @@ class TestBrowse(HeadlessTestCase):
         self.assertEqual(gamelist.query, "")
         self.assertEqual(shown(), library)
 
+        # A year also matches the games from that year
+        yield text("1989")
+        from_1989 = {g.identifier for g in gamelist.all_games if g.year == "1989"}
+        self.assertEqual(shown(), from_1989 | matching("1989"))
+        self.assertIn("Sim City", shown())
+        yield key(pg.K_BACKSPACE)
+
         # Without a filter, minus zooms, even though it matches games
         self.assertTrue(matching("-"))
         yield text("-")
