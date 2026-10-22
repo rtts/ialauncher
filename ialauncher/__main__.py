@@ -27,7 +27,13 @@ def main() -> None:
         "--slideshow",
         type=int,
         metavar="X",
-        help="Focus on a random title screen every X seconds",
+        help="Advance the slideshow every X seconds (default 10, 0 to disable)",
+    )
+    parser.add_argument(
+        "--idle",
+        type=int,
+        metavar="X",
+        help="Start the screensaver after X seconds (default 60, 0 to disable)",
     )
     parser.add_argument(
         "--fullscreen",
@@ -72,6 +78,8 @@ def main() -> None:
         options.fullscreen = args.fullscreen
     if args.slideshow is not None:
         options.slideshow = args.slideshow
+    if args.idle is not None:
+        options.idle = args.idle
     if args.dosbox is not None:
         options.dosbox_executable = args.dosbox
     if args.scummvm is not None:

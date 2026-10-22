@@ -10,7 +10,7 @@ from typing import override
 
 import pygame as pg
 
-from ialauncher import engine
+from ialauncher import engine, options
 from ialauncher.cheats import cheat
 from ialauncher.engine import NextScene
 from ialauncher.game import EMULATOR_FAILED, Game
@@ -28,7 +28,6 @@ ARROW_KEYS = {pg.K_RIGHT, pg.K_LEFT, pg.K_DOWN, pg.K_UP}
 BLINK = pg.event.custom_type()
 BLINK_INTERVAL = 1000
 IDLE = pg.event.custom_type()
-IDLE_TIMEOUT = 60_000
 INPUT_EVENTS = {pg.KEYDOWN, pg.MOUSEMOTION, pg.MOUSEBUTTONDOWN, pg.MOUSEWHEEL}
 MESSAGE_EXPIRED = pg.event.custom_type()
 MESSAGE_TIMEOUT = 1000
@@ -146,7 +145,7 @@ class Browse(Scene):
     def run(self, screen: pg.Surface) -> NextScene:
         """Restart the blink and idle timers."""
         self.blink(restart=True)
-        pg.time.set_timer(IDLE, IDLE_TIMEOUT)
+        pg.time.set_timer(IDLE, options.idle * 1000)
         return super().run(screen)
 
     def blink(self, *, restart: bool = False) -> None:
@@ -225,7 +224,7 @@ class Browse(Scene):
 
         next_scene = None
         if event.type in INPUT_EVENTS:
-            pg.time.set_timer(IDLE, IDLE_TIMEOUT)
+            pg.time.set_timer(IDLE, options.idle * 1000)
         if event.type == IDLE:
             next_scene = None if self.slideshow_running else Starfield(self)
         elif event.type == BLINK:
