@@ -3,10 +3,14 @@
 import argparse
 import io
 import sys
+from pathlib import Path
+
+import games
 
 from . import options
 from .emulator import has_opengl
 from .engine import run
+from .game import Game, write_metadata_cache
 from .gamelist import gamelist
 from .scenes.loading import Loading
 
@@ -46,7 +50,23 @@ def main() -> None:
         action="store_true",
         help=argparse.SUPPRESS,
     )
+    parser.add_argument(
+        "--build-cache",
+        action="store_true",
+        help="Build metadata cache (for faster startup!)",
+    )
     args = parser.parse_args()
+
+    if args.build_cache:
+        games_dir = Path(games.__file__).parent
+        cache = {
+            path.name: dict(Game(path).config["metadata"])
+            for path in games_dir.iterdir()
+            if (path / "metadata.ini").exists()
+        }
+        write_metadata_cache(games_dir, cache)
+        print("Done!")
+        return
 
     if args.fullscreen is not None:
         options.fullscreen = args.fullscreen
