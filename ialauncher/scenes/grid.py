@@ -24,7 +24,6 @@ from . import (
     MAGENTA,
     Browse,
     hero,
-    starfield,
 )
 
 GRID_SCROLLS = {
@@ -156,15 +155,11 @@ class Grid(Browse):
                 yield self.top + row * cols + col, cell
 
     def zoom(self, cols: int) -> NextScene:
-        """Change the number of columns or hand over the Hero.
-
-        Under exceptional circumstances, hand over to Starfield.
-        """
+        """Change the number of columns or hand over to Hero."""
         if cols < MIN_COLS:
             return hero.Hero()
-        old_cols = self.cols
         self.resize(cols)
-        return starfield.Starfield() if cols > self.cols == old_cols else None
+        return None
 
     def resize(self, cols: int) -> None:
         """Change the number of columns, keeping the selected game under the pointer."""

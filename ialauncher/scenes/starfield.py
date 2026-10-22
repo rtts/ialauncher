@@ -10,7 +10,7 @@ from ialauncher.engine import NextScene
 from ialauncher.gamelist import gamelist
 from ialauncher.utils import sharp_scale
 
-from . import BLACK, GRID_LARGER, Scene, hero
+from . import BLACK, INPUT_EVENTS, Scene
 
 DENSITY = 100
 WARP = 1
@@ -20,9 +20,10 @@ GROWTH_FACTOR = (1 + 5**0.5) / 2  # φ
 class Starfield(Scene):
     """Starfield Simulation."""
 
-    def __init__(self) -> None:
-        """Initialize."""
+    def __init__(self, referrer: Scene) -> None:
+        """Remember the scene to hand back to."""
         super().__init__()
+        self.referrer = referrer
         self.stars: list[list] = []
 
     def star(self) -> list:
@@ -35,13 +36,8 @@ class Starfield(Scene):
 
     @override
     def handle(self, event: pg.event.Event) -> NextScene:
-        """Go back to Hero."""
-        if event.type == pg.MOUSEMOTION or (
-            event.type == pg.KEYDOWN
-            and event.key not in {*GRID_LARGER, pg.K_LCTRL, pg.K_RCTRL}
-        ):
-            return hero.Hero()
-        return None
+        """Hand back to the referrer on any input."""
+        return self.referrer if event.type in INPUT_EVENTS else None
 
     @override
     def update(self, screen: pg.Surface) -> NextScene:
