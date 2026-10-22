@@ -72,7 +72,7 @@ to IA Launcher.
 Troubleshooting
 ---------------
 
-### Help, my game doesn't run correctly / has no sound!
+### Help! My game doesn't run correctly / has no sound!
 
 Welcome to the world of MS-DOS where you are constantly fighting with
 IRQ values, memory managers and setup programs. Thankfully, the
@@ -98,7 +98,7 @@ IRQ: 7\
 DMA: 1
 
 
-### Help, my game doesn't run at all!
+### Help! My game doesn't run at all!
 
 Each game's metadata, including the command that starts the game, is
 stored in the game's `metadata.ini` file. In many cases IA Launcher
