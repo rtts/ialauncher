@@ -54,21 +54,21 @@ class TestBrowse(HeadlessTestCase):
         # The first Down only brings the partly obscured bottom row into view.
         yield key(pg.K_MINUS)
         grid = yield from self.wait_for(Grid)
-        self.assertEqual(grid.cols, 3)
+        self.assertEqual(grid.cols, 2)
         pos, top = grid.pos, grid.top
         yield key(pg.K_DOWN)
         self.assertEqual((grid.pos, grid.top), (pos, top))
         self.assertGreater(grid.scroll_y, 0)
         yield key(pg.K_DOWN)
-        self.assertEqual((grid.pos, grid.top), (pos + 3, top + 3))
+        self.assertEqual((grid.pos, grid.top), (pos + 2, top + 2))
         self.assertEqual(gamelist.current_game, grid.pos % len(gamelist.games))
         yield key(pg.K_RIGHT)
-        self.assertEqual((grid.pos, grid.top), (pos + 4, top + 4))
+        self.assertEqual((grid.pos, grid.top), (pos + 3, top + 3))
         yield key(pg.K_LEFT)
 
         # Likewise, the first Up only brings the partly obscured top row into view
         yield key(pg.K_UP)
-        self.assertEqual((grid.pos, grid.top, grid.scroll_y), (pos + 3, top + 3, 0))
+        self.assertEqual((grid.pos, grid.top, grid.scroll_y), (pos + 2, top + 2, 0))
         yield key(pg.K_UP)
         self.assertEqual((grid.pos, grid.top), (pos, top))
         yield key(pg.K_PLUS)
@@ -205,32 +205,32 @@ class TestBrowse(HeadlessTestCase):
         yield minus
         browse = yield from self.wait_for(Grid)
         yield minus
-        self.assertEqual(browse.cols, 4)
+        self.assertEqual(browse.cols, 3)
         start.assert_not_called()
 
         # When repeats pile up, all but the current one are dropped, and it
         # beeps for as long as they keep piling up
         yield [minus] * 5
-        self.assertEqual(browse.cols, 5)
+        self.assertEqual(browse.cols, 4)
         stop.reset_mock()  # It was called while silent, which does nothing
         yield [minus] * 5
-        self.assertEqual(browse.cols, 6)
+        self.assertEqual(browse.cols, 5)
         self.assertEqual(start.call_count, 2)
         stop.assert_not_called()
 
         # A repeat with no others queued behind it stops the beep
         yield minus
-        self.assertEqual(browse.cols, 7)
+        self.assertEqual(browse.cols, 6)
         stop.assert_called_once()
 
         # Once the key is released, its queued repeats are dropped silently
         yield [minus, minus, release]
-        self.assertEqual(browse.cols, 7)
+        self.assertEqual(browse.cols, 6)
         self.assertEqual(start.call_count, 2)
 
         # But a short press always counts, however slow the frame
         yield key(pg.K_MINUS)
-        self.assertEqual(browse.cols, 8)
+        self.assertEqual(browse.cols, 7)
         yield key(pg.K_ESCAPE)
         self.assertIsNone((yield key(pg.K_ESCAPE)))
 
@@ -243,12 +243,12 @@ class TestBrowse(HeadlessTestCase):
         yield from self.wait_for(Hero)
         yield key(pg.K_MINUS) * 4
         browse = yield from self.wait_for(Grid)
-        self.assertEqual(browse.cols, 3)
+        self.assertEqual(browse.cols, 2)
         start.assert_called_once()
 
         # A single tap still counts, without a beep
         yield key(pg.K_MINUS)
-        self.assertEqual(browse.cols, 4)
+        self.assertEqual(browse.cols, 3)
         start.assert_called_once()
         yield key(pg.K_ESCAPE)
         self.assertIsNone((yield key(pg.K_ESCAPE)))

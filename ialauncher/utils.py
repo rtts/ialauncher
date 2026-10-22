@@ -10,13 +10,13 @@ from ialauncher.emulator import EmulatorError
 if TYPE_CHECKING:
     from ialauncher.game import Game
 
-GRID_MARGIN = 5
+GRID_MARGIN = 1 / 60
 ASPECT_RATIO = 4 / 3
 
 
-def grid_margin(cols: int) -> int:
-    """Return the minimum margin around each tile."""
-    return max(1, round(GRID_MARGIN * 3 / cols))
+def grid_margin(cell_width: int) -> int:
+    """Return the minimum gap between tiles, in proportion to the cells."""
+    return max(1, round(GRID_MARGIN * cell_width))
 
 
 def letterbox(rect: pg.Rect) -> pg.Rect:

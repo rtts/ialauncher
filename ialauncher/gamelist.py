@@ -71,7 +71,8 @@ class Gamelist:
         current = self.get_current_game().identifier.lower()
         self.games = games
 
-        # TODO(JJ): Explain.
+        # Update the current_game index to still point to the same
+        # game, or the nearest one after it, or 0.
         self.current_game = next(
             (i for i, g in enumerate(self.games) if g.identifier.lower() >= current),
             0,
