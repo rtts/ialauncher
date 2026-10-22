@@ -26,24 +26,25 @@ Features
 Installation
 ------------
 
-First of all, get yourself a snazzy retro-looking PC. Or just use your
-current computer running your operating system of choice. Start by
-installing the following dependencies:
+### GNU/Linux
 
-- [Python](https://www.python.org/) version 3.12 or higher
-- [DOSBox](https://www.dosbox.com/) version 0.74 or higher
+First, install the following dependencies.
 
-*New! [DOSBox Staging](https://www.dosbox-staging.org/) is now also
-officially supported! The [Windows
-installer](https://rtts.eu/ialauncher-3.0.0-amd64.msi) even comes with
-DOSBox Staging included inside the box!*
+- [Python](https://www.python.org/) version 3.12 or higher.
+- [Pygame CE](https://pyga.me/) version 2.5.8 or higher.
+- [DOSBox Staging](https://www.dosbox-staging.org/) version 0.83.0 or higher.
 
-Then, install IA Launcher using `pip3`:
+Then, clone this repository and run:
 
-    pip3 install ialauncher
+    python3 -m ialauncher
 
-Finally, start the program with the `ialauncher` command. To see the
-available options, use `ialauncher --help`.
+(The [version on PyPI](https://pypi.org/project/ialauncher/) is
+outdated, so don't use it until it's been brought up-to-date again.)
+
+### Windows
+
+Download and run [ialauncher-3.0.0-amd64.msi](https://rtts.eu/ialauncher-3.0.0-amd64.msi),
+which already includes all of the above!
 
 
 Special Keys
@@ -63,8 +64,9 @@ Special Keys
 - Esc: quit
 
 During gameplay, you should also be familiar with the [DOSBox Special
-Keys](https://www.dosbox.com/wiki/Special_Keys). The most important
-key is `Ctrl-F9`, which exits DOSBox and returns to IA Launcher.
+Keys](https://github.com/dosbox-staging/dosbox-staging/wiki/Special-keys).
+The most important key is `Ctrl-F9`, which exits DOSBox and returns
+to IA Launcher.
 
 
 Troubleshooting

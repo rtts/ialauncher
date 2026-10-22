@@ -6,9 +6,8 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 PYTHON_VERSION=3.14.8
-DOSBOX_VERSION=0.74-3
-STAGING_VERSION=0.83.0
-STAGING_SHA256=725b915e325a6d410ce30a10989fd492fdad07f6611fff40ff77f160478810f4
+DOSBOX_VERSION=0.83.0
+DOSBOX_SHA256=725b915e325a6d410ce30a10989fd492fdad07f6611fff40ff77f160478810f4
 
 export WINEDEBUG=-all
 prefix="${WINEPREFIX:-$HOME/.wine}"
@@ -27,14 +26,6 @@ if [ ! -f "$python" ]; then
         Include_test=0 Include_launcher=0 Shortcuts=0 AssociateFiles=0
 fi
 
-if [ ! -d "$prefix/drive_c/Program Files (x86)/DOSBox-$DOSBOX_VERSION" ]; then
-    echo "Installing DOSBox $DOSBOX_VERSION in $prefix ..."
-    installer="DOSBox$DOSBOX_VERSION-win32-installer.exe"
-    curl -sSfL -o "$work/$installer" \
-        "https://sourceforge.net/projects/dosbox/files/dosbox/$DOSBOX_VERSION/$installer/download"
-    wine "$work/$installer" /S
-fi
-
 echo "Installing cx_Freeze and pygame-ce ..."
 wine "$python" -m pip install -q --disable-pip-version-check --no-warn-script-location --upgrade cx_Freeze pygame-ce
 
@@ -45,16 +36,19 @@ git ls-files -z | tar --null -T - -cf - | tar -xf - -C "$work/src"
 echo "Writing the metadata of all games ..."
 (cd "$work/src" && python3 -c 'import games, pathlib; games.write_metadata(pathlib.Path("games/metadata.json"))')
 
-echo "Downloading DOSBox Staging $STAGING_VERSION ..."
-zip="dosbox-staging-windows-x64-v$STAGING_VERSION.zip"
-curl -sSfL -o "$work/$zip" \
-    "https://github.com/dosbox-staging/dosbox-staging/releases/download/v$STAGING_VERSION/$zip"
-echo "$STAGING_SHA256  $work/$zip" | sha256sum -c --quiet
-unzip -q "$work/$zip" -d "$work/staging" -x "*/dosbox_with_debugger.exe"
-mv "$work/staging/dosbox-staging-v$STAGING_VERSION" "$work/dosbox-staging"
+mkdir -p dist
+zip="dosbox-staging-windows-x64-v$DOSBOX_VERSION.zip"
+if ! echo "$DOSBOX_SHA256  dist/$zip" | sha256sum -c --quiet --status 2>/dev/null; then
+    echo "Downloading DOSBox Staging $DOSBOX_VERSION ..."
+    curl -sSfL -o "$work/$zip" \
+        "https://github.com/dosbox-staging/dosbox-staging/releases/download/v$DOSBOX_VERSION/$zip"
+    echo "$DOSBOX_SHA256  $work/$zip" | sha256sum -c --quiet
+    mv "$work/$zip" "dist/$zip"
+fi
+unzip -q "dist/$zip" -d "$work/staging" -x "*/dosbox_with_debugger.exe"
+mv "$work/staging/dosbox-staging-v$DOSBOX_VERSION" "$work/dosbox-staging"
 
 echo "Building MSI ..."
-mkdir -p dist
 log=dist/build_msi_wine.log
 # Add DOSBox Staging between freezing and packaging, because cx_Freeze
 # would leave out its Visual C++ runtime DLLs.

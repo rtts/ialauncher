@@ -31,7 +31,7 @@ def get_dosbox_command() -> list[str]:
         return get_executable("DOSBox", options.dosbox_executable)
     return get_command(
         "DOSBox",
-        "https://www.dosbox.com/",
+        "https://www.dosbox-staging.org/",
         [
             *bundled_candidates(),
             ["dosbox"],
