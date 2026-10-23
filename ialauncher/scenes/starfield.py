@@ -47,8 +47,8 @@ class Starfield(Scene):
         # anywhere on the screen at depth z = 1, mostly near the center,
         # and moves toward the viewer at z = 0 by the same distance every
         # frame. Dividing x and y by z projects it onto the screen.
-        if not self.stars:
-            self.stars = [self.star(random.random()) for _ in range(options.density)]  # noqa: S311
+        if len(self.stars) < options.density:
+            self.stars.append(self.star())
         for star in self.stars:
             star[2] -= self.warp / 1000
         self.stars.sort(key=lambda star: star[2], reverse=True)
