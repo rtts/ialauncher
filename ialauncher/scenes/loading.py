@@ -104,7 +104,8 @@ class Loading(TitleScreen):
             )
             return False
         gamelist.sort()
-        hero = Hero(slideshow=True)
+        gamelist.random_game()
+        hero = Hero()
         gamelist.load_titlescreens()
         return hero
 
