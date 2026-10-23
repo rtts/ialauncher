@@ -6,7 +6,6 @@ from typing import TYPE_CHECKING, override
 
 import pygame as pg
 
-from ialauncher.bios import speaker
 from ialauncher.cga import cga
 from ialauncher.engine import NextScene
 from ialauncher.gamelist import gamelist
@@ -26,11 +25,6 @@ DIRECTIONS = {
 SNAKE_COLS = 40
 FPS = 8
 START_LENGTH = 8
-
-# The tunes of Nibbles in QBasic notation
-START_TUNE = "T160O1>L20CDEDCDL10ECC"
-EAT_TUNE = "MBO0L16>CCCE"
-DIE_TUNE = "MBO0L32EFGEFDC"
 
 
 class Snake(Scene):
@@ -58,7 +52,6 @@ class Snake(Scene):
         self.direction = DIRECTIONS[pg.K_RIGHT]
         self.turns: deque[tuple[int, int]] = deque()
         self.place_food()
-        speaker.play(START_TUNE)
         return super().run(screen)
 
     def random_title(self) -> pg.Surface:
@@ -102,7 +95,6 @@ class Snake(Scene):
         if not self.advance(grow=False):
             return False
         if self.body[0] == self.food:
-            speaker.play(EAT_TUNE)
             self.images.appendleft(self.food_image)
             if not self.advance(grow=True):
                 return False
@@ -145,7 +137,6 @@ class Snake(Scene):
     def update(self, screen: pg.Surface) -> NextScene:
         """Move snake and draw food."""
         if not self.step():
-            speaker.play(DIE_TUNE)
             return self.referrer
         screen.fill(BLACK)
         screen.blit(self.food_image, self.cell(self.food))
