@@ -25,6 +25,7 @@ from . import (
     Browse,
     hero,
     snake,
+    starfield,
 )
 
 GRID_SCROLLS = {
@@ -156,15 +157,20 @@ class Grid(Browse):
                 yield self.top + row * cols + col, cell
 
     def zoom(self, cols: int) -> NextScene:
-        """Change the number of columns, or hand over to Hero or Snake.
+        """Change the number of columns, or hand over to Hero, Snake or Starfield.
 
         Snake starts when zooming out reaches snake.SNAKE_COLS.
         """
         if cols < MIN_COLS:
             return hero.Hero()
         reached = self.cols < snake.SNAKE_COLS <= cols
+        old_cols = self.cols
         self.resize(cols)
-        return snake.Snake(self) if reached else None
+        if reached:
+            return snake.Snake(self)
+        if cols > self.cols == old_cols:
+            return starfield.Starfield(self, warp=10)
+        return None
 
     def resize(self, cols: int) -> None:
         """Change the number of columns, keeping the selected game under the pointer."""

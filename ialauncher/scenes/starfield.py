@@ -11,17 +11,18 @@ from ialauncher.engine import NextScene
 from ialauncher.gamelist import gamelist
 from ialauncher.utils import sharp_scale
 
-from . import BLACK, GRID_LARGER, GRID_SMALLER, Scene
+from . import BLACK, Scene
 
 
 class Starfield(Scene):
     """Starfield Simulation."""
 
-    def __init__(self, referrer: Scene) -> None:
-        """Remember the scene to hand back to."""
+    def __init__(self, referrer: Scene, warp: float | None = None) -> None:
+        """Remember the scene to hand back to, and fly at options.warp by default."""
         super().__init__()
         self.referrer = referrer
         self.stars: list[list] = []
+        self.warp = options.warp if warp is None else warp
 
     def star(self, z: float = 1) -> list:
         """Return a star at depth z."""
@@ -32,16 +33,9 @@ class Starfield(Scene):
 
     @override
     def handle(self, event: pg.event.Event) -> NextScene:
-        """Change warp speed with minus and plus, or hand back on Escape."""
-        if event.type != pg.KEYDOWN:
-            return None
-        if event.key == pg.K_ESCAPE:
-            return self.referrer
-        if event.key in GRID_SMALLER:
-            options.warp = round(options.warp + 0.1, 1)
-        elif event.key in GRID_LARGER:
-            options.warp = max(0.1, round(options.warp - 0.1, 1))
-        return None
+        """Hand back to the referrer on Escape."""
+        escape = event.type == pg.KEYDOWN and event.key == pg.K_ESCAPE
+        return self.referrer if escape else None
 
     @override
     def update(self, screen: pg.Surface) -> NextScene:
@@ -56,7 +50,7 @@ class Starfield(Scene):
         if not self.stars:
             self.stars = [self.star(random.random()) for _ in range(options.density)]  # noqa: S311
         for star in self.stars:
-            star[2] -= options.warp / 1000
+            star[2] -= self.warp / 1000
         self.stars.sort(key=lambda star: star[2], reverse=True)
         for star in self.stars:
             x, y, z, game = star
