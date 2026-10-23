@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, override
 
 import pygame as pg
 
+from ialauncher.bios import speaker
 from ialauncher.cga import cga
 from ialauncher.engine import NextScene
 from ialauncher.gamelist import gamelist
@@ -51,6 +52,7 @@ class Snake(Scene):
         self.images = deque(self.random_title() for _ in range(START_LENGTH))
         self.direction = DIRECTIONS[pg.K_RIGHT]
         self.turns: deque[tuple[int, int]] = deque()
+        self.game_over = False
         self.place_food()
         return super().run(screen)
 
@@ -98,6 +100,7 @@ class Snake(Scene):
             self.images.appendleft(self.food_image)
             if not self.advance(grow=True):
                 return False
+            speaker.blip()
             self.place_food()
         return True
 
@@ -135,9 +138,14 @@ class Snake(Scene):
 
     @override
     def update(self, screen: pg.Surface) -> NextScene:
-        """Move snake and draw food."""
-        if not self.step():
+        """Move snake and draw food, or beep for a frame when it dies."""
+        if self.game_over:
+            speaker.stop()
             return self.referrer
+        if not self.step():
+            speaker.start()
+            self.game_over = True
+            return None
         screen.fill(BLACK)
         screen.blit(self.food_image, self.cell(self.food))
         screen.fblits(

@@ -11,6 +11,7 @@ import pygame as pg
 # - It is 28.1 cents flat of the original IBM PC's power-on beep
 BEEP_FREQUENCY = 882
 BEEP_AMPLITUDE = 4096
+BLIP_TIME = 16
 held_keys: set[int] = set()
 
 
@@ -45,6 +46,11 @@ class Speaker:
         """Start beeping."""
         if self.channel is None and (sound := square_wave()):
             self.channel = sound.play(loops=-1)
+
+    def blip(self) -> None:
+        """Beep for a moment."""
+        if sound := square_wave():
+            sound.play(loops=-1, maxtime=BLIP_TIME)
 
     def stop(self) -> None:
         """Stop beeping."""
