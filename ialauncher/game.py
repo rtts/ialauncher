@@ -64,6 +64,7 @@ class Game:
         self.download_thread: Download | None = None
         self.emulator: Emulator | None = None
         self.thumbnails: dict[tuple[int, int], pg.Surface] = {}
+        self.color: tuple[int, int, int] | None = None
         self.titlescreen = path / "title.png"
         try:
             self.configure(given=metadata)
@@ -232,6 +233,8 @@ class Game:
             width, height = (width + 1) // 2, (height + 1) // 2
             image = pg.transform.smoothscale(image, (width, height))
             thumbnails[width, height] = image
+        red, green, blue, _ = image.get_at((0, 0))
+        self.color = red, green, blue
         self.thumbnails = thumbnails
 
     def get_titlescreen(self, size: tuple[int, int]) -> pg.Surface | None:

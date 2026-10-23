@@ -1,31 +1,57 @@
 """Starfield Simulation."""
 
 import random
+from dataclasses import dataclass
 from typing import override
 
 import pygame as pg
 
 from ialauncher import options
-from ialauncher.cga import cga
 from ialauncher.engine import NextScene
+from ialauncher.game import Game
 from ialauncher.gamelist import gamelist
 from ialauncher.utils import sharp_scale
 
 from . import BLACK, Scene, hero
+
+FPS = 30
+SPEED = 30  # seconds from z = 1 to z = 0
+
+# How far stars travel on average before they leave the screen,
+# assuming a triangular distribution of stars, is equal to
+# the integral of 4z² - 4z³ + z⁴ from 0 to 1.
+TRAVELLED = 8 / 15
+
+
+@dataclass(slots=True)
+class Star:
+    """A star with a fixed x and y and a moving z."""
+
+    x: float
+    y: float
+    z: float
+    game: Game
+    size: int
+    image: pg.Surface
 
 
 class Starfield(Scene):
     """Starfield Simulation."""
 
     def __init__(self, referrer: Scene, warp: float | None = None) -> None:
-        """Remember the scene to hand back to, and fly at options.warp by default."""
+        """Initialize."""
         super().__init__()
         self.referrer = referrer
-        self.stars: list[list] = []
+        self.stars: list[Star] = []
+        self.dots: dict[Game, pg.Surface] = {}
         self.warp = options.warp if warp is None else warp
+        self.step = self.warp / (SPEED * FPS)
+        # Filling at this rate prevents "waves" of stars.
+        self.rate = options.density * self.step / TRAVELLED
+        self.due = 0.0
 
-    def star(self, z: float = 1) -> list:
-        """Return a star at depth z."""
+    def star(self) -> Star:
+        """Return a new star at depth z = 1."""
         width, height = self.screen.get_size()
         game = random.choice(gamelist.games)  # noqa: S311
         x, y = random.triangular(-width, width), random.triangular(-height, height)  # noqa: S311
@@ -33,11 +59,29 @@ class Starfield(Scene):
         # Round x and y to whole pixels, so there's a chance you
         # collide with the star when both happen to be zero.
         x, y = round(x), round(y)
-        return [x / height, y / height, z, game]
+
+        return Star(x / 2, y / 2, 1, game, size=1, image=self.image(game, 1))
+
+    def image(self, game: Game, size: int) -> pg.Surface:
+        """Return the game's title screen as a star of the given size."""
+        if size == 1 and game.color is not None:
+            if (dot := self.dots.get(game)) is None:
+                dot = self.dots[game] = pg.Surface((1, 1))
+                dot.fill(game.color)
+            return dot
+        thumbnail = game.get_titlescreen((size, size)) or pg.Surface((1, 1))
+        return sharp_scale(thumbnail, (size, size))
+
+    @override
+    def get_events(self) -> list[pg.event.Event]:
+        """Run at FPS frames per second."""
+        self.clock.tick(FPS)
+        return pg.event.get()
 
     @override
     def handle(self, event: pg.event.Event) -> NextScene:
         """Hand back to the referrer on Escape."""
+        # TODO(jj): Start DOS version on pressing Enter.
         escape = event.type == pg.KEYDOWN and event.key == pg.K_ESCAPE
         return self.referrer if escape else None
 
@@ -45,33 +89,42 @@ class Starfield(Scene):
     def update(self, screen: pg.Surface) -> NextScene:
         """Fly through space."""
         screen.fill(BLACK)
-        rect = screen.get_rect()
+        width, height = screen.get_size()
+        center_x, center_y = screen.get_rect().center
 
         # Each star is a point in space, at a fixed x and y that put it
         # anywhere on the screen at depth z = 1, mostly near the center,
         # and moves toward the viewer at z = 0 by the same distance every
         # frame. Dividing x and y by z projects it onto the screen.
-        if len(self.stars) < options.density:
-            self.stars.append(self.star())
+        new = 0
+        stars = []
+        blits = []
         for star in self.stars:
-            star[2] -= self.warp / 1000
-        self.stars.sort(key=lambda star: star[2], reverse=True)
-        for star in self.stars:
-            x, y, z, game = star
-            if z <= 0:
-                if x == y == 0 and game in gamelist.games:
+            star.z -= self.step
+            if star.z <= 1 / height:
+                if star.x == star.y == 0 and star.game in gamelist.games:
                     # Collision!
-                    gamelist.current_game = gamelist.games.index(game)
+                    gamelist.current_game = gamelist.games.index(star.game)
                     return hero.Hero()
-                star[:] = self.star()
+                new += 1
                 continue
-            offset = pg.Vector2(x, y) * rect.height / 2
-            size = int(1 / z)
-            pos = pg.Rect(0, 0, size, size)
-            pos.center = rect.center + offset / z
-            if not rect.colliderect(pos):
-                star[:] = self.star()
-            else:
-                thumbnail = game.get_titlescreen((size, size)) or pg.Surface((1, 1))
-                screen.blit(sharp_scale(cga.apply(thumbnail), (size, size)), pos)
+            scale = 1 / star.z
+            if int(scale) != star.size:
+                star.size = int(scale)
+                star.image = self.image(star.game, star.size)
+            left = center_x - star.size // 2 + star.x * scale
+            top = center_y - star.size // 2 + star.y * scale
+            if not (-star.size < left < width and -star.size < top < height):
+                new += 1
+                continue
+            stars.append(star)
+            blits.append((star.image, (left, top)))
+        screen.fblits(blits)
+
+        # Replace stars that left and add more until field is full.
+        self.due += self.rate
+        due = int(self.due)
+        self.due -= due
+        new = min(max(new, due), options.density - len(stars))
+        self.stars = [self.star() for _ in range(new)] + stars
         return None
