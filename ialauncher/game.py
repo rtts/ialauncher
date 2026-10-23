@@ -25,9 +25,8 @@ import pygame as pg
 from .emulator import (
     NO_WINDOW,
     get_dosbox_command,
+    get_dosbox_options,
     get_scummvm_command,
-    has_opengl,
-    is_dosbox_staging,
 )
 from .iso import ISOFile
 from .utils import tls_context
@@ -140,13 +139,7 @@ class Game:
         dosbox = get_dosbox_command()
         batfile = self.gamedir / "dosbox.bat"
         conffile = self.gamedir / "dosbox.conf"
-        if is_dosbox_staging():
-            dosbox_args = [".", "-fullscreen", "--nolocalconf", "--set", "shader=sharp"]
-            if not has_opengl():
-                dosbox_args.extend(["--set", "output=texture"])
-            dosbox_args.extend(["-c", "mixer master 88 /noshow"])
-        else:
-            dosbox_args = [".", "-fullscreen", "-userconf"]
+        dosbox_args = [".", *get_dosbox_options()]
 
         if self.dosbox_conf:
             conffile.write_text(self.dosbox_conf, encoding=DOS_ENCODING)

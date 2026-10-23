@@ -58,21 +58,13 @@ def get_scummvm_command() -> list[str]:
     )
 
 
-@cache
-def is_dosbox_staging() -> bool:
-    """Return whether DOSBox is DOSBox Staging, or False if it isn't installed."""
-    try:
-        result = subprocess.run(  # noqa: S603
-            [*get_dosbox_command(), "--version"],
-            capture_output=True,
-            text=True,
-            check=False,
-            timeout=3,
-            creationflags=NO_WINDOW,
-        )
-    except (EmulatorError, OSError, subprocess.TimeoutExpired):
-        return False
-    return result.stdout.startswith("dosbox-staging")
+def get_dosbox_options() -> list[str]:
+    """Return the options that DOSBox Staging runs everything with."""
+    args = ["-fullscreen", "--nolocalconf", "--set", "shader=sharp"]
+    if not has_opengl():
+        args.extend(["--set", "output=texture"])
+    args.extend(["-c", "mixer master 88 /noshow"])
+    return args
 
 
 def bundled_candidates() -> Iterator[list[str]]:
