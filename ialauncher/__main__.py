@@ -26,24 +26,28 @@ def main() -> None:
     parser.add_argument(
         "--slideshow",
         type=int,
-        metavar="X",
-        help="Advance the slideshow every X seconds (default 10, 0 to disable)",
+        metavar="N",
+        help="Advance the slideshow every N seconds "
+        f"(default {options.slideshow}, 0 to disable)",
     )
     parser.add_argument(
         "--idle",
         type=int,
-        metavar="X",
-        help="Start the screensaver after X seconds (default 60, 0 to disable)",
+        metavar="N",
+        help="Start the screensaver after N seconds "
+        f"(default {options.idle}, 0 to disable)",
     )
     parser.add_argument(
         "--warp",
         type=float,
-        help="Warp speed (default 1.0)",
+        metavar="N",
+        help=f"Screensaver warp speed (default {options.warp:.1f})",
     )
     parser.add_argument(
         "--density",
         type=int,
-        help="Density (default 10000)",
+        metavar="N",
+        help=f"Screensaver density (default {options.density})",
     )
     parser.add_argument(
         "--fullscreen",
