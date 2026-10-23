@@ -246,6 +246,10 @@ class Game:
         """Return whether the game has been downloaded."""
         return self.gamedir.is_dir()
 
+    def is_running(self) -> bool:
+        """Return whether the game's emulator is running."""
+        return self.emulator is not None and self.emulator.is_alive()
+
     def reset(self) -> None:
         """Delete the downloaded game, including its saved state."""
         if not self.is_ready():

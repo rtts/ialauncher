@@ -195,7 +195,7 @@ class Browse(Scene):
 
     def start(self, game: Game, mod: int) -> None:
         """Download the game if needed and start it."""
-        if game.emulator is not None and game.emulator.is_alive():
+        if game.is_running():
             return
         if not find_emulator(game):
             return
@@ -226,7 +226,9 @@ class Browse(Scene):
         if event.type in INPUT_EVENTS:
             pg.time.set_timer(IDLE, options.idle * 1000)
         if event.type == IDLE:
-            next_scene = None if self.slideshow_running else Starfield(self)
+            playing = gamelist.get_current_game().is_running()
+            busy = self.slideshow_running or playing
+            next_scene = None if busy else Starfield(self)
         elif event.type == BLINK:
             self.dot_visible = self.blinking and not self.dot_visible
         elif event.type == EMULATOR_FAILED:
