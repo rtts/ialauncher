@@ -11,7 +11,7 @@ from ialauncher.engine import NextScene
 from ialauncher.gamelist import gamelist
 from ialauncher.utils import sharp_scale
 
-from . import BLACK, Scene
+from . import BLACK, Scene, hero
 
 
 class Starfield(Scene):
@@ -29,6 +29,11 @@ class Starfield(Scene):
         width, height = self.screen.get_size()
         game = random.choice(gamelist.games)  # noqa: S311
         x, y = random.triangular(-width, width), random.triangular(-height, height)  # noqa: S311
+
+        # One in options.density stars starts exactly in the middle and
+        # flies straight at you, and when it arrives, Hero shows the game.
+        if random.randrange(options.density) == 0:  # noqa: S311
+            x, y = 0, 0
         return [x / height, y / height, z, game]
 
     @override
@@ -55,12 +60,16 @@ class Starfield(Scene):
         for star in self.stars:
             x, y, z, game = star
             if z <= 0:
+                if x == y == 0 and game in gamelist.games:
+                    gamelist.current_game = gamelist.games.index(game)
+                    return hero.Hero()
                 star[:] = self.star()
                 continue
             offset = pg.Vector2(x, y) * rect.height / 2
-            pos = rect.center + offset / z
             size = int(1 / z)
-            if not rect.colliderect((pos, (size, size))):
+            pos = pg.Rect(0, 0, size, size)
+            pos.center = rect.center + offset / z
+            if not rect.colliderect(pos):
                 star[:] = self.star()
             else:
                 thumbnail = game.get_titlescreen((size, size)) or pg.Surface((1, 1))
