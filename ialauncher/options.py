@@ -7,6 +7,6 @@ fullscreen: bool = True
 slideshow = 10
 idle = 60
 warp: float = 1.0
-density = 1000
+density: int = 10000
 dosbox_executable: str | None = None
 scummvm_executable: str | None = None

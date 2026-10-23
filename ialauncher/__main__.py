@@ -15,24 +15,6 @@ from .gamelist import gamelist
 from .scenes.loading import Loading
 
 
-def positive_float(value: str) -> float:
-    """Validate number is greater than zero."""
-    number = float(value)
-    if number <= 0:
-        msg = f"must be greater than 0: {value}"
-        raise argparse.ArgumentTypeError(msg)
-    return number
-
-
-def positive_int(value: str) -> int:
-    """Validate whole number is greater than zero."""
-    number = int(value)
-    if number <= 0:
-        msg = f"must be greater than 0: {value}"
-        raise argparse.ArgumentTypeError(msg)
-    return number
-
-
 def main() -> None:
     """Parse the command-line arguments and start IA Launcher."""
     # Print what the console's encoding can't show as "?" instead of crashing
@@ -55,13 +37,13 @@ def main() -> None:
     )
     parser.add_argument(
         "--warp",
-        type=positive_float,
+        type=float,
         help="Warp speed (default 1.0)",
     )
     parser.add_argument(
         "--density",
-        type=positive_int,
-        help="Density (default 1000)",
+        type=int,
+        help="Density (default 10000)",
     )
     parser.add_argument(
         "--fullscreen",
@@ -109,9 +91,9 @@ def main() -> None:
     if args.idle is not None:
         options.idle = args.idle
     if args.warp is not None:
-        options.warp = args.warp
+        options.warp = max(1, args.warp)
     if args.density is not None:
-        options.density = args.density
+        options.density = max(0, args.density)
     if args.dosbox is not None:
         options.dosbox_executable = args.dosbox
     if args.scummvm is not None:
