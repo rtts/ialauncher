@@ -5,15 +5,13 @@ from typing import override
 
 import pygame as pg
 
+from ialauncher import options
 from ialauncher.cga import cga
 from ialauncher.engine import NextScene
 from ialauncher.gamelist import gamelist
 from ialauncher.utils import sharp_scale
 
-from . import BLACK, INPUT_EVENTS, Scene
-
-DENSITY = 10000
-WARP = 1
+from . import BLACK, GRID_LARGER, GRID_SMALLER, Scene
 
 
 class Starfield(Scene):
@@ -34,8 +32,16 @@ class Starfield(Scene):
 
     @override
     def handle(self, event: pg.event.Event) -> NextScene:
-        """Hand back to the referrer on any input."""
-        return self.referrer if event.type in INPUT_EVENTS else None
+        """Change warp speed with minus and plus, or hand back on Escape."""
+        if event.type != pg.KEYDOWN:
+            return None
+        if event.key == pg.K_ESCAPE:
+            return self.referrer
+        if event.key in GRID_SMALLER:
+            options.warp = round(options.warp + 0.1, 1)
+        elif event.key in GRID_LARGER:
+            options.warp = max(0.1, round(options.warp - 0.1, 1))
+        return None
 
     @override
     def update(self, screen: pg.Surface) -> NextScene:
@@ -48,9 +54,9 @@ class Starfield(Scene):
         # and moves toward the viewer at z = 0 by the same distance every
         # frame. Dividing x and y by z projects it onto the screen.
         if not self.stars:
-            self.stars = [self.star(random.random()) for _ in range(DENSITY)]  # noqa: S311
+            self.stars = [self.star(random.random()) for _ in range(options.density)]  # noqa: S311
         for star in self.stars:
-            star[2] -= WARP / 1000
+            star[2] -= options.warp / 1000
         self.stars.sort(key=lambda star: star[2], reverse=True)
         for star in self.stars:
             x, y, z, game = star
