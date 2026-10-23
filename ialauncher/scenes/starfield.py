@@ -1,16 +1,24 @@
 """Starfield Simulation."""
 
 import random
+import subprocess
 from dataclasses import dataclass
+from pathlib import Path
 from typing import override
 
 import pygame as pg
 
 from ialauncher import options
+from ialauncher.emulator import (
+    NO_WINDOW,
+    EmulatorError,
+    get_dosbox_command,
+    get_dosbox_options,
+)
 from ialauncher.engine import NextScene
 from ialauncher.game import Game
 from ialauncher.gamelist import gamelist
-from ialauncher.utils import sharp_scale
+from ialauncher.utils import sharp_scale, show_error
 
 from . import BLACK, Scene, hero
 
@@ -49,6 +57,7 @@ class Starfield(Scene):
         # Filling at this rate prevents "waves" of stars.
         self.rate = options.density * self.step / TRAVELLED
         self.due = 0.0
+        self.dosbox: subprocess.Popen[bytes] | None = None
 
     def star(self) -> Star:
         """Return a new star at depth z = 1."""
@@ -80,10 +89,28 @@ class Starfield(Scene):
 
     @override
     def handle(self, event: pg.event.Event) -> NextScene:
-        """Hand back to the referrer on Escape."""
-        # TODO(jj): Start DOS version on pressing Enter.
-        escape = event.type == pg.KEYDOWN and event.key == pg.K_ESCAPE
-        return self.referrer if escape else None
+        """Exit on Escape, start DOS version on Enter."""
+        dos_running = self.dosbox is not None and self.dosbox.poll() is None
+        if dos_running or event.type != pg.KEYDOWN:
+            return None
+        if event.key in (pg.K_RETURN, pg.K_KP_ENTER):
+            self.start_dos(autorun=not event.mod & pg.KMOD_ALT)
+            return None
+        return self.referrer if event.key == pg.K_ESCAPE else None
+
+    def start_dos(self, *, autorun: bool = True) -> None:
+        """Run stars.exe."""
+        try:
+            dosbox = get_dosbox_command()
+        except EmulatorError as e:
+            show_error(str(e).strip())
+            return
+        command = [*dosbox, ".", *get_dosbox_options(), "--set", "cpu_cycles=100000"]
+        if autorun:
+            command.extend(["-c", "stars", "-exit"])
+        self.dosbox = subprocess.Popen(  # noqa: S603
+            command, cwd=Path(__file__).parent, creationflags=NO_WINDOW
+        )
 
     @override
     def update(self, screen: pg.Surface) -> NextScene:
