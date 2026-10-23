@@ -30,10 +30,9 @@ class Starfield(Scene):
         game = random.choice(gamelist.games)  # noqa: S311
         x, y = random.triangular(-width, width), random.triangular(-height, height)  # noqa: S311
 
-        # One in options.density stars starts exactly in the middle and
-        # flies straight at you, and when it arrives, Hero shows the game.
-        if random.randrange(options.density) == 0:  # noqa: S311
-            x, y = 0, 0
+        # Round x and y to whole pixels, so there's a chance you
+        # collide with the star when both happen to be zero.
+        x, y = round(x), round(y)
         return [x / height, y / height, z, game]
 
     @override
@@ -61,6 +60,7 @@ class Starfield(Scene):
             x, y, z, game = star
             if z <= 0:
                 if x == y == 0 and game in gamelist.games:
+                    # Collision!
                     gamelist.current_game = gamelist.games.index(game)
                     return hero.Hero()
                 star[:] = self.star()
