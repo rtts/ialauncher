@@ -12,9 +12,8 @@ from ialauncher.utils import sharp_scale
 
 from . import BLACK, INPUT_EVENTS, Scene
 
-DENSITY = 100
+DENSITY = 10000
 WARP = 1
-GROWTH_FACTOR = (1 + 5**0.5) / 2  # φ
 
 
 class Starfield(Scene):
@@ -26,13 +25,12 @@ class Starfield(Scene):
         self.referrer = referrer
         self.stars: list[list] = []
 
-    def star(self) -> list:
-        """Return a star."""
+    def star(self, z: float = 1) -> list:
+        """Return a star at depth z."""
         width, height = self.screen.get_size()
         game = random.choice(gamelist.games)  # noqa: S311
-        thumbnail = game.get_titlescreen((20, 13)) or pg.Surface((1, 1))
         x, y = random.triangular(-width, width), random.triangular(-height, height)  # noqa: S311
-        return [x / height, y / height, 1, cga.apply(thumbnail)]
+        return [x / height, y / height, z, game]
 
     @override
     def handle(self, event: pg.event.Event) -> NextScene:
@@ -49,15 +47,22 @@ class Starfield(Scene):
         # anywhere on the screen at depth z = 1, mostly near the center,
         # and moves toward the viewer at z = 0 by the same distance every
         # frame. Dividing x and y by z projects it onto the screen.
-        if len(self.stars) < DENSITY:
-            self.stars.append(self.star())
+        if not self.stars:
+            self.stars = [self.star(random.random()) for _ in range(DENSITY)]  # noqa: S311
         for star in self.stars:
             star[2] -= WARP / 1000
-            x, y, z, image = star
+        self.stars.sort(key=lambda star: star[2], reverse=True)
+        for star in self.stars:
+            x, y, z, game = star
+            if z <= 0:
+                star[:] = self.star()
+                continue
             offset = pg.Vector2(x, y) * rect.height / 2
-            if z <= 0 or not rect.collidepoint(pos := rect.center + offset / z):
+            pos = rect.center + offset / z
+            size = int(1 / z)
+            if not rect.colliderect((pos, (size, size))):
                 star[:] = self.star()
             else:
-                size = int(GROWTH_FACTOR / z - GROWTH_FACTOR + 1)
-                screen.blit(sharp_scale(image, (size, size)), pos)
+                thumbnail = game.get_titlescreen((size, size)) or pg.Surface((1, 1))
+                screen.blit(sharp_scale(cga.apply(thumbnail), (size, size)), pos)
         return None
