@@ -323,6 +323,9 @@ class Grid(Browse):
         """
         if min(self.tile_size) < 1:
             self.resize(self.cols)
+        if min(self.tile_size) < 1:
+            screen.fill(BLACK)
+            return
         games = gamelist.games
         cache: dict[tuple[Game, tuple[int, int], int | None], pg.Surface] = {}
         size = width, height = self.tile_size
