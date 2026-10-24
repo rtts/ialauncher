@@ -31,8 +31,6 @@ from .emulator import (
 from .iso import ISOFile
 from .utils import tls_context
 
-DOS_ENCODING = "cp437"
-DOS_NEWLINE = "\r\n"
 QUICK_EXIT = 3  # seconds
 OUTPUT_LINES = 5
 EMULATOR_FAILED = pg.event.custom_type()
@@ -111,17 +109,17 @@ class Game:
         1. autorun=True
 
             Paste the contents of `emulator_start` into dosbox.bat, and
-            run it. Dosbox will exit when the game ends.
+            run it. DOSBox will exit when the game ends.
 
         2. autorun=False
 
             Do as above, but don't run dosbox.bat and don't exit
-            Dosbox. When Dosbox finishes, any changes made to
+            DOSBox. When DOSBox finishes, any changes made to
             dosbox.bat will be saved to the `emulator_start` variable
             in metadata.ini.
 
         The frontend allows starting the game in the second mode by pressing
-        Alt-Enter. This allows the user to do the following from within dosbox:
+        Alt-Enter. This allows the user to do the following from within DOSBox:
 
             C:\> echo MYGAME.BAT >> dosbox.bat
             C:\> exit
@@ -136,11 +134,10 @@ class Game:
 
         dosbox = get_dosbox_command()
         batfile = self.gamedir / "dosbox.bat"
-        conffile = self.gamedir / "dosbox.conf"
         dosbox_args = [".", *get_dosbox_options()]
 
         if self.dosbox_conf:
-            conffile.write_text(self.dosbox_conf, encoding=DOS_ENCODING)
+            self.write_c("dosbox.conf", self.dosbox_conf)
             dosbox_args.extend(["-conf", "dosbox.conf"])
 
         # Copy patch files to C:\
@@ -150,23 +147,17 @@ class Game:
         if self.emulator_start:
             if autorun:
                 dosbox_args[0] = "dosbox.bat"
-                batfile.write_text(
-                    "@echo off\ncls\n" + self.emulator_start,
-                    encoding=DOS_ENCODING,
-                    newline=DOS_NEWLINE,
-                )
+                self.write_c("dosbox.bat", "@echo off\ncls\n" + self.emulator_start)
 
             else:
-                batfile.write_text(
-                    self.emulator_start, encoding=DOS_ENCODING, newline=DOS_NEWLINE
-                )
+                self.write_c("dosbox.bat", self.emulator_start)
 
         else:
             autorun = False
             if not batfile.is_file():
                 # Provide empty dosbox.bat for easy autocomplete
                 # (and correct filename capitalization!)
-                batfile.write_text("\n", encoding=DOS_ENCODING, newline=DOS_NEWLINE)
+                self.write_c("dosbox.bat", "\n")
 
         if autorun:
             dosbox_args.append("-exit")
@@ -176,6 +167,10 @@ class Game:
         thread = DOSBox(self, command, batfile=batfile, autorun=autorun)
         thread.start()
         return thread
+
+    def write_c(self, filename: str, text: str) -> None:
+        r"""Write a text file to C:\."""
+        (self.gamedir / filename).write_text(text, encoding="cp437", newline="\r\n")
 
     def start_scummvm(self, *, autorun: bool = True) -> "Emulator":
         """Start the game with ScummVM.
@@ -327,7 +322,7 @@ class DOSBox(Emulator):
             pg.event.post(pg.event.Event(EMULATOR_FAILED, message=message))
 
         if not self.autorun and self.batfile.is_file():
-            batch = self.batfile.read_text(encoding=DOS_ENCODING)
+            batch = self.batfile.read_text(encoding="cp437")
             emulator_start = batch.rstrip("\r\n")
             if emulator_start and emulator_start != game.emulator_start:
                 game.save_emulator_start(emulator_start)
