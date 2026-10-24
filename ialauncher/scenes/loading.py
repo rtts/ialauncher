@@ -3,7 +3,7 @@
 We could technically load all the games in a fraction of a second,
 but where's the fun in that?
 
-So we load 10 games per frame and uncap the framerate. This allows
+So we load 30 games per frame and uncap the framerate. This allows
 the loading time to double as a benchmark.
 """
 
