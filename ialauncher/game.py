@@ -236,8 +236,14 @@ class Game:
         return thumbnails.get(TITLESCREEN_SIZE)
 
     def is_ready(self) -> bool:
-        """Return whether the game has been downloaded."""
+        """Return whether the game has been downloaded and unzipped."""
         return self.gamedir.is_dir()
+
+    def is_downloaded(self) -> bool:
+        """Return whether the game has been downloaded or unzipped."""
+        return self.is_ready() or all(
+            file.is_file() for file in downloaded_filenames(self.urls, self.path)
+        )
 
     def is_running(self) -> bool:
         """Return whether the game's emulator is running."""
@@ -269,7 +275,15 @@ class Emulator(Thread):
         self.command = command
         self.output: deque[str] = deque(maxlen=OUTPUT_LINES)
         self.returncode = 0
+        self.process: subprocess.Popen[str] | None = None
+        self.stopped = False
         super().__init__(daemon=True)
+
+    def stop(self) -> None:
+        """Stop the emulator."""
+        self.stopped = True
+        if self.process is not None:
+            self.process.terminate()
 
     @override
     def run(self) -> None:
@@ -284,6 +298,9 @@ class Emulator(Thread):
             errors="replace",
             creationflags=NO_WINDOW,
         ) as process:
+            self.process = process
+            if self.stopped:
+                process.terminate()
             for line in process.stdout or ():
                 print(line, end="")
                 self.output.append(line.rstrip())
@@ -309,7 +326,7 @@ class DOSBox(Emulator):
         super().run()
         seconds = monotonic() - started
 
-        if self.autorun and seconds < QUICK_EXIT:
+        if self.autorun and seconds < QUICK_EXIT and not self.stopped:
             message = (
                 f"{game.title} exited in {seconds:.3f} seconds.\n\n"
                 "This probably means its start command is wrong.\n"
@@ -391,10 +408,7 @@ class Download(Thread):
 
     def download(self) -> None:
         """Download each URL (unless it already was), then unpack them all."""
-        files = [
-            self.gamedir.parent / unquote(u.split("/")[-1]).split("/")[-1]
-            for u in self.urls
-        ]
+        files = downloaded_filenames(self.urls, self.gamedir.parent)
         self.action = "download"
         self.steps = 1 if self.size else len(files)
         for i, (u, dest) in enumerate(zip(self.urls, files, strict=True)):
@@ -464,18 +478,24 @@ class Download(Thread):
 
     def report(self, done: int, total: int) -> None:
         """Set progress to fraction of total progress, or stop if cancelled."""
-        if self.cancelled.is_set():
-            msg = "Download cancelled"
-            raise InterruptedError(msg)
+        self.check_cancelled("Download")
         if self.size:
             done, total = self.downloaded + done, self.size
         fraction = min(done / total, 1.0) if total > 0 else 0.0
         self.progress = (self.step + fraction) / self.steps
 
+    def check_cancelled(self, action: str) -> None:
+        """Stop if cancelled."""
+        if self.cancelled.is_set():
+            msg = f"{action} cancelled"
+            raise InterruptedError(msg)
+
     def unzip(self, zipfile: Path) -> None:
-        """Unzip the archive into the game directory."""
+        """Unzip the archive into the game directory, or stop if cancelled."""
         with ZipFile(zipfile, "r") as f:
-            f.extractall(self.gamedir)
+            for member in f.infolist():
+                self.check_cancelled("Unzip")
+                f.extract(member, self.gamedir)
 
     def copy(self, file: Path) -> None:
         """Copy the file into the game directory."""
@@ -487,6 +507,11 @@ class Download(Thread):
         with ISOFile(isofile) as iso:
             for path, sector, size in iso.walk():
                 iso.extract(sector, size, self.gamedir / path)
+
+
+def downloaded_filenames(urls: list[str], directory: Path) -> list[Path]:
+    """Return all downloaded filenames."""
+    return [directory / unquote(u.split("/")[-1]).split("/")[-1] for u in urls]
 
 
 def read_metadata_cache(games_dir: Path) -> dict[str, dict[str, str]]:

@@ -16,7 +16,7 @@ from ialauncher.emulator import (
     get_dosbox_options,
 )
 from ialauncher.engine import NextScene
-from ialauncher.game import Game
+from ialauncher.game import Emulator, Game
 from ialauncher.gamelist import gamelist
 from ialauncher.utils import sharp_scale
 
@@ -24,6 +24,7 @@ from . import BLACK, Scene, hero
 
 FPS = 30
 SPEED = 30  # seconds from z = 1 to z = 0
+CHECK_INTERVAL = 100  # milliseconds
 
 # How far stars travel on average before they leave the screen,
 # assuming a triangular distribution of stars, is equal to
@@ -67,6 +68,7 @@ class Starfield(Scene):
         """Initialize."""
         super().__init__()
         self.referrer = referrer
+        self.started = False
         self.stars: list[Star] = []
         self.dots: dict[Game, pg.Surface] = {}
         self.step = options.warp / (SPEED * FPS)
@@ -122,12 +124,28 @@ class Starfield(Scene):
 
     @override
     def run(self, screen: pg.Surface) -> NextScene:
-        """Sometimes leave it to stars.exe and show a random game right away."""
-        if not random.randrange(20) and (dosbox := start_dosbox()):  # noqa: S311
-            Starfield.dosbox = dosbox
-            gamelist.random_game()
-            return hero.Hero()
+        """Autoplay the current game, if it qualifies, then the screensaver."""
+        if not self.started:
+            self.started = True
+            if not random.randrange(20) and (dosbox := start_dosbox()):  # noqa: S311
+                Starfield.dosbox = dosbox
+                return Stars()
+            if game := self.autoplay_game():
+                return Autoplay(game, self)
         return super().run(screen)
+
+    def autoplay_game(self) -> Game | None:
+        """Return whether the current game qualifies to autoplay."""
+        if not options.autoplay or not isinstance(self.referrer, hero.Hero):
+            return None
+        game = gamelist.get_current_game()
+        if game.engine != "dosbox" or not game.emulator_start:
+            return None
+        try:
+            get_dosbox_command()
+        except EmulatorError:
+            return None
+        return game if game.is_downloaded() else None
 
     @override
     def update(self, screen: pg.Surface) -> NextScene:
@@ -175,3 +193,88 @@ class Starfield(Scene):
         if random.random() < self.chance:  # noqa: S311
             self.stars.append(self.star(center=True))
         return None
+
+
+class Blackout(Scene):
+    """A black screen behind DOSBox."""
+
+    @override
+    def get_events(self) -> list[pg.event.Event]:
+        """Wait until it's time to check on DOSBox again."""
+        return [pg.event.wait(CHECK_INTERVAL)]
+
+    @override
+    def handle(self, event: pg.event.Event) -> NextScene:
+        """Ignore everything."""
+        return None
+
+    @override
+    def update(self, screen: pg.Surface) -> NextScene:
+        """Stay black."""
+        screen.fill(BLACK)
+        return None
+
+
+class Stars(Blackout):
+    """A black screen behind STARS.EXE."""
+
+    @override
+    def update(self, screen: pg.Surface) -> NextScene:
+        """Show a random game once stars.exe has exited."""
+        super().update(screen)
+        if Starfield.dosbox_running():
+            return None
+        gamelist.random_game()
+        return hero.Hero()
+
+
+class Autoplay(Blackout):
+    """A black screen behind an autoplaying game."""
+
+    def __init__(self, game: Game, starfield: Starfield) -> None:
+        """Unzip the game first, if needed."""
+        super().__init__()
+        self.game = game
+        self.starfield = starfield
+        self.emulator: Emulator | None = None
+        self.deadline = 0
+        self.unzipping = not game.is_ready()
+        if self.unzipping:
+            game.download()
+
+    @override
+    def run(self, screen: pg.Surface) -> NextScene:
+        """Stop unzipping or close DOSBox when the scene exits."""
+        try:
+            return super().run(screen)
+        finally:
+            if self.unzipping and (thread := self.game.download_thread):
+                thread.cancel()
+            if self.emulator is not None:
+                self.emulator.stop()
+
+    @override
+    def handle(self, event: pg.event.Event) -> NextScene:
+        """Continue with the starfield on Escape."""
+        if event.type == pg.KEYDOWN and event.key == pg.K_ESCAPE:
+            return self.starfield
+        return None
+
+    @override
+    def update(self, screen: pg.Surface) -> NextScene:
+        """Start the game once it's unzipped, and continue when time is up."""
+        super().update(screen)
+        game = self.game
+        if self.emulator is None:
+            if self.unzipping and (thread := game.download_thread):
+                if thread.is_alive():
+                    return None
+                self.unzipping = False
+            if not game.is_ready():
+                return self.starfield
+            self.emulator = game.emulator = game.start()
+            self.deadline = pg.time.get_ticks() + options.autoplay * 1000
+            return None
+        if self.emulator.is_alive() and pg.time.get_ticks() < self.deadline:
+            return None
+        return self.starfield

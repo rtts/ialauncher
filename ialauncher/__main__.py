@@ -54,6 +54,12 @@ def main() -> None:
         f"(default {options.mtbc}, 0 to disable)",
     )
     parser.add_argument(
+        "--autoplay",
+        type=int,
+        metavar="N",
+        help="Autoplay the current game for N seconds (disabled by default)",
+    )
+    parser.add_argument(
         "--fullscreen",
         action=argparse.BooleanOptionalAction,
         help="Start in fullscreen mode (default) or in a window",
@@ -120,6 +126,8 @@ def set_options(args: argparse.Namespace) -> None:
         options.density = max(0, args.density)
     if args.mtbc is not None:
         options.mtbc = max(0, args.mtbc)
+    if args.autoplay is not None:
+        options.autoplay = max(0, args.autoplay)
     if args.dosbox is not None:
         options.dosbox_executable = args.dosbox
     if args.scummvm is not None:
