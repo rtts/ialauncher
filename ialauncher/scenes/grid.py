@@ -157,9 +157,10 @@ class Grid(Browse):
                 yield self.top + row * cols + col, cell
 
     def zoom(self, cols: int) -> NextScene:
-        """Change the number of columns, or hand over to Hero, Snake or Starfield.
+        """Change the number of columns, hand over to Hero or Snake, or run stars.exe.
 
-        Snake starts when zooming out reaches snake.SNAKE_COLS.
+        Snake starts when zooming out reaches snake.SNAKE_COLS, and
+        stars.exe when zooming out any further isn't possible.
         """
         if cols < MIN_COLS:
             return hero.Hero()
@@ -168,8 +169,8 @@ class Grid(Browse):
         self.resize(cols)
         if reached:
             return snake.Snake(self)
-        if cols > self.cols == old_cols:
-            return starfield.Starfield(self, warp=10)
+        if cols > self.cols == old_cols and not starfield.Starfield.dosbox_running():
+            starfield.Starfield.dosbox = starfield.start_dosbox()
         return None
 
     def resize(self, cols: int) -> None:

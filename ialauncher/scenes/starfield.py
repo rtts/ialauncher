@@ -2,7 +2,6 @@
 
 import random
 import subprocess
-from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
 from typing import ClassVar, override
@@ -19,7 +18,7 @@ from ialauncher.emulator import (
 from ialauncher.engine import NextScene
 from ialauncher.game import Game
 from ialauncher.gamelist import gamelist
-from ialauncher.utils import sharp_scale, show_error
+from ialauncher.utils import sharp_scale
 
 from . import BLACK, Scene, hero
 
@@ -44,9 +43,13 @@ class Star:
     image: pg.Surface
 
 
-def start_dosbox(*, autorun: bool = True) -> subprocess.Popen[bytes]:
-    """Start stars.exe, or raise EmulatorError if DOSBox can't be found."""
-    command = [*get_dosbox_command(), "stars.exe" if autorun else "."]
+def start_dosbox(*, autorun: bool = True) -> subprocess.Popen[bytes] | None:
+    """Start stars.exe or do nothing."""
+    try:
+        dosbox = get_dosbox_command()
+    except EmulatorError:
+        return None
+    command = [*dosbox, "stars.exe" if autorun else "."]
     command += [*get_dosbox_options(), "--set", "cpu_cycles=100000"]
     if autorun:
         command.append("-exit")
@@ -60,14 +63,13 @@ class Starfield(Scene):
 
     dosbox: ClassVar[subprocess.Popen[bytes] | None] = None
 
-    def __init__(self, referrer: Scene, warp: float | None = None) -> None:
+    def __init__(self, referrer: Scene) -> None:
         """Initialize."""
         super().__init__()
         self.referrer = referrer
         self.stars: list[Star] = []
         self.dots: dict[Game, pg.Surface] = {}
-        warp = options.warp if warp is None else warp
-        self.step = warp / (SPEED * FPS)
+        self.step = options.warp / (SPEED * FPS)
         # Filling at this rate prevents "waves" of stars.
         self.rate = options.density * self.step / TRAVELLED
         self.due = 0.0
@@ -108,10 +110,7 @@ class Starfield(Scene):
         if event.type != pg.KEYDOWN:
             return None
         if event.key in (pg.K_RETURN, pg.K_KP_ENTER):
-            try:
-                Starfield.dosbox = start_dosbox(autorun=not event.mod & pg.KMOD_ALT)
-            except EmulatorError as e:
-                show_error(str(e).strip())
+            Starfield.dosbox = start_dosbox(autorun=not event.mod & pg.KMOD_ALT)
             return None
         if event.key == pg.K_SPACE:
             self.stars.append(self.star(center=True))
@@ -126,11 +125,10 @@ class Starfield(Scene):
     @override
     def run(self, screen: pg.Surface) -> NextScene:
         """Sometimes leave it to stars.exe and show a random game right away."""
-        if not random.randrange(10):  # noqa: S311
-            with suppress(EmulatorError):
-                Starfield.dosbox = start_dosbox()
-                gamelist.random_game()
-                return hero.Hero()
+        if not random.randrange(20) and (dosbox := start_dosbox()):  # noqa: S311
+            Starfield.dosbox = dosbox
+            gamelist.random_game()
+            return hero.Hero()
         return super().run(screen)
 
     @override
