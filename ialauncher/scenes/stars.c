@@ -6,11 +6,9 @@ A simplified DOS version of starfield.py, running in VGA mode 11h.
 #include <conio.h>
 #include <ctype.h>
 #include <i86.h>
-#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
 
 #define WIDTH 640
 #define HEIGHT 480
@@ -26,7 +24,9 @@ A simplified DOS version of starfield.py, running in VGA mode 11h.
 #define SPACE ' '
 #define INPUT_STATUS 0x3DA
 #define RETRACE 0x08
+#define BIOS_TICKS MK_FP(0x40, 0x6C) /* 18.2 per second since midnight */
 #define RETRACES_PER_FRAME (60 / FPS)
+#define FLOOR(f) ((long)(f) - ((f) < (long)(f)))
 #define TRAVELLED \
     (1 - 2.0f / (CLUSTER + 1) + 1.0f / (2 * CLUSTER + 1))
 
@@ -74,11 +74,12 @@ static float clustered(void)
 static Star star(void)
 {
     Star s;
+    float x = clustered() * WIDTH + 0.5f, y = clustered() * HEIGHT + 0.5f;
 
     /* Round x and y to whole pixels, so there's a chance you
        collide with the star when both happen to be zero. */
-    s.x = floor(clustered() * WIDTH + 0.5f) / 2;
-    s.y = floor(clustered() * HEIGHT + 0.5f) / 2;
+    s.x = FLOOR(x) / 2.0f;
+    s.y = FLOOR(y) / 2.0f;
     s.z = 1;
     return s;
 }
@@ -140,7 +141,7 @@ static int update(void)
             continue;
         }
         stars[kept++] = s;
-        fill((int)floor(left), (int)floor(top), size);
+        fill((int)FLOOR(left), (int)FLOOR(top), size);
     }
 
     /* Replace stars that left and add more until field is full. */
@@ -203,9 +204,9 @@ static void help(void)
            "STARS [/D density] [/W warp]\n"
            "\n"
            "  /D  Number of stars (default %u)\n"
-           "  /W  Warp speed, 1 or more (default %.1f)\n"
+           "  /W  Warp speed, 1 or more (default %u.%u)\n"
            "  /H  Show this help\n",
-           DENSITY, WARP);
+           DENSITY, (unsigned)WARP, (unsigned)(WARP * 10) % 10);
 }
 
 static void fail(const char *message, const char *arg)
@@ -214,11 +215,33 @@ static void fail(const char *message, const char *arg)
     exit(1);
 }
 
-/* Read options given as /D 500, /D500 or /D:500, in any case. */
+/* Read a number like strtod() does. */
+static long decimal(const char *value, char **end, long *divisor)
+{
+    const char *p = value;
+    long number = 0;
+    int digits = 0, negative = 0;
+
+    *divisor = 1;
+    if (*p == '-' || *p == '+') negative = *p++ == '-';
+    for (; isdigit(*p); p++, digits++) {
+        number = number * 10 + (*p - '0');
+    }
+    if (*p == '.') {
+        for (p++; isdigit(*p); p++, digits++) {
+            number = number * 10 + (*p - '0');
+            *divisor *= 10;
+        }
+    }
+    *end = (char *)(digits ? p : value);
+    return negative ? -number : number;
+}
+
+/* Parse command-line arguments. */
 static void parse(int argc, char *argv[])
 {
     int i;
-    long number;
+    long number, divisor;
     char option, *value, *end;
 
     for (i = 1; i < argc; i++) {
@@ -242,13 +265,13 @@ static void parse(int argc, char *argv[])
         if (option == 'd') {
             number = strtol(value, &end, 10);
         } else {
-            warp = (float)strtod(value, &end);
+            number = decimal(value, &end, &divisor);
+            warp = (float)number / divisor;
         }
         if (end == value || *end != '\0') {
             fail("Invalid number", value);
         }
         if (option == 'd') {
-            /* Check before converting, a 16-bit unsigned would wrap. */
             if (number > MAX_DENSITY) {
                 printf("Too many stars, the maximum is %u.\n", MAX_DENSITY);
                 exit(1);
@@ -272,7 +295,7 @@ int main(int argc, char *argv[])
         printf("Not enough memory for %u stars.\n", density);
         return 1;
     }
-    srand((unsigned)time(NULL));
+    srand(*(unsigned __far *)BIOS_TICKS); /* Seed from BIOS. */
     set_mode(0x11);
     while (!collided && !escape()) {
         collided = update();
