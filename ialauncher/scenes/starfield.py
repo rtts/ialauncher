@@ -80,12 +80,10 @@ class Starfield(Scene):
         """Return a new star at depth z = 1, optionally in the exact center."""
         width, height = self.screen.get_size()
         game = random.choice(gamelist.games)  # noqa: S311
-        x, y = random.triangular(-width, width), random.triangular(-height, height)  # noqa: S311
-
-        # Round x and y to whole pixels, so there's a chance you
-        # collide with the star when both happen to be zero.
-        x, y = (0, 0) if center else (round(x), round(y))
-
+        if center:
+            x = y = 0.0
+        else:
+            x, y = random.triangular(-width, width), random.triangular(-height, height)  # noqa: S311
         return Star(x / 2, y / 2, 1, game, size=1, image=self.image(game, 1))
 
     def image(self, game: Game, size: int) -> pg.Surface:
