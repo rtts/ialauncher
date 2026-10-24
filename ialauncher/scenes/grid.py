@@ -15,7 +15,6 @@ from ialauncher.gamelist import gamelist
 from ialauncher.utils import ASPECT_RATIO, grid_margin, letterbox, sharp_scale
 
 from . import (
-    ANTIALIAS,
     BLACK,
     CYAN,
     FONT_FAMILY,
@@ -403,7 +402,7 @@ class Menu:
         self.highlighted: int | None = None
         font.bold = True
         self.title = font.render(
-            f"{game.title} ({game.year})", ANTIALIAS, self.TITLE_FOREGROUND
+            f"{game.title} ({game.year})", antialias=True, color=self.TITLE_FOREGROUND
         )
         font.bold = False
         labels = max(font.size(label)[0] for label in self.labels)
@@ -441,5 +440,7 @@ class Menu:
                 screen.fill(self.HIGHLIGHT_BACKGROUND, row)
                 color = self.HIGHLIGHT_FOREGROUND
             y = row.top + self.PADDING // 2
-            screen.blit(self.font.render(label, ANTIALIAS, color), (x, y))
-            screen.blit(self.font.render(shortcut, ANTIALIAS, color), (shortcut_x, y))
+            screen.blit(self.font.render(label, antialias=True, color=color), (x, y))
+            screen.blit(
+                self.font.render(shortcut, antialias=True, color=color), (shortcut_x, y)
+            )

@@ -20,7 +20,6 @@ from ialauncher.utils import find_emulator, gradient, letterbox, sharp_scale, sh
 CYAN = (0, 204, 255)
 MAGENTA = (255, 0, 204)
 BLACK = (0, 0, 0)
-ANTIALIAS = True
 GRID_LARGER = {pg.K_MINUS, pg.K_KP_MINUS}
 GRID_SMALLER = {pg.K_PLUS, pg.K_EQUALS, pg.K_KP_PLUS}
 COMMAND_KEYS = {pg.K_SPACE} | GRID_LARGER | GRID_SMALLER
@@ -386,7 +385,7 @@ class Browse(Scene):
         self, screen: pg.Surface, padding: tuple[int, int] = (24, 16)
     ) -> None:
         """Draw the message in the middle of the screen."""
-        image = self.message_font.render(self.message, ANTIALIAS, BLACK)
+        image = self.message_font.render(self.message, antialias=True, color=BLACK)
         rect = image.get_rect(center=screen.get_rect().center)
         screen.fill(MAGENTA, rect.inflate(2 * padding[0], 2 * padding[1]))
         screen.blit(image, rect)
