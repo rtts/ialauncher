@@ -17,9 +17,6 @@ from .scenes.loading import Loading
 
 def main() -> None:
     """Parse the command-line arguments and start IA Launcher."""
-    # Print what the console's encoding can't show as "?" instead of crashing
-    if isinstance(sys.stdout, io.TextIOWrapper):
-        sys.stdout.reconfigure(errors="replace")
     parser = argparse.ArgumentParser(
         description="DOSBox frontend for the Internet Archive MS-DOS games collection"
     )
@@ -48,6 +45,13 @@ def main() -> None:
         type=int,
         metavar="N",
         help=f"Screensaver density (default {options.density})",
+    )
+    parser.add_argument(
+        "--mbtc",
+        type=int,
+        metavar="N",
+        help="Mean time between collisions in seconds "
+        f"(default {options.mbtc}, 0 to disable)",
     )
     parser.add_argument(
         "--fullscreen",
@@ -88,6 +92,22 @@ def main() -> None:
         print("Done!")
         return
 
+    set_options(args)
+    has_opengl()
+    if isinstance(sys.stdout, io.TextIOWrapper):
+        sys.stdout.reconfigure(errors="replace")
+    try:
+        run(
+            Loading(slurp=args.slurp),
+            title="IA Launcher",
+            fullscreen=options.fullscreen,
+        )
+    finally:
+        gamelist.stop_loading()
+
+
+def set_options(args: argparse.Namespace) -> None:
+    """Override the default options with the command-line arguments."""
     if args.fullscreen is not None:
         options.fullscreen = args.fullscreen
     if args.slideshow is not None:
@@ -98,20 +118,12 @@ def main() -> None:
         options.warp = max(1, args.warp)
     if args.density is not None:
         options.density = max(0, args.density)
+    if args.mbtc is not None:
+        options.mbtc = max(0, args.mbtc)
     if args.dosbox is not None:
         options.dosbox_executable = args.dosbox
     if args.scummvm is not None:
         options.scummvm_executable = args.scummvm
-
-    has_opengl()
-    try:
-        run(
-            Loading(slurp=args.slurp),
-            title="IA Launcher",
-            fullscreen=options.fullscreen,
-        )
-    finally:
-        gamelist.stop_loading()
 
 
 if __name__ == "__main__":

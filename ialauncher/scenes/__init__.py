@@ -226,8 +226,8 @@ class Browse(Scene):
         if event.type in INPUT_EVENTS:
             pg.time.set_timer(IDLE, options.idle * 1000)
         if event.type == IDLE:
-            playing = gamelist.get_current_game().is_running()
-            busy = self.slideshow_running or playing
+            playing = any(game.is_running() for game in gamelist.all_games)
+            busy = self.slideshow_running or playing or Starfield.dosbox_running()
             next_scene = None if busy else Starfield(self)
         elif event.type == BLINK:
             self.dot_visible = self.blinking and not self.dot_visible

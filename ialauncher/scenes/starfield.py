@@ -2,9 +2,10 @@
 
 import random
 import subprocess
+from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
-from typing import override
+from typing import ClassVar, override
 
 import pygame as pg
 
@@ -43,8 +44,21 @@ class Star:
     image: pg.Surface
 
 
+def start_dosbox(*, autorun: bool = True) -> subprocess.Popen[bytes]:
+    """Start stars.exe, or raise EmulatorError if DOSBox can't be found."""
+    command = [*get_dosbox_command(), "stars.exe" if autorun else "."]
+    command += [*get_dosbox_options(), "--set", "cpu_cycles=100000"]
+    if autorun:
+        command.append("-exit")
+    return subprocess.Popen(  # noqa: S603
+        command, cwd=Path(__file__).parent, creationflags=NO_WINDOW
+    )
+
+
 class Starfield(Scene):
     """Starfield Simulation."""
+
+    dosbox: ClassVar[subprocess.Popen[bytes] | None] = None
 
     def __init__(self, referrer: Scene, warp: float | None = None) -> None:
         """Initialize."""
@@ -52,22 +66,23 @@ class Starfield(Scene):
         self.referrer = referrer
         self.stars: list[Star] = []
         self.dots: dict[Game, pg.Surface] = {}
-        self.warp = options.warp if warp is None else warp
-        self.step = self.warp / (SPEED * FPS)
+        warp = options.warp if warp is None else warp
+        self.step = warp / (SPEED * FPS)
         # Filling at this rate prevents "waves" of stars.
         self.rate = options.density * self.step / TRAVELLED
         self.due = 0.0
-        self.dosbox: subprocess.Popen[bytes] | None = None
+        # Chance per frame of adding a star in the exact center.
+        self.chance = 1 / (options.mbtc * FPS) if options.mbtc else 0
 
-    def star(self) -> Star:
-        """Return a new star at depth z = 1."""
+    def star(self, *, center: bool = False) -> Star:
+        """Return a new star at depth z = 1, optionally in the exact center."""
         width, height = self.screen.get_size()
         game = random.choice(gamelist.games)  # noqa: S311
         x, y = random.triangular(-width, width), random.triangular(-height, height)  # noqa: S311
 
         # Round x and y to whole pixels, so there's a chance you
         # collide with the star when both happen to be zero.
-        x, y = round(x), round(y)
+        x, y = (0, 0) if center else (round(x), round(y))
 
         return Star(x / 2, y / 2, 1, game, size=1, image=self.image(game, 1))
 
@@ -89,28 +104,34 @@ class Starfield(Scene):
 
     @override
     def handle(self, event: pg.event.Event) -> NextScene:
-        """Exit on Escape, start DOS version on Enter."""
-        dos_running = self.dosbox is not None and self.dosbox.poll() is None
-        if dos_running or event.type != pg.KEYDOWN:
+        """Exit on Escape, start DOS version on Enter, add center star on Space."""
+        if event.type != pg.KEYDOWN:
             return None
         if event.key in (pg.K_RETURN, pg.K_KP_ENTER):
-            self.start_dos(autorun=not event.mod & pg.KMOD_ALT)
+            try:
+                Starfield.dosbox = start_dosbox(autorun=not event.mod & pg.KMOD_ALT)
+            except EmulatorError as e:
+                show_error(str(e).strip())
+            return None
+        if event.key == pg.K_SPACE:
+            self.stars.append(self.star(center=True))
             return None
         return self.referrer if event.key == pg.K_ESCAPE else None
 
-    def start_dos(self, *, autorun: bool = True) -> None:
-        """Run stars.exe."""
-        try:
-            dosbox = get_dosbox_command()
-        except EmulatorError as e:
-            show_error(str(e).strip())
-            return
-        command = [*dosbox, ".", *get_dosbox_options(), "--set", "cpu_cycles=100000"]
-        if autorun:
-            command.extend(["-c", "stars", "-exit"])
-        self.dosbox = subprocess.Popen(  # noqa: S603
-            command, cwd=Path(__file__).parent, creationflags=NO_WINDOW
-        )
+    @classmethod
+    def dosbox_running(cls) -> bool:
+        """Return whether DOSBox is still running."""
+        return cls.dosbox is not None and cls.dosbox.poll() is None
+
+    @override
+    def run(self, screen: pg.Surface) -> NextScene:
+        """Sometimes leave it to stars.exe and show a random game right away."""
+        if not random.randrange(10):  # noqa: S311
+            with suppress(EmulatorError):
+                Starfield.dosbox = start_dosbox()
+                gamelist.random_game()
+                return hero.Hero()
+        return super().run(screen)
 
     @override
     def update(self, screen: pg.Surface) -> NextScene:
@@ -129,7 +150,7 @@ class Starfield(Scene):
         for star in self.stars:
             star.z -= self.step
             if star.z <= 1 / height:
-                if star.x == star.y == 0 and star.game in gamelist.games:
+                if star.x == star.y == 0:
                     # Collision!
                     gamelist.current_game = gamelist.games.index(star.game)
                     return hero.Hero()
@@ -154,4 +175,7 @@ class Starfield(Scene):
         self.due -= due
         new = min(max(new, due), options.density - len(stars))
         self.stars = [self.star() for _ in range(new)] + stars
+
+        if random.random() < self.chance:  # noqa: S311
+            self.stars.append(self.star(center=True))
         return None
