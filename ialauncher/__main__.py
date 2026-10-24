@@ -47,11 +47,11 @@ def main() -> None:
         help=f"Screensaver density (default {options.density})",
     )
     parser.add_argument(
-        "--mbtc",
+        "--mtbc",
         type=int,
         metavar="N",
         help="Mean time between collisions in seconds "
-        f"(default {options.mbtc}, 0 to disable)",
+        f"(default {options.mtbc}, 0 to disable)",
     )
     parser.add_argument(
         "--fullscreen",
@@ -118,8 +118,8 @@ def set_options(args: argparse.Namespace) -> None:
         options.warp = max(1, args.warp)
     if args.density is not None:
         options.density = max(0, args.density)
-    if args.mbtc is not None:
-        options.mbtc = max(0, args.mbtc)
+    if args.mtbc is not None:
+        options.mtbc = max(0, args.mtbc)
     if args.dosbox is not None:
         options.dosbox_executable = args.dosbox
     if args.scummvm is not None:

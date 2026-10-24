@@ -74,7 +74,7 @@ class Starfield(Scene):
         self.rate = options.density * self.step / TRAVELLED
         self.due = 0.0
         # Chance per frame of adding a star in the exact center.
-        self.chance = 1 / (options.mbtc * FPS) if options.mbtc else 0
+        self.chance = 1 / (options.mtbc * FPS) if options.mtbc else 0
 
     def star(self, *, center: bool = False) -> Star:
         """Return a new star at depth z = 1, optionally in the exact center."""

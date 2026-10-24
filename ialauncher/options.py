@@ -8,6 +8,6 @@ slideshow: int = 10
 idle: int = 120
 warp: float = 1.0
 density: int = 5000
-mbtc: int = 90
+mtbc: int = 90
 dosbox_executable: str | None = None
 scummvm_executable: str | None = None
