@@ -31,11 +31,9 @@ from .emulator import (
 from .iso import ISOFile
 from .utils import tls_context
 
-# DOS writes files in a code page, not UTF-8; every byte decodes in cp437.
 DOS_ENCODING = "cp437"
-# A game that exits within this many seconds probably has a wrong start command.
-QUICK_EXIT = 3
-# Show this many lines of emulator output when the emulator fails.
+DOS_NEWLINE = "\r\n"
+QUICK_EXIT = 3  # seconds
 OUTPUT_LINES = 5
 EMULATOR_FAILED = pg.event.custom_type()
 TITLESCREEN_SIZE = 320, 200
@@ -153,18 +151,22 @@ class Game:
             if autorun:
                 dosbox_args[0] = "dosbox.bat"
                 batfile.write_text(
-                    "@echo off\ncls\n" + self.emulator_start, encoding=DOS_ENCODING
+                    "@echo off\ncls\n" + self.emulator_start,
+                    encoding=DOS_ENCODING,
+                    newline=DOS_NEWLINE,
                 )
 
             else:
-                batfile.write_text(self.emulator_start, encoding=DOS_ENCODING)
+                batfile.write_text(
+                    self.emulator_start, encoding=DOS_ENCODING, newline=DOS_NEWLINE
+                )
 
         else:
             autorun = False
             if not batfile.is_file():
                 # Provide empty dosbox.bat for easy autocomplete
                 # (and correct filename capitalization!)
-                batfile.write_text("\n", encoding=DOS_ENCODING)
+                batfile.write_text("\n", encoding=DOS_ENCODING, newline=DOS_NEWLINE)
 
         if autorun:
             dosbox_args.append("-exit")
