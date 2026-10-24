@@ -6,7 +6,7 @@ A simplified DOS version of starfield.py, running in VGA mode 12h.
 #include <conio.h>
 #include <ctype.h>
 #include <i86.h>
-#include <stdio.h>
+#include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -259,23 +259,60 @@ static void wait_retrace(void)
     while (!(inp(INPUT_STATUS) & RETRACE));
 }
 
+/* Write a character to standard output, ending lines with CR LF. */
+static void put(char c)
+{
+    union REGS regs;
+
+    if (c == '\n') put('\r');
+    regs.h.ah = 0x02;
+    regs.h.dl = c;
+    int86(0x21, &regs, &regs);
+}
+
+/* Write a number to standard output. */
+static void put_unsigned(unsigned n)
+{
+    if (n >= 10) put_unsigned(n / 10);
+    put('0' + n % 10);
+}
+
+/* Like printf(), but only has %s and %u */
+static void print(const char *format, ...)
+{
+    va_list args;
+    const char *s;
+
+    va_start(args, format);
+    for (; *format; format++) {
+        if (*format != '%') {
+            put(*format);
+        } else if (*++format == 's') {
+            for (s = va_arg(args, const char *); *s; s++) put(*s);
+        } else {
+            put_unsigned(va_arg(args, unsigned));
+        }
+    }
+    va_end(args);
+}
+
 /* Show help message. */
 static void help(void)
 {
-    printf("Starfield Simulation for MS-DOS, by Jaap Joris Vens.\n"
-           "\n"
-           "STARS [/D density] [/W warp]\n"
-           "\n"
-           "  /D  Number of stars (default %u)\n"
-           "  /W  Warp speed, 1 or more (default %u.%u)\n"
-           "  /H  Show this help\n",
-           DENSITY, (unsigned)WARP, (unsigned)(WARP * 10) % 10);
+    print("Starfield Simulation for MS-DOS, by Jaap Joris Vens.\n"
+          "\n"
+          "STARS [/D density] [/W warp]\n"
+          "\n"
+          "  /D  Number of stars (default %u)\n"
+          "  /W  Warp speed, 1 or more (default %u.%u)\n"
+          "  /H  Show this help\n",
+          DENSITY, (unsigned)WARP, (unsigned)(WARP * 10) % 10);
 }
 
 /* Show error message. */
 static void fail(const char *message, const char *arg)
 {
-    printf("%s: %s\nType STARS /H for help.\n", message, arg);
+    print("%s: %s\nType STARS /H for help.\n", message, arg);
     exit(1);
 }
 
@@ -337,7 +374,7 @@ static void parse(int argc, char *argv[])
         }
         if (option == 'd') {
             if (number > MAX_DENSITY) {
-                printf("Too many stars, the maximum is %u.\n", MAX_DENSITY);
+                print("Too many stars, the maximum is %u.\n", MAX_DENSITY);
                 exit(1);
             }
             density = number < 0 ? 0 : (unsigned)number;
@@ -360,7 +397,7 @@ int main(int argc, char *argv[])
         if (planes[plane] == NULL) stars = NULL;
     }
     if (stars == NULL) {
-        printf("Not enough memory for %u stars.\n", density);
+        print("Not enough memory for %u stars.\n", density);
         return 1;
     }
     srand(*(unsigned __far *)BIOS_TICKS); /* Seed from BIOS. */
