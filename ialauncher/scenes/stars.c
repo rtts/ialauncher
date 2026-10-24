@@ -23,6 +23,7 @@ A simplified DOS version of starfield.py, running in VGA mode 11h.
 #define MAX_DENSITY 5000u /* 12 bytes each, malloc can't exceed 64 KB */
 #define CLUSTER 4
 #define ESCAPE 27
+#define SPACE ' '
 #define INPUT_STATUS 0x3DA
 #define RETRACE 0x08
 #define RETRACES_PER_FRAME (60 / FPS)
@@ -123,7 +124,9 @@ static int update(void)
         s.z -= step;
         if (s.z <= 1.0f / HEIGHT) {
             if (s.x == 0 && s.y == 0) {
-                return 1; /* Collision! */
+                /* Collision! */
+                memset(buffer, 0xFF, SCREEN_SIZE);
+                return 1;
             }
             gone++;
             continue;
@@ -153,7 +156,19 @@ static int update(void)
     return 0;
 }
 
-/* Return whether Esc was pressed, emptying the keyboard buffer. */
+/* Add a star in the exact center. */
+static void center_star(void)
+{
+    Star s = {0, 0, 1};
+
+    if (count < density) {
+        stars[count++] = s;
+    } else if (count > 0) {
+        stars[count - 1] = s;
+    }
+}
+
+/* Handle Space and Esc. */
 static int escape(void)
 {
     int pressed = 0;
@@ -162,6 +177,9 @@ static int escape(void)
         switch (getch()) {
         case 0: /* extended key, skip its scan code */
             getch();
+            break;
+        case SPACE:
+            center_star();
             break;
         case ESCAPE:
             pressed = 1;
@@ -244,6 +262,7 @@ static void parse(int argc, char *argv[])
 int main(int argc, char *argv[])
 {
     unsigned i;
+    int collided = 0;
 
     parse(argc, argv);
     /* One spare, because malloc(0) may return NULL. */
@@ -255,12 +274,14 @@ int main(int argc, char *argv[])
     }
     srand((unsigned)time(NULL));
     set_mode(0x11);
-    while (!escape() && !update()) {
+    while (!collided && !escape()) {
+        collided = update();
         for (i = 0; i < RETRACES_PER_FRAME; i++) {
             wait_retrace();
         }
         memcpy(vga, buffer, SCREEN_SIZE);
     }
+    if (collided) delay(100);
     set_mode(0x03);
     return 0;
 }
