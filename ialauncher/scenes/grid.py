@@ -21,11 +21,12 @@ from . import (
     GRID_LARGER,
     GRID_SMALLER,
     MAGENTA,
-    Browse,
+    Scene,
     hero,
     snake,
-    starfield,
 )
+from .browse import Browse
+from .stars import Stars
 
 GRID_SCROLLS = {
     pg.K_RIGHT: (0, 1),
@@ -168,8 +169,8 @@ class Grid(Browse):
         self.resize(cols)
         if reached:
             return snake.Snake(self)
-        if cols > self.cols == old_cols and not starfield.Starfield.dosbox_running():
-            starfield.Starfield.dosbox = starfield.start_dosbox()
+        if cols > self.cols == old_cols and not Stars.is_running():
+            Stars.launch()
         return None
 
     def resize(self, cols: int) -> None:
@@ -289,6 +290,11 @@ class Grid(Browse):
         elif event.x or event.y:
             self.scroll_by(-event.y, event.x)
         return None
+
+    @override
+    def wake(self) -> Scene:
+        """Autoplay the game the screensaver collided with."""
+        return hero.Hero(autoplay=True)
 
     @override
     def escape(self) -> NextScene:

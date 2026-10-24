@@ -1,4 +1,4 @@
-"""A single title screen, full size, with an optional slideshow."""
+"""A single title screen, full size, with an optional slideshow or autoplay."""
 
 from typing import TYPE_CHECKING, override
 
@@ -6,29 +6,32 @@ import pygame as pg
 
 from ialauncher import options
 from ialauncher.cga import cga
+from ialauncher.emulator import EmulatorError, get_dosbox_command
 from ialauncher.engine import NextScene
+from ialauncher.game import Emulator, Game
 from ialauncher.gamelist import gamelist
 from ialauncher.utils import letterbox, sharp_scale
 
-from . import GRID_LARGER, Browse, grid
+from . import BLACK, GRID_LARGER, Blackout, Scene, grid
+from .browse import Browse
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    from ialauncher.game import Game
-
 ADVANCE = pg.event.custom_type()
 KEEP_SLIDESHOW = {pg.K_ESCAPE, pg.K_TAB, pg.K_BACKSPACE}
+TITLE_DURATION = 1000  # milliseconds
 
 
 class Hero(Browse):
-    """A single title screen, full size, with an optional slideshow."""
+    """A single title screen, full size, with an optional slideshow or autoplay."""
 
-    def __init__(self, *, slideshow: bool = False) -> None:
+    def __init__(self, *, slideshow: bool = False, autoplay: bool = False) -> None:
         """Initialize."""
         super().__init__()
         if slideshow:
             gamelist.random_game()
+        self.autoplay = autoplay
         self.slideshow_running = slideshow and options.slideshow > 0
         self.cache: dict[tuple[Game, tuple[int, int], int | None], pg.Surface] = {}
         self.handlers: dict[int, Callable[[], None]] = {
@@ -41,7 +44,15 @@ class Hero(Browse):
 
     @override
     def run(self, screen: pg.Surface) -> NextScene:
-        """Start slideshow timer if needed, and stop it when the scene exits."""
+        """Autoplay the current game once, if it qualifies.
+
+        Otherwise, start slideshow timer if needed, and stop it when the
+        scene exits.
+        """
+        if self.autoplay:
+            self.autoplay = False
+            if game := autoplay_game():
+                return Autoplay(game, self)
         self.set_slideshow(enabled=self.slideshow_running)
         try:
             return super().run(screen)
@@ -97,6 +108,11 @@ class Hero(Browse):
         return None
 
     @override
+    def wake(self) -> Scene:
+        """Autoplay the game the screensaver collided with."""
+        return Hero(autoplay=True)
+
+    @override
     def draw(self, screen: pg.Surface) -> None:
         """Draw the title screen of the current game, letterboxed."""
         game = gamelist.get_current_game()
@@ -113,3 +129,70 @@ class Hero(Browse):
     def dot_area(self, screen: pg.Surface) -> pg.Rect:
         """Draw the dots in the corners of the title screen."""
         return letterbox(screen.get_rect())
+
+
+class Autoplay(Blackout):
+    """The title screen for a second, then a black screen behind the game."""
+
+    def __init__(self, game: Game, hero: Hero) -> None:
+        """Unzip the game first, if needed."""
+        super().__init__()
+        self.game = game
+        self.hero = hero
+        self.emulator: Emulator | None = None
+        self.title_until = pg.time.get_ticks() + TITLE_DURATION
+        self.deadline = 0
+        self.unzipping = not game.is_ready()
+        if self.unzipping:
+            game.download()
+
+    @override
+    def run(self, screen: pg.Surface) -> NextScene:
+        """Stop unzipping or close DOSBox when the scene exits."""
+        try:
+            return super().run(screen)
+        finally:
+            if self.unzipping and (thread := self.game.download_thread):
+                thread.cancel()
+            if self.emulator is not None:
+                self.emulator.stop()
+
+    @override
+    def update(self, screen: pg.Surface) -> NextScene:
+        """Start the game once it's unzipped, and continue when time is up.
+
+        Continue with the screensaver, or with Hero if the game can't start.
+        """
+        if pg.time.get_ticks() < self.title_until:
+            screen.fill(BLACK)
+            self.hero.draw(screen)
+            return None
+        super().update(screen)
+        game = self.game
+        if self.emulator is None:
+            if self.unzipping and (thread := game.download_thread):
+                if thread.is_alive():
+                    return None
+                self.unzipping = False
+            if not game.is_ready():
+                return self.hero
+            self.emulator = game.emulator = game.start()
+            self.deadline = pg.time.get_ticks() + options.autoplay * 1000
+            return None
+        if self.emulator.is_alive() and pg.time.get_ticks() < self.deadline:
+            return None
+        return self.hero.screensaver()
+
+
+def autoplay_game() -> Game | None:
+    """Return the current game if it qualifies to autoplay."""
+    if not options.autoplay:
+        return None
+    game = gamelist.get_current_game()
+    if game.engine != "dosbox" or not game.emulator_start:
+        return None
+    try:
+        get_dosbox_command()
+    except EmulatorError:
+        return None
+    return game if game.is_downloaded() else None

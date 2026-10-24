@@ -10,12 +10,14 @@ import games as gd
 from ialauncher import bios, engine, options
 from ialauncher.game import Game
 from ialauncher.gamelist import gamelist
-from ialauncher.scenes import BLACK, IDLE, MAGENTA, starfield
-from ialauncher.scenes import download as download_scene
+from ialauncher.scenes import BLACK, MAGENTA, browse, hero
+from ialauncher.scenes.browse import IDLE
 from ialauncher.scenes.download import Download
 from ialauncher.scenes.grid import Grid
 from ialauncher.scenes.hero import Hero
 from ialauncher.scenes.loading import Loading
+from ialauncher.scenes.starfield import Starfield
+from ialauncher.scenes.stars import Stars
 
 from .support import HeadlessTestCase, Script, Step, key, text
 
@@ -294,7 +296,7 @@ class TestBrowse(HeadlessTestCase):
                 Game, "reset", lambda game: ready.discard(game.identifier)
             )
         )
-        self.enterContext(mock.patch.object(download_scene, "Download", download))
+        self.enterContext(mock.patch.object(browse, "Download", download))
         yield from self.wait_for(Hero)
         total = len(gamelist.games)
 
@@ -374,61 +376,91 @@ class TestBrowse(HeadlessTestCase):
 
 
 class TestAutoplay(HeadlessTestCase):
-    """Demoing the current game before the starfield."""
+    """Autoplaying the game that the starfield collided with."""
 
     def setUp(self) -> None:
         """Set up autoplay."""
         super().setUp()
         self.enterContext(mock.patch.object(options, "autoplay", 300))
         self.emulator = mock.Mock(is_alive=mock.Mock(return_value=True))
+        self.emulator.stop.side_effect = lambda: self.emulator.is_alive.configure_mock(
+            return_value=False
+        )
         self.start = mock.Mock(return_value=self.emulator)
         self.enterContext(mock.patch.object(Game, "start", self.start))
         self.enterContext(mock.patch.object(Game, "is_downloaded", return_value=True))
-        self.enterContext(mock.patch.object(starfield, "get_dosbox_command"))
+        self.enterContext(mock.patch.object(hero, "get_dosbox_command"))
         self.enterContext(mock.patch("random.randrange", return_value=1))
 
-    def demoable(self) -> Generator[Step, engine.Scene | None, Game]:
-        """Wait for Hero, and give the current game a start command."""
-        yield from self.wait_for(Hero)
-        game = gamelist.get_current_game()
+    @staticmethod
+    def make_autoplayable(game: Game) -> Game:
+        """Give the game a DOSBox start command."""
         game.engine = "dosbox"
         game.emulator_start = "game.exe"
         return game
 
-    def test_escape(self) -> Script:
-        """Escape closes DOSBox and continues with the starfield."""
-        self.enterContext(mock.patch.object(Game, "is_ready", return_value=True))
-        yield from self.demoable()
+    def collide(self) -> Generator[Step, engine.Scene | None, Game]:
+        """Go from Hero to the starfield, and collide with a game."""
+        yield from self.wait_for(Hero)
         yield pg.event.Event(IDLE)
-        autoplay = yield from self.wait_for(starfield.Autoplay)
+        starfield = yield from self.wait_for(Starfield)
+        game = gamelist.games[1]
+        star = starfield.star(center=True)
+        star.game, star.z = game, 0
+        starfield.stars.append(star)
+        return game
+
+    def test_autoplay(self) -> Script:
+        """Title screen, then DOSBox until time is up, then the starfield."""
+        self.enterContext(mock.patch.object(Game, "is_ready", return_value=True))
+        yield from self.wait_for(Hero)
+        self.make_autoplayable(gamelist.games[1])
+        game = yield from self.collide()
+        autoplay = yield from self.wait_for(hero.Autoplay)
+        self.assertIs(gamelist.get_current_game(), game)
+        self.assertNotEqual(autoplay.screen.get_at((0, 0)), MAGENTA)
+        yield None
+        self.start.assert_not_called()
+        autoplay.title_until = 0
+        yield None
         self.start.assert_called_once()
         self.assertEqual(autoplay.screen.get_at((0, 0)), BLACK)
-        yield key(pg.K_ESCAPE)
-        yield from self.wait_for(starfield.Starfield)
-        self.emulator.stop.assert_called_once()
-        yield key(pg.K_ESCAPE)
-        yield from self.wait_for(Hero)
-        self.assertIsNone((yield key(pg.K_ESCAPE)))
-
-    def test_time_is_up(self) -> Script:
-        """DOSBox closes after --autoplay seconds."""
-        self.enterContext(mock.patch.object(Game, "is_ready", return_value=True))
-        yield from self.demoable()
-        yield pg.event.Event(IDLE)
-        autoplay = yield from self.wait_for(starfield.Autoplay)
         remaining = autoplay.deadline - pg.time.get_ticks()
         self.assertGreater(remaining, 299_000)
         self.assertLessEqual(remaining, 300_000)
-        yield None
+        self.assertIsInstance((yield key(pg.K_ESCAPE)), hero.Autoplay)
         self.emulator.stop.assert_not_called()
-        autoplay.deadline -= 300_000
-        yield from self.wait_for(starfield.Starfield)
+        autoplay.deadline = 0
+        yield from self.wait_for(Starfield)
         self.emulator.stop.assert_called_once()
         yield key(pg.K_ESCAPE)
+        yield from self.wait_for(Hero)
+        self.assertIs(gamelist.get_current_game(), game)
         self.assertIsNone((yield key(pg.K_ESCAPE)))
+        self.start.assert_called_once()
+
+    def test_cycle(self) -> Script:
+        """After autoplay, the starfield can autoplay again."""
+        self.enterContext(mock.patch.object(Game, "is_ready", return_value=True))
+        yield from self.wait_for(Hero)
+        self.make_autoplayable(gamelist.games[1])
+        yield from self.collide()
+        autoplay = yield from self.wait_for(hero.Autoplay)
+        autoplay.title_until = 0
+        yield None
+        autoplay.deadline = 0
+        starfield = yield from self.wait_for(Starfield)
+        self.emulator.is_alive.return_value = True
+        star = starfield.star(center=True)
+        star.game, star.z = gamelist.games[1], 0
+        starfield.stars.append(star)
+        yield from self.wait_for(hero.Autoplay)
+        self.assertEqual(self.start.call_count, 1)
+        self.assertIsNone((yield key(pg.K_q, pg.KMOD_CTRL)))
+        self.assertEqual(self.emulator.stop.call_count, 1)
 
     def test_unzip(self) -> Script:
-        """The game is unzipped first, and Escape cancels that."""
+        """The game is unzipped first, quitting cancels that."""
         thread = mock.Mock(error=None, is_alive=mock.Mock(return_value=True))
 
         def download(game: Game) -> None:
@@ -436,52 +468,120 @@ class TestAutoplay(HeadlessTestCase):
 
         self.enterContext(mock.patch.object(Game, "is_ready", return_value=False))
         self.enterContext(mock.patch.object(Game, "download", download))
-        yield from self.demoable()
-        yield pg.event.Event(IDLE)
-        yield from self.wait_for(starfield.Autoplay)
-        yield key(pg.K_ESCAPE)
-        yield from self.wait_for(starfield.Starfield)
-        thread.cancel.assert_called_once()
+        yield from self.wait_for(Hero)
+        self.make_autoplayable(gamelist.games[1])
+        yield from self.collide()
+        autoplay = yield from self.wait_for(hero.Autoplay)
+        autoplay.title_until = 0
+        yield None
+        self.assertIsInstance((yield key(pg.K_ESCAPE)), hero.Autoplay)
         self.start.assert_not_called()
+        self.assertIsNone((yield key(pg.K_q, pg.KMOD_CTRL)))
+        thread.cancel.assert_called_once()
+
+    def test_unzip_failed(self) -> Script:
+        """If unzipping fails, Hero waits for the idle timer."""
+        thread = mock.Mock(error=None, is_alive=mock.Mock(return_value=False))
+
+        def download(game: Game) -> None:
+            game.download_thread = thread
+
+        self.enterContext(mock.patch.object(Game, "is_ready", return_value=False))
+        self.enterContext(mock.patch.object(Game, "download", download))
+        yield from self.wait_for(Hero)
+        self.make_autoplayable(gamelist.games[1])
+        yield from self.collide()
+        autoplay = yield from self.wait_for(hero.Autoplay)
+        autoplay.title_until = 0
+        yield from self.wait_for(Hero)
+        self.start.assert_not_called()
+        yield pg.event.Event(IDLE)
+        yield from self.wait_for(Starfield)
         yield key(pg.K_ESCAPE)
         self.assertIsNone((yield key(pg.K_ESCAPE)))
 
     def test_scummvm(self) -> Script:
-        """ScummVM games aren't demoed."""
-        game = yield from self.demoable()
-        game.engine = "scummvm"
+        """ScummVM games aren't autoplayed, Hero waits for the idle timer."""
+        yield from self.wait_for(Hero)
+        self.make_autoplayable(gamelist.games[1]).engine = "scummvm"
+        game = yield from self.collide()
+        yield from self.wait_for(Hero)
+        self.assertIs(gamelist.get_current_game(), game)
         yield pg.event.Event(IDLE)
-        yield from self.wait_for(starfield.Starfield)
+        yield from self.wait_for(Starfield)
+        self.start.assert_not_called()
+        yield key(pg.K_ESCAPE)
+        self.assertIsNone((yield key(pg.K_ESCAPE)))
+
+    def test_disabled(self) -> Script:
+        """With --autoplay 0, the starfield hands over to Hero as before."""
+        self.enterContext(mock.patch.object(options, "autoplay", 0))
+        yield from self.wait_for(Hero)
+        self.make_autoplayable(gamelist.games[1])
+        yield from self.collide()
+        yield from self.wait_for(Hero)
+        self.start.assert_not_called()
+        self.assertIsNone((yield key(pg.K_ESCAPE)))
+
+    def test_idle(self) -> Script:
+        """Hero doesn't autoplay when idle, only after a collision."""
+        yield from self.wait_for(Hero)
+        self.make_autoplayable(gamelist.get_current_game())
+        yield pg.event.Event(IDLE)
+        yield from self.wait_for(Starfield)
         self.start.assert_not_called()
         yield key(pg.K_ESCAPE)
         self.assertIsNone((yield key(pg.K_ESCAPE)))
 
     def test_grid(self) -> Script:
-        """Only the screensaver started from Hero demoes the game."""
-        yield from self.demoable()
+        """The screensaver started from Grid can autoplay too."""
+        self.enterContext(mock.patch.object(Game, "is_ready", return_value=True))
+        yield from self.wait_for(Hero)
+        self.make_autoplayable(gamelist.games[1])
         yield key(pg.K_MINUS)
         yield from self.wait_for(Grid)
         yield pg.event.Event(IDLE)
-        yield from self.wait_for(starfield.Starfield)
-        self.start.assert_not_called()
-        yield key(pg.K_ESCAPE)
-        yield key(pg.K_PLUS)
-        self.assertIsNone((yield key(pg.K_ESCAPE)))
+        starfield = yield from self.wait_for(Starfield)
+        star = starfield.star(center=True)
+        star.game, star.z = gamelist.games[1], 0
+        starfield.stars.append(star)
+        yield from self.wait_for(hero.Autoplay)
+        self.assertIsNone((yield key(pg.K_q, pg.KMOD_CTRL)))
 
     def test_stars(self) -> Script:
-        """One in twenty times, stars.exe runs instead, and then a random game."""
+        """One in twenty times, stars.exe runs instead, then a random game autoplays."""
+        self.enterContext(mock.patch.object(Game, "is_ready", return_value=True))
         dosbox = mock.Mock(poll=mock.Mock(return_value=None))
         self.enterContext(mock.patch("random.randrange", return_value=0))
-        self.enterContext(
-            mock.patch.object(starfield, "start_dosbox", return_value=dosbox)
-        )
-        yield from self.demoable()
+
+        def launch() -> bool:
+            Stars.dosbox = dosbox
+            return True
+
+        self.enterContext(mock.patch.object(Stars, "dosbox", None))
+        self.enterContext(mock.patch.object(Stars, "launch", launch))
+        yield from self.wait_for(Hero)
+        for game in gamelist.games:
+            self.make_autoplayable(game)
         yield pg.event.Event(IDLE)
-        yield from self.wait_for(starfield.Stars)
+        yield from self.wait_for(Stars)
         yield key(pg.K_ESCAPE)  # stars.exe exits on its own
         yield None
-        self.assertIsInstance((yield None), starfield.Stars)
+        self.assertIsInstance((yield None), Stars)
         dosbox.poll.return_value = 0
-        yield from self.wait_for(Hero)
+        autoplay = yield from self.wait_for(hero.Autoplay)
+        self.assertIs(autoplay.game, gamelist.get_current_game())
+        self.assertIsNone((yield key(pg.K_q, pg.KMOD_CTRL)))
         self.start.assert_not_called()
+
+    def test_stars_unavailable(self) -> Script:
+        """If stars.exe can't start, the starfield runs instead."""
+        self.enterContext(mock.patch("random.randrange", return_value=0))
+        launch = mock.Mock(return_value=False)
+        self.enterContext(mock.patch.object(Stars, "launch", launch))
+        yield from self.wait_for(Hero)
+        yield pg.event.Event(IDLE)
+        yield from self.wait_for(Starfield)
+        launch.assert_called_once()
+        yield key(pg.K_ESCAPE)
         self.assertIsNone((yield key(pg.K_ESCAPE)))
