@@ -1,6 +1,6 @@
 /* Starfield Simulation for MS-DOS.
 
-A simplified DOS version of starfield.py, running in VGA mode 11h.
+A simplified DOS version of starfield.py, running in VGA mode 12h.
 */
 
 #include <conio.h>
@@ -18,12 +18,15 @@ A simplified DOS version of starfield.py, running in VGA mode 11h.
 #define SPEED 10 /* seconds from z = 1 to z = 0 */
 #define WARP 1.0f
 #define DENSITY 500u
-#define MAX_DENSITY 5000u /* 12 bytes each, malloc can't exceed 64 KB */
+#define MAX_DENSITY 5000u /* 10 bytes each, malloc can't exceed 64 KB */
 #define CLUSTER 4
 #define ESCAPE 27
 #define SPACE ' '
 #define INPUT_STATUS 0x3DA
 #define RETRACE 0x08
+#define SEQUENCER 0x3C4
+#define MAP_MASK 0x02
+#define PLANES 4
 #define BIOS_TICKS MK_FP(0x40, 0x6C) /* 18.2 per second since midnight */
 #define RETRACES_PER_FRAME (60 / FPS)
 #define FLOOR(f) ((long)(f) - ((f) < (long)(f)))
@@ -32,17 +35,30 @@ A simplified DOS version of starfield.py, running in VGA mode 11h.
 
 /* A star with a fixed x and y and a moving z. */
 typedef struct {
-    float x, y, z;
+    short x, y;
+    float z;
+    unsigned char color;
 } Star;
+
+/* Colors resembling the title screens. */
+static const struct {
+    unsigned char red, green, blue;
+} PALETTE[1 << PLANES] = {
+    {0, 0, 0},    {8, 7, 18},   {8, 9, 36},   {18, 15, 24},
+    {31, 12, 9},  {24, 22, 19}, {24, 22, 39}, {49, 0, 0},
+    {45, 17, 24}, {43, 17, 45}, {17, 31, 45}, {21, 35, 18},
+    {33, 37, 38}, {17, 44, 45}, {45, 44, 17}, {47, 48, 47},
+};
 
 static Star *stars;
 static unsigned count;
 static unsigned density = DENSITY;
 static float warp = WARP;
 static float due;
-static unsigned char *buffer; /* allocated, or it would be in the .exe */
+static unsigned char *planes[PLANES]; /* allocated, or they'd be in the .exe */
 static unsigned char __far *const vga = MK_FP(0xA000, 0);
 
+/* Switch to the given BIOS video mode. */
 static void set_mode(unsigned short mode)
 {
     union REGS regs;
@@ -52,6 +68,28 @@ static void set_mode(unsigned short mode)
     int86(0x10, &regs, &regs);
 }
 
+/* Load PALETTE into the VGA. */
+static void set_palette(void)
+{
+    union REGS regs;
+    unsigned char i;
+
+    for (i = 0; i < 1 << PLANES; i++) {
+        /* Use DAC register i for color i, instead of the EGA mapping. */
+        regs.w.ax = 0x1000;
+        regs.h.bl = i;
+        regs.h.bh = i;
+        int86(0x10, &regs, &regs);
+        regs.w.ax = 0x1010;
+        regs.w.bx = i;
+        regs.h.dh = PALETTE[i].red;
+        regs.h.ch = PALETTE[i].green;
+        regs.h.cl = PALETTE[i].blue;
+        int86(0x10, &regs, &regs);
+    }
+}
+
+/* Return a random number from 0 up to, but not including, 1. */
 static float uniform(void)
 {
     return rand() / (RAND_MAX + 1.0f);
@@ -70,35 +108,50 @@ static float clustered(void)
     return uniform() < 0.5f ? -distance : distance;
 }
 
-/* Return a new star at depth z = 1. */
+/* Return a non-black color. */
+static unsigned char random_color(void)
+{
+    return 1 + rand() % ((1 << PLANES) - 1);
+}
+
+/* Return a new star at depth z = 1 */
 static Star star(void)
 {
     Star s;
-    float x = clustered() * WIDTH + 0.5f, y = clustered() * HEIGHT + 0.5f;
+    float x = clustered() * WIDTH / 2 + 0.5f;
+    float y = clustered() * HEIGHT / 2 + 0.5f;
 
     /* Round x and y to whole pixels, so there's a chance you
        collide with the star when both happen to be zero. */
-    s.x = FLOOR(x) / 2.0f;
-    s.y = FLOOR(y) / 2.0f;
+    s.x = (short)FLOOR(x);
+    s.y = (short)FLOOR(y);
     s.z = 1;
+    s.color = random_color();
     return s;
 }
 
-/* Draw a white square, clipped to the screen. */
-static void fill(int left, int top, int size)
+/* Draw a square in the given color. */
+static void fill(int left, int top, int size, unsigned char color)
 {
     int right = left + size, bottom = top + size;
-    int x, y;
-    unsigned char *row;
+    int x, y, plane;
+    unsigned char *row, bit;
 
     if (left < 0) left = 0;
     if (top < 0) top = 0;
     if (right > WIDTH) right = WIDTH;
     if (bottom > HEIGHT) bottom = HEIGHT;
-    for (y = top; y < bottom; y++) {
-        row = buffer + y * PITCH;
-        for (x = left; x < right; x++) {
-            row[x >> 3] |= 0x80 >> (x & 7);
+    for (plane = 0; plane < PLANES; plane++) {
+        for (y = top; y < bottom; y++) {
+            row = planes[plane] + y * PITCH;
+            for (x = left; x < right; x++) {
+                bit = 0x80 >> (x & 7);
+                if (color >> plane & 1) {
+                    row[x >> 3] |= bit;
+                } else {
+                    row[x >> 3] &= ~bit;
+                }
+            }
         }
     }
 }
@@ -109,24 +162,30 @@ static int update(void)
     const float step = warp / (SPEED * FPS);
     /* Filling at this rate prevents "waves" of stars. */
     const float rate = density * step / TRAVELLED;
-    unsigned i, kept = 0, gone = 0, n;
+    unsigned i, first = count, kept, gone = 0, n, plane;
     int size;
     float scale, left, top;
     Star s;
 
-    memset(buffer, 0, SCREEN_SIZE);
+    for (plane = 0; plane < PLANES; plane++) {
+        memset(planes[plane], 0, SCREEN_SIZE);
+    }
 
     /* Each star is a point in space, at a fixed x and y that put it
        anywhere on the screen at depth z = 1, mostly near the center,
        and moves toward the viewer at z = 0 by the same distance every
-       frame. Dividing x and y by z projects it onto the screen. */
-    for (i = 0; i < count; i++) {
+       frame. Dividing x and y by z projects it onto the screen.
+       Newer stars are further away, so they're drawn first. */
+    for (i = count; i-- > 0;) {
         s = stars[i];
         s.z -= step;
         if (s.z <= 1.0f / HEIGHT) {
             if (s.x == 0 && s.y == 0) {
-                /* Collision! */
-                memset(buffer, 0xFF, SCREEN_SIZE);
+                /* Collision! The star fills the screen. */
+                for (plane = 0; plane < PLANES; plane++) {
+                    memset(planes[plane], s.color >> plane & 1 ? 0xFF : 0,
+                           SCREEN_SIZE);
+                }
                 return 1;
             }
             gone++;
@@ -140,9 +199,11 @@ static int update(void)
             gone++;
             continue;
         }
-        stars[kept++] = s;
-        fill((int)FLOOR(left), (int)FLOOR(top), size);
+        stars[--first] = s;
+        fill((int)FLOOR(left), (int)FLOOR(top), size, s.color);
     }
+    kept = count - first;
+    memmove(stars, stars + first, kept * sizeof *stars);
 
     /* Replace stars that left and add more until field is full. */
     due += rate;
@@ -162,6 +223,7 @@ static void center_star(void)
 {
     Star s = {0, 0, 1};
 
+    s.color = random_color();
     if (count < density) {
         stars[count++] = s;
     } else if (count > 0) {
@@ -197,6 +259,7 @@ static void wait_retrace(void)
     while (!(inp(INPUT_STATUS) & RETRACE));
 }
 
+/* Show help message. */
 static void help(void)
 {
     printf("Starfield Simulation for MS-DOS, by Jaap Joris Vens.\n"
@@ -209,6 +272,7 @@ static void help(void)
            DENSITY, (unsigned)WARP, (unsigned)(WARP * 10) % 10);
 }
 
+/* Show error message. */
 static void fail(const char *message, const char *arg)
 {
     printf("%s: %s\nType STARS /H for help.\n", message, arg);
@@ -282,27 +346,35 @@ static void parse(int argc, char *argv[])
     if (!(warp >= 1)) warp = 1;
 }
 
+/* Main entry point. */
 int main(int argc, char *argv[])
 {
     unsigned i;
-    int collided = 0;
+    int collided = 0, plane;
 
     parse(argc, argv);
     /* One spare, because malloc(0) may return NULL. */
     stars = malloc((density + 1) * sizeof *stars);
-    buffer = malloc(SCREEN_SIZE);
-    if (stars == NULL || buffer == NULL) {
+    for (plane = 0; plane < PLANES; plane++) {
+        planes[plane] = malloc(SCREEN_SIZE);
+        if (planes[plane] == NULL) stars = NULL;
+    }
+    if (stars == NULL) {
         printf("Not enough memory for %u stars.\n", density);
         return 1;
     }
     srand(*(unsigned __far *)BIOS_TICKS); /* Seed from BIOS. */
-    set_mode(0x11);
+    set_mode(0x12);
+    set_palette();
     while (!collided && !escape()) {
         collided = update();
         for (i = 0; i < RETRACES_PER_FRAME; i++) {
             wait_retrace();
         }
-        memcpy(vga, buffer, SCREEN_SIZE);
+        for (plane = 0; plane < PLANES; plane++) {
+            outpw(SEQUENCER, (1 << plane) << 8 | MAP_MASK);
+            memcpy(vga, planes[plane], SCREEN_SIZE);
+        }
     }
     if (collided) delay(100);
     set_mode(0x03);
