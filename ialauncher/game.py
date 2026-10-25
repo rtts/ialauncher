@@ -156,10 +156,10 @@ class Game:
         if self.emulator_start:
             if autorun:
                 dosbox_args[0] = "dosbox.bat"
-                self.write_c("dosbox.bat", "@echo off\ncls\n" + self.emulator_start)
+                self.write_c("dosbox.bat", f"@echo off\ncls\n{self.emulator_start}\n")
 
             else:
-                self.write_c("dosbox.bat", self.emulator_start)
+                self.write_c("dosbox.bat", self.emulator_start + "\n")
 
         else:
             autorun = False
