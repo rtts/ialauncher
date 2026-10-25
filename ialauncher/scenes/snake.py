@@ -1,5 +1,6 @@
 """Snake, hidden in the grid."""
 
+import math
 import random
 from collections import deque
 from collections.abc import Iterator
@@ -70,7 +71,7 @@ class Snake(Scene):
         return sharp_scale(cga.apply(title), self.tile_size)
 
     def place_food(self) -> bool:
-        """Put a random title screen in a random empty cell, away from the edges."""
+        """Place food in a convenient location."""
         occupied = set(self.body)
         free = [
             (x, y)
@@ -80,10 +81,16 @@ class Snake(Scene):
         ]
         if not free:
             return False
-        random.shuffle(free)
-        for self.food in free:
-            if self.keeps_tail([]):
-                break
+        reach = self.reach([self.body[0]], occupied)
+        reachable = [pos for pos in free if pos in reach]
+        roomy = [
+            (x, y)
+            for x, y in reachable
+            if not any(
+                (x + dx, y + dy) in occupied for dx in (-1, 0, 1) for dy in (-1, 0, 1)
+            )
+        ]
+        self.food = random.choice(roomy or reachable or free)  # noqa: S311
         self.food_image = self.random_title()
         return True
 
@@ -126,10 +133,7 @@ class Snake(Scene):
         return True
 
     def advance(self, body: deque[Cell], direction: Cell, *, grow: bool) -> bool:
-        """Add a cell in front of the head; return False on collision.
-
-        Unless growing, the tail moves out of the way first.
-        """
+        """Add a cell in front of the head; return False on collision."""
         dx, dy = direction
         x, y = body[0]
         head = x + dx, y + dy
@@ -185,55 +189,45 @@ class Snake(Scene):
     def think(self) -> Cell:
         """Decide which way to go by following these rules.
 
-        1. Keep the tail within reach: never move where the head can no
-           longer find a clear path to the tail.
-        2. Go towards the food along the shortest path that keeps the tail
-           within reach once there.
-        3. Without such a path, wander randomly, keeping the tail within
-           reach.
-
-        The food helps by appearing where it doesn't cut off the tail,
-        whenever there is such a place.
+        1. Always keep the tail in sight.
+        2. Always take the shortest path to food.
         """
-        if path := self.path_to_food():
-            return path[0]
-        wander = [d for d in DIRECTIONS.values() if self.keeps_tail([d])]
-        if wander:
-            return random.choice(wander)  # noqa: S311
-        return self.direction
+        head = self.body[0]
+        body = set(self.body)
+        x, y = self.food
+        walls = {*body, self.food} - {head}
+        approaches = [
+            pos
+            for (dx, dy), pos in self.neighbors(self.food)
+            if pos not in walls and (x - dx, y - dy) not in body
+        ]
+        distance = self.reach(approaches, walls)
+        if head in approaches:
+            distance[self.food] = -1
+        moves = list(self.neighbors(head))
+        random.shuffle(moves)
+        moves.sort(key=lambda move: distance.get(move[1], math.inf))
+        return next((d for d, _ in moves if self.keeps_tail(d)), self.direction)
 
-    def path_to_food(self) -> list[Cell]:
-        """Return the shortest path to the food that keeps the tail."""
-        blocked = {*self.body, self.food} - {self.body[-1]}
-        paths: dict[Cell, list[Cell]] = {self.body[0]: []}
-        todo = deque(paths)
+    def keeps_tail(self, direction: Cell) -> bool:
+        """Return whether the snake can still reach its tail after this move."""
+        body = deque(self.body)
+        if not self.move(body, direction):
+            return False
+        reach = self.reach([body[0]], {*body, self.food})
+        return any(pos in reach for _, pos in self.neighbors(body[-1]))
+
+    def reach(self, starts: list[Cell], walls: set[Cell]) -> dict[Cell, int]:
+        """Return the distances to the cells reachable from starts, avoiding walls."""
+        distance = dict.fromkeys(starts, 0)
+        todo = deque(distance)
         while todo:
             pos = todo.popleft()
-            for direction, nxt in self.neighbors(pos):
-                path = [*paths[pos], direction]
-                if nxt == self.food and self.keeps_tail(path):
-                    return path
-                if self.on_field(nxt) and nxt not in blocked and nxt not in paths:
-                    paths[nxt] = path
+            for _, nxt in self.neighbors(pos):
+                if self.on_field(nxt) and nxt not in walls and nxt not in distance:
+                    distance[nxt] = distance[pos] + 1
                     todo.append(nxt)
-        return []
-
-    def keeps_tail(self, directions: list[Cell]) -> bool:
-        """Return whether the snake can still reach its tail."""
-        body = deque(self.body)
-        if not all(self.move(body, direction) for direction in directions):
-            return False
-        tail = body[-1]
-        seen = {*body, self.food}
-        todo = [body[0]]
-        while todo:
-            for _, nxt in self.neighbors(todo.pop()):
-                if nxt == tail:
-                    return True
-                if self.on_field(nxt) and nxt not in seen:
-                    seen.add(nxt)
-                    todo.append(nxt)
-        return False
+        return distance
 
     def neighbors(self, pos: Cell) -> Iterator[tuple[Cell, Cell]]:
         """Yield the direction to and position of each cell next to pos."""
