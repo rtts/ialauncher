@@ -108,9 +108,17 @@ class Gamelist:
         """Return the ready games whose identifier contains the query, ignoring case.
 
         Games whose year starts with the query match as well, so that
-        typing a year shows all games from that year.
+        typing a year shows all games from that year. A query that
+        starts with ^ only matches the start of the identifier.
         """
         query = query.lower()
+        if query.startswith("^"):
+            prefix = query[1:]
+            return [
+                g
+                for g in self.ready_games
+                if g.identifier.lower().startswith(prefix) or g.year.startswith(prefix)
+            ]
         return [
             g
             for g in self.ready_games

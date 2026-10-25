@@ -71,7 +71,7 @@ class TestBrowse(HeadlessTestCase):
 
     def test_filter(self) -> Script:
         """Typing filters the games on a substring of their identifier."""
-        yield from self.wait_for(Hero)
+        hero = yield from self.wait_for(Hero)
         library = {
             entry.name
             for entry in Path(gd.__file__).parent.iterdir()
@@ -118,6 +118,17 @@ class TestBrowse(HeadlessTestCase):
         from_1989 = {g.identifier for g in gamelist.all_games if g.year == "1989"}
         self.assertEqual(shown(), from_1989 | matching("1989"))
         self.assertIn("Sim City", shown())
+
+        # A leading ^ only matches the start of the identifier
+        # The ^ can be typed with Shift-6
+        yield key(pg.K_BACKSPACE)
+        yield key(pg.K_6, pg.KMOD_SHIFT, "^")
+        yield text("p")
+        self.assertEqual(gamelist.query, "^p")
+        starting_with_p = {name for name in library if name.lower().startswith("p")}
+        self.assertEqual(shown(), starting_with_p)
+        self.assertNotIn("Dizzy - Prince of the Yolkfolk", shown())
+        self.assertEqual(hero.message, "^p")
 
         # Escape quits, even while filtering
         self.assertIsNone((yield key(pg.K_ESCAPE)))

@@ -28,10 +28,7 @@ MESSAGE_EXPIRED = pg.event.custom_type()
 MESSAGE_TIMEOUT = 1000
 READY_MESSAGES = {None: "All", True: "Favorites", False: "Least favorites"}
 NEXT_READY = {None: True, True: False, False: None}
-SPEED_KEYS = {
-    key: round(300 * 10 ** (step / 9))  # log scale
-    for step, key in enumerate(range(pg.K_1, pg.K_9 + 1))
-}
+SLOW_CYCLES = 300
 
 
 class Browse(Scene):
@@ -149,9 +146,9 @@ class Browse(Scene):
         elif (
             event.type == pg.KEYDOWN
             and event.mod & pg.KMOD_SHIFT
-            and event.key in SPEED_KEYS
+            and event.key == pg.K_s
         ):
-            self.play_at_speed(SPEED_KEYS[event.key])
+            self.play_at_speed(SLOW_CYCLES)
         elif event.type == pg.KEYDOWN:
             next_scene = self.handle_key(event)
         self.blink()
