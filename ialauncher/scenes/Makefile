@@ -1,5 +1,5 @@
 CC = owcc
-CFLAGS = -bdos -mcmodel=c -march=i386 -Os -s -Wc,-fpi87 \
+CFLAGS = -bdos -mcmodel=c -Wc,-3 -fno-stack-check -Os -s \
 	-Wall -I$(WATCOM)/h
 
 stars.exe: stars.c

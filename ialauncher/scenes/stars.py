@@ -43,8 +43,7 @@ class Stars(Blackout):
             dosbox = get_dosbox_command()
         except EmulatorError:
             return False
-        command = [*dosbox, "stars.exe" if autorun else "."]
-        command += [*get_dosbox_options(), "--set", "cpu_cycles=100000"]
+        command = [*dosbox, "stars.exe" if autorun else ".", *get_dosbox_options()]
         if autorun:
             command.append("-exit")
         cls.dosbox = subprocess.Popen(  # noqa: S603

@@ -16,9 +16,11 @@ A simplified DOS version of starfield.py, running in VGA mode 12h.
 #define SCREEN_SIZE (PITCH * HEIGHT)
 #define FPS 60
 #define SPEED 10 /* seconds from z = 1 to z = 0 */
-#define WARP 1.0f
+#define DEPTH (SPEED * FPS * 100u)
+#define WARP 100u /* hundredths */
+#define MAX_WARP 100u /* whole warps */
 #define DENSITY 500u
-#define MAX_DENSITY 5000u /* 10 bytes each, malloc can't exceed 64 KB */
+#define MAX_DENSITY 5000u
 #define CLUSTER 4
 #define ESCAPE 27
 #define SPACE ' '
@@ -28,15 +30,18 @@ A simplified DOS version of starfield.py, running in VGA mode 12h.
 #define MAP_MASK 0x02
 #define PLANES 4
 #define BIOS_TICKS MK_FP(0x40, 0x6C) /* 18.2 per second since midnight */
+#define COMMAND_TAIL MK_FP(_psp, 0x80)
+#define MAX_ARGS 64
 #define RETRACES_PER_FRAME (60 / FPS)
-#define FLOOR(f) ((long)(f) - ((f) < (long)(f)))
-#define TRAVELLED \
-    (1 - 2.0f / (CLUSTER + 1) + 1.0f / (2 * CLUSTER + 1))
+
+/* Prevent "waves" of stars by filling up a the correct rate. */
+#define TRAVELLED_NUM (2ul * CLUSTER * CLUSTER)
+#define TRAVELLED_DEN ((CLUSTER + 1ul) * (2 * CLUSTER + 1))
 
 /* A star with a fixed x and y and a moving z. */
 typedef struct {
     short x, y;
-    float z;
+    unsigned short z;
     unsigned char color;
 } Star;
 
@@ -53,10 +58,54 @@ static const struct {
 static Star *stars;
 static unsigned count;
 static unsigned density = DENSITY;
-static float warp = WARP;
-static float due;
-static unsigned char *planes[PLANES]; /* allocated, or they'd be in the .exe */
+static unsigned warp = WARP;
+static unsigned long due;
+static unsigned char *planes[PLANES];
+static char line[128];
+static char *args[MAX_ARGS];
 static unsigned char __far *const vga = MK_FP(0xA000, 0);
+
+/* Return the machine status word, whose bit 0 is set in protected mode. */
+unsigned short smsw(void);
+#pragma aux smsw = "smsw ax" value [ax];
+
+/* Briefly enter protected mode and leave it again right away. */
+void flip_pe(void);
+#pragma aux flip_pe = \
+    "cli" \
+    "mov eax, cr0" \
+    "or al, 1" \
+    "mov cr0, eax" \
+    "and al, 0xFE" \
+    "mov cr0, eax" \
+    "sti" \
+    modify exact [ax];
+
+/* Trick DOSBox into switching to a dynamic core with more cycles. */
+static void boost(void)
+{
+    if (!(smsw() & 1)) flip_pe();
+}
+
+/* Replacement for malloc() to reduce file size (and to learn assembly!) */
+unsigned short dos_alloc(unsigned short paragraphs);
+#pragma aux dos_alloc = \
+    "mov ah, 0x48" \
+    "int 0x21" \
+    "sbb dx, dx" \
+    "not dx" \
+    "and ax, dx" \
+    parm [bx] \
+    value [ax] \
+    modify exact [ax bx dx];
+
+/* Allocate a buffer of bytes from DOS, or return NULL. */
+static void *allocate(unsigned bytes)
+{
+    unsigned short segment = dos_alloc((bytes + 15ul) >> 4);
+
+    return segment ? MK_FP(segment, 0) : NULL;
+}
 
 /* Switch to the given BIOS video mode. */
 static void set_mode(unsigned short mode)
@@ -89,23 +138,43 @@ static void set_palette(void)
     }
 }
 
-/* Return a random number from 0 up to, but not including, 1. */
-static float uniform(void)
+/* Divide by a positive number, rounding down instead of toward zero. */
+static long floor_div(long a, long b)
 {
-    return rand() / (RAND_MAX + 1.0f);
+    return (a < 0 ? a - b + 1 : a) / b;
 }
 
-/* Return a number between -1 and 1, near 0 more often for higher CLUSTER. */
-static float clustered(void)
+/* Return a * b / c rounded down, for c > 0, like floor_div() */
+long muldiv(short a, unsigned short b, unsigned short c);
+#pragma aux muldiv = \
+    "movsx eax, ax" \
+    "movzx ebx, bx" \
+    "movzx ecx, cx" \
+    "imul eax, ebx" \
+    "cdq" \
+    "idiv ecx" \
+    "sar edx, 31" /* -1 if the remainder is negative */ \
+    "add eax, edx" \
+    "shld edx, eax, 16" \
+    parm [ax] [bx] [cx] \
+    value [dx ax] \
+    modify exact [ax bx cx dx];
+
+/* Return a whole number between -half and half, more often near 0 for
+   higher CLUSTER. */
+static short clustered(int half)
 {
-    float distance = 1, u;
+    int distance = RAND_MAX, u;
     unsigned i;
+    long offset;
 
     for (i = 0; i < CLUSTER; i++) {
-        u = uniform();
+        u = rand();
         if (u < distance) distance = u;
     }
-    return uniform() < 0.5f ? -distance : distance;
+    offset = 2L * half * distance;
+    if (rand() <= RAND_MAX / 2) offset = -offset;
+    return (short)floor_div(offset + RAND_MAX + 1, 2 * (RAND_MAX + 1L));
 }
 
 /* Return a non-black color. */
@@ -118,14 +187,12 @@ static unsigned char random_color(void)
 static Star star(void)
 {
     Star s;
-    float x = clustered() * WIDTH / 2 + 0.5f;
-    float y = clustered() * HEIGHT / 2 + 0.5f;
 
-    /* Round x and y to whole pixels, so there's a chance you
-       collide with the star when both happen to be zero. */
-    s.x = (short)FLOOR(x);
-    s.y = (short)FLOOR(y);
-    s.z = 1;
+    /* Whole pixels, so there's a chance you collide
+       with the star when both happen to be zero. */
+    s.x = clustered(WIDTH / 2);
+    s.y = clustered(HEIGHT / 2);
+    s.z = DEPTH;
     s.color = random_color();
     return s;
 }
@@ -134,22 +201,31 @@ static Star star(void)
 static void fill(int left, int top, int size, unsigned char color)
 {
     int right = left + size, bottom = top + size;
-    int x, y, plane;
-    unsigned char *row, bit;
+    unsigned x, y, first, last, offset, plane;
+    unsigned char head, tail, mask;
 
     if (left < 0) left = 0;
     if (top < 0) top = 0;
     if (right > WIDTH) right = WIDTH;
     if (bottom > HEIGHT) bottom = HEIGHT;
-    for (plane = 0; plane < PLANES; plane++) {
-        for (y = top; y < bottom; y++) {
-            row = planes[plane] + y * PITCH;
-            for (x = left; x < right; x++) {
-                bit = 0x80 >> (x & 7);
+    if (left >= right || top >= bottom) return;
+
+    /* Work a byte (8 pixels) at a time, masking the partial ends. */
+    first = left >> 3;
+    last = (right - 1) >> 3;
+    head = 0xFF >> (left & 7);
+    tail = 0xFF << (7 - ((right - 1) & 7));
+    for (y = top; y < bottom; y++) {
+        for (x = first; x <= last; x++) {
+            mask = 0xFF;
+            if (x == first) mask &= head;
+            if (x == last) mask &= tail;
+            offset = y * PITCH + x;
+            for (plane = 0; plane < PLANES; plane++) {
                 if (color >> plane & 1) {
-                    row[x >> 3] |= bit;
+                    planes[plane][offset] |= mask;
                 } else {
-                    row[x >> 3] &= ~bit;
+                    planes[plane][offset] &= ~mask;
                 }
             }
         }
@@ -159,12 +235,9 @@ static void fill(int left, int top, int size, unsigned char color)
 /* Fly through space. Return whether we collided with a star. */
 static int update(void)
 {
-    const float step = warp / (SPEED * FPS);
-    /* Filling at this rate prevents "waves" of stars. */
-    const float rate = density * step / TRAVELLED;
     unsigned i, first = count, kept, gone = 0, n, plane;
     int size;
-    float scale, left, top;
+    long left, top;
     Star s;
 
     for (plane = 0; plane < PLANES; plane++) {
@@ -178,8 +251,7 @@ static int update(void)
        Newer stars are further away, so they're drawn first. */
     for (i = count; i-- > 0;) {
         s = stars[i];
-        s.z -= step;
-        if (s.z <= 1.0f / HEIGHT) {
+        if (s.z - DEPTH / HEIGHT <= warp) {
             if (s.x == 0 && s.y == 0) {
                 /* Collision! The star fills the screen. */
                 for (plane = 0; plane < PLANES; plane++) {
@@ -191,24 +263,24 @@ static int update(void)
             gone++;
             continue;
         }
-        scale = 1 / s.z;
-        size = (int)scale;
-        left = WIDTH / 2 - size / 2 + s.x * scale;
-        top = HEIGHT / 2 - size / 2 + s.y * scale;
+        s.z -= warp;
+        size = DEPTH / s.z;
+        left = WIDTH / 2 - size / 2 + muldiv(s.x, DEPTH, s.z);
+        top = HEIGHT / 2 - size / 2 + muldiv(s.y, DEPTH, s.z);
         if (!(-size < left && left < WIDTH && -size < top && top < HEIGHT)) {
             gone++;
             continue;
         }
         stars[--first] = s;
-        fill((int)FLOOR(left), (int)FLOOR(top), size, s.color);
+        fill((int)left, (int)top, size, s.color);
     }
     kept = count - first;
     memmove(stars, stars + first, kept * sizeof *stars);
 
     /* Replace stars that left and add more until field is full. */
-    due += rate;
-    n = (unsigned)due;
-    due -= n;
+    due += (unsigned long)density * warp * TRAVELLED_DEN;
+    n = (unsigned)(due / (TRAVELLED_NUM * DEPTH));
+    due %= TRAVELLED_NUM * DEPTH;
     if (gone < n) gone = n;
     if (gone > density - kept) gone = density - kept;
     for (i = 0; i < gone; i++) {
@@ -221,7 +293,7 @@ static int update(void)
 /* Add a star in the exact center. */
 static void center_star(void)
 {
-    Star s = {0, 0, 1};
+    Star s = {0, 0, DEPTH};
 
     s.color = random_color();
     if (count < density) {
@@ -304,9 +376,9 @@ static void help(void)
           "STARS [/D density] [/W warp]\n"
           "\n"
           "  /D  Number of stars (default %u)\n"
-          "  /W  Warp speed, 1 or more (default %u.%u)\n"
+          "  /W  Warp speed, 1 to %u (default %u.%u)\n"
           "  /H  Show this help\n",
-          DENSITY, (unsigned)WARP, (unsigned)(WARP * 10) % 10);
+          DENSITY, MAX_WARP, WARP / 100, WARP / 10 % 10);
 }
 
 /* Show error message. */
@@ -316,7 +388,7 @@ static void fail(const char *message, const char *arg)
     exit(1);
 }
 
-/* Read a number like strtod() does. */
+/* Read a number like strtod() does, ignoring digits after the hundredths. */
 static long decimal(const char *value, char **end, long *divisor)
 {
     const char *p = value;
@@ -330,12 +402,34 @@ static long decimal(const char *value, char **end, long *divisor)
     }
     if (*p == '.') {
         for (p++; isdigit(*p); p++, digits++) {
+            if (*divisor == 100) continue;
             number = number * 10 + (*p - '0');
             *divisor *= 10;
         }
     }
     *end = (char *)(digits ? p : value);
     return negative ? -number : number;
+}
+
+/* Split the command line into args[1] onward, and return how many args there
+   are. Not using the argv of main(), because it brings in malloc(). */
+static int split(void)
+{
+    const unsigned char __far *tail = COMMAND_TAIL;
+    char *p = line;
+    int argc = 1, i;
+
+    for (i = 0; i < tail[0] && i < sizeof line - 1; i++) {
+        line[i] = tail[1 + i];
+    }
+    line[i] = '\0';
+    while (argc < MAX_ARGS) {
+        while (*p == ' ' || *p == '\t') *p++ = '\0';
+        if (*p == '\0') break;
+        args[argc++] = p;
+        while (*p != '\0' && *p != ' ' && *p != '\t') p++;
+    }
+    return argc;
 }
 
 /* Parse command-line arguments. */
@@ -367,7 +461,9 @@ static void parse(int argc, char *argv[])
             number = strtol(value, &end, 10);
         } else {
             number = decimal(value, &end, &divisor);
-            warp = (float)number / divisor;
+            if (number < divisor) number = divisor;
+            if (number > MAX_WARP * divisor) number = MAX_WARP * divisor;
+            warp = (unsigned)(number * 100 / divisor);
         }
         if (end == value || *end != '\0') {
             fail("Invalid number", value);
@@ -380,20 +476,19 @@ static void parse(int argc, char *argv[])
             density = number < 0 ? 0 : (unsigned)number;
         }
     }
-    if (!(warp >= 1)) warp = 1;
 }
 
 /* Main entry point. */
-int main(int argc, char *argv[])
+int main(void)
 {
     unsigned i;
     int collided = 0, plane;
 
-    parse(argc, argv);
-    /* One spare, because malloc(0) may return NULL. */
-    stars = malloc((density + 1) * sizeof *stars);
+    parse(split(), args);
+    /* One spare, so there's no asking DOS for nothing. */
+    stars = allocate((density + 1) * sizeof *stars);
     for (plane = 0; plane < PLANES; plane++) {
-        planes[plane] = malloc(SCREEN_SIZE);
+        planes[plane] = allocate(SCREEN_SIZE);
         if (planes[plane] == NULL) stars = NULL;
     }
     if (stars == NULL) {
@@ -401,6 +496,7 @@ int main(int argc, char *argv[])
         return 1;
     }
     srand(*(unsigned __far *)BIOS_TICKS); /* Seed from BIOS. */
+    boost();
     set_mode(0x12);
     set_palette();
     while (!collided && !escape()) {
