@@ -2,6 +2,7 @@
 
 import random
 from collections import deque
+from collections.abc import Iterator
 from typing import TYPE_CHECKING, override
 
 import pygame as pg
@@ -17,6 +18,8 @@ from . import BLACK, Scene
 if TYPE_CHECKING:
     from .grid import Grid
 
+type Cell = tuple[int, int]
+
 DIRECTIONS = {
     pg.K_RIGHT: (1, 0),
     pg.K_LEFT: (-1, 0),
@@ -24,7 +27,7 @@ DIRECTIONS = {
     pg.K_UP: (0, -1),
 }
 SNAKE_COLS = 40
-FPS = 8
+FPS = 16
 START_LENGTH = 8
 
 
@@ -51,7 +54,9 @@ class Snake(Scene):
         self.body = deque((x - i, y) for i in range(START_LENGTH))
         self.images = deque(self.random_title() for _ in range(START_LENGTH))
         self.direction = DIRECTIONS[pg.K_RIGHT]
-        self.turns: deque[tuple[int, int]] = deque()
+        self.turns: deque[Cell] = deque()
+        self.ai = True
+        self.plan: deque[Cell] = deque()
         self.game_over = False
         self.place_food()
         speaker.blip()
@@ -76,56 +81,74 @@ class Snake(Scene):
         ]
         if not free:
             return False
-        self.food = random.choice(free)  # noqa: S311
+        random.shuffle(free)
+        for self.food in free:
+            if self.keeps_tail([]):
+                break
         self.food_image = self.random_title()
         return True
 
     @override
     def handle(self, event: pg.event.Event) -> NextScene:
-        """Queue turns with the arrow keys, or hand back to the grid on Escape."""
+        """Take over from the AI with the arrow keys, or hand back on Escape."""
         if event.type != pg.KEYDOWN:
             return None
         if event.key == pg.K_ESCAPE:
             return self.referrer
         if event.key in DIRECTIONS:
+            self.ai = False
             self.turns.append(DIRECTIONS[event.key])
         return None
 
     def step(self) -> bool:
         """Move the snake one cell; return False when it dies."""
+        if self.ai:
+            self.direction = self.think()
         while self.turns:
             dx, dy = self.turns.popleft()
             if self.direction not in {(dx, dy), (-dx, -dy)}:
                 self.direction = dx, dy
                 break
-        if not self.advance(grow=False):
+        length = len(self.body)
+        if not self.move(self.body, self.direction):
             return False
-        if self.body[0] == self.food:
+        if len(self.body) > length:
             self.images.appendleft(self.food_image)
-            if not self.advance(grow=True):
-                return False
             speaker.blip()
             return self.place_food()
         return True
 
-    def advance(self, *, grow: bool) -> bool:
+    def move(self, body: deque[Cell], direction: Cell) -> bool:
+        """Move the body, one cell further when eating; return False on collision."""
+        if not self.advance(body, direction, grow=False):
+            return False
+        if body[0] == self.food:
+            return self.advance(body, direction, grow=True)
+        return True
+
+    def advance(self, body: deque[Cell], direction: Cell, *, grow: bool) -> bool:
         """Add a cell in front of the head; return False on collision.
 
         Unless growing, the tail moves out of the way first.
         """
-        dx, dy = self.direction
-        x, y = self.body[0]
+        dx, dy = direction
+        x, y = body[0]
         head = x + dx, y + dy
-        if not (0 <= head[0] < self.cols and 0 <= head[1] < self.rows):
+        if not self.on_field(head):
             return False
         if not grow:
-            self.body.pop()
-        if head in self.body:
+            body.pop()
+        if head in body:
             return False
-        self.body.appendleft(head)
+        body.appendleft(head)
         return True
 
-    def cell(self, pos: tuple[int, int]) -> pg.Rect:
+    def on_field(self, pos: Cell) -> bool:
+        """Return whether pos is on the playing field."""
+        x, y = pos
+        return 0 <= x < self.cols and 0 <= y < self.rows
+
+    def cell(self, pos: Cell) -> pg.Rect:
         """Return the tile rectangle centered in the cell at pos."""
         x, y = pos
         width, height = self.screen.get_size()
@@ -159,3 +182,64 @@ class Snake(Scene):
             for image, pos in zip(self.images, self.body, strict=True)
         )
         return None
+
+    def think(self) -> Cell:
+        """Decide which way to go by following these rules.
+
+        1. Keep the tail within reach: never move where the head can no
+           longer find a clear path to the tail.
+        2. Go towards the food along the shortest path that keeps the tail
+           within reach once there, and stick to that plan.
+        3. Without such a path, wander randomly, keeping the tail within
+           reach.
+
+        The food helps by appearing where it doesn't cut off the tail,
+        whenever there is such a place.
+        """
+        if not self.plan:
+            self.plan = deque(self.path_to_food())
+        if self.plan:
+            return self.plan.popleft()
+        wander = [d for d in DIRECTIONS.values() if self.keeps_tail([d])]
+        if wander:
+            return random.choice(wander)  # noqa: S311
+        return self.direction
+
+    def path_to_food(self) -> list[Cell]:
+        """Return the shortest path to the food that keeps the tail."""
+        blocked = {*self.body, self.food} - {self.body[-1]}
+        paths: dict[Cell, list[Cell]] = {self.body[0]: []}
+        todo = deque(paths)
+        while todo:
+            pos = todo.popleft()
+            for direction, nxt in self.neighbors(pos):
+                path = [*paths[pos], direction]
+                if nxt == self.food and self.keeps_tail(path):
+                    return path
+                if self.on_field(nxt) and nxt not in blocked and nxt not in paths:
+                    paths[nxt] = path
+                    todo.append(nxt)
+        return []
+
+    def keeps_tail(self, directions: list[Cell]) -> bool:
+        """Return whether the snake can still reach its tail."""
+        body = deque(self.body)
+        if not all(self.move(body, direction) for direction in directions):
+            return False
+        tail = body[-1]
+        seen = {*body, self.food}
+        todo = [body[0]]
+        while todo:
+            for _, nxt in self.neighbors(todo.pop()):
+                if nxt == tail:
+                    return True
+                if self.on_field(nxt) and nxt not in seen:
+                    seen.add(nxt)
+                    todo.append(nxt)
+        return False
+
+    def neighbors(self, pos: Cell) -> Iterator[tuple[Cell, Cell]]:
+        """Yield the direction to and position of each cell next to pos."""
+        x, y = pos
+        for dx, dy in DIRECTIONS.values():
+            yield (dx, dy), (x + dx, y + dy)
