@@ -188,13 +188,10 @@ class Browse(Scene):
         - Tab: toggle "favorites"
         - Any character: append to filter query
         - Backspace: end filtering
-        - Esc: end filtering or end scene
+        - Esc: end scene
         """
         if event.key == pg.K_ESCAPE:
-            if not gamelist.query:
-                return self.escape()
-            self.clear_filter()
-            return None
+            return self.escape()
         typing = self.message_visible and self.message == gamelist.query
         new_query = self.typeable(event) and event.key not in COMMAND_KEYS
         if new_query and gamelist.query and not typing:
@@ -250,7 +247,7 @@ class Browse(Scene):
         """Return the scene to show when the screensaver collides with a game."""
 
     def escape(self) -> NextScene:
-        """Handle Escape when there is no filter to clear."""
+        """Handle Escape."""
         return False
 
     def navigate(self, event: pg.event.Event) -> NextScene:  # noqa: ARG002

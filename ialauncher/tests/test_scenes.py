@@ -119,10 +119,7 @@ class TestBrowse(HeadlessTestCase):
         self.assertEqual(shown(), from_1989 | matching("1989"))
         self.assertIn("Sim City", shown())
 
-        # Escape erases the filter, then quits
-        self.assertIsInstance((yield key(pg.K_ESCAPE)), Hero)
-        self.assertEqual(gamelist.query, "")
-        self.assertEqual(shown(), library)
+        # Escape quits, even while filtering
         self.assertIsNone((yield key(pg.K_ESCAPE)))
 
     def test_key_repeat_pileup(self) -> Script:
