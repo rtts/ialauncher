@@ -28,6 +28,10 @@ MESSAGE_EXPIRED = pg.event.custom_type()
 MESSAGE_TIMEOUT = 1000
 READY_MESSAGES = {None: "All", True: "Favorites", False: "Least favorites"}
 NEXT_READY = {None: True, True: False, False: None}
+SPEED_KEYS = {
+    key: round(300 * 10 ** (step / 9))  # log scale
+    for step, key in enumerate(range(pg.K_1, pg.K_9 + 1))
+}
 
 
 class Browse(Scene):
@@ -88,6 +92,12 @@ class Browse(Scene):
         else:
             self.start(game, mod)
 
+    def play_at_speed(self, cpu_cycles: int) -> None:
+        """Start the current DOSBox game with cpu_cycles, and remember it."""
+        game = gamelist.get_current_game()
+        if game.engine == "dosbox":
+            self.start(game, 0, cpu_cycles=cpu_cycles)
+
     def add_or_remove(self, game: Game) -> None:
         """Delete the gamedir if it exists, or create it if it doesn't exist."""
         if game.is_ready():
@@ -95,7 +105,7 @@ class Browse(Scene):
         else:
             self.download(game)
 
-    def start(self, game: Game, mod: int) -> None:
+    def start(self, game: Game, mod: int, *, cpu_cycles: int | None = None) -> None:
         """Download the game if needed and start it."""
         if game.is_running():
             return
@@ -106,7 +116,8 @@ class Browse(Scene):
         if not game.is_ready():
             self.download(game)
         if game.is_ready():
-            game.emulator = game.start(autorun=not mod & pg.KMOD_ALT)
+            autorun = not mod & pg.KMOD_ALT
+            game.emulator = game.start(autorun=autorun, cpu_cycles=cpu_cycles)
 
     def download(self, game: Game) -> None:
         """Download the game while showing its progress."""
@@ -135,6 +146,12 @@ class Browse(Scene):
             next_scene = self.handle_mouse(event)
         elif event.type == pg.MOUSEWHEEL:
             next_scene = self.handle_wheel(event)
+        elif (
+            event.type == pg.KEYDOWN
+            and event.mod & pg.KMOD_SHIFT
+            and event.key in SPEED_KEYS
+        ):
+            self.play_at_speed(SPEED_KEYS[event.key])
         elif event.type == pg.KEYDOWN:
             next_scene = self.handle_key(event)
         self.blink()

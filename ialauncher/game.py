@@ -92,6 +92,7 @@ class Game:
         self.scummvm_args = (metadata.get("scummvm_args") or "").split()
         self.emulator_start = metadata.get("emulator_start")
         self.dosbox_conf = metadata.get("dosbox_conf")
+        self.cpu_cycles = metadata.getint("cpu_cycles")
         datadir = "scummvm_data" if self.engine == "scummvm" else "dosbox_drive_c"
         self.gamedir = self.path / datadir
 
@@ -101,7 +102,9 @@ class Game:
             return get_scummvm_command()
         return get_dosbox_command()
 
-    def start(self, *, autorun: bool = True) -> "Emulator":
+    def start(
+        self, *, autorun: bool = True, cpu_cycles: int | None = None
+    ) -> "Emulator":
         r"""Start the game and return the thread that runs the emulator.
 
         There are two modes:
@@ -135,6 +138,12 @@ class Game:
         dosbox = get_dosbox_command()
         batfile = self.gamedir / "dosbox.bat"
         dosbox_args = [".", *get_dosbox_options()]
+
+        if cpu_cycles and cpu_cycles != self.cpu_cycles:
+            self.cpu_cycles = cpu_cycles
+            self.save_metadata("cpu_cycles", str(cpu_cycles))
+        if self.cpu_cycles:
+            dosbox_args.extend(["--set", f"cpu_cycles={self.cpu_cycles}"])
 
         if self.dosbox_conf:
             self.write_c("dosbox.conf", self.dosbox_conf)
@@ -188,10 +197,9 @@ class Game:
         thread.start()
         return thread
 
-    def save_emulator_start(self, emulator_start: str) -> None:
-        """Save emulator_start to metadata.ini and the cache."""
-        self.emulator_start = emulator_start
-        self.config["metadata"]["emulator_start"] = emulator_start
+    def save_metadata(self, key: str, value: str) -> None:
+        """Save the value to metadata.ini and the cache."""
+        self.config["metadata"][key] = value
         with (self.path / "metadata.ini").open(
             "w", encoding="utf-8", newline="\n"
         ) as f:
@@ -342,7 +350,8 @@ class DOSBox(Emulator):
             batch = self.batfile.read_text(encoding="cp437")
             emulator_start = batch.rstrip("\r\n")
             if emulator_start and emulator_start != game.emulator_start:
-                game.save_emulator_start(emulator_start)
+                game.emulator_start = emulator_start
+                game.save_metadata("emulator_start", emulator_start)
 
 
 class Download(Thread):
