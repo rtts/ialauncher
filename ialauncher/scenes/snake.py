@@ -54,6 +54,7 @@ class Snake(Scene):
         self.turns: deque[tuple[int, int]] = deque()
         self.game_over = False
         self.place_food()
+        speaker.blip()
         return super().run(screen)
 
     def random_title(self) -> pg.Surface:
@@ -64,17 +65,20 @@ class Snake(Scene):
             title = pg.image.load(game.titlescreen)
         return sharp_scale(cga.apply(title), self.tile_size)
 
-    def place_food(self) -> None:
-        """Put a random title screen in a random empty cell."""
+    def place_food(self) -> bool:
+        """Put a random title screen in a random empty cell, away from the edges."""
         occupied = set(self.body)
         free = [
             (x, y)
-            for y in range(self.rows)
-            for x in range(self.cols)
+            for y in range(1, self.rows - 1)
+            for x in range(1, self.cols - 1)
             if (x, y) not in occupied
         ]
+        if not free:
+            return False
         self.food = random.choice(free)  # noqa: S311
         self.food_image = self.random_title()
+        return True
 
     @override
     def handle(self, event: pg.event.Event) -> NextScene:
@@ -88,7 +92,7 @@ class Snake(Scene):
         return None
 
     def step(self) -> bool:
-        """Move the snake one cell; return False when it bites itself."""
+        """Move the snake one cell; return False when it dies."""
         while self.turns:
             dx, dy = self.turns.popleft()
             if self.direction not in {(dx, dy), (-dx, -dy)}:
@@ -101,7 +105,7 @@ class Snake(Scene):
             if not self.advance(grow=True):
                 return False
             speaker.blip()
-            self.place_food()
+            return self.place_food()
         return True
 
     def advance(self, *, grow: bool) -> bool:
@@ -111,7 +115,9 @@ class Snake(Scene):
         """
         dx, dy = self.direction
         x, y = self.body[0]
-        head = (x + dx) % self.cols, (y + dy) % self.rows
+        head = x + dx, y + dy
+        if not (0 <= head[0] < self.cols and 0 <= head[1] < self.rows):
+            return False
         if not grow:
             self.body.pop()
         if head in self.body:
