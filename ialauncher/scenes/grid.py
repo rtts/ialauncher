@@ -161,16 +161,18 @@ class Grid(Browse):
     def zoom(self, cols: int) -> NextScene:
         """Change the number of columns, hand over to Hero or Snake, or run stars.exe.
 
-        Snake starts when zooming out reaches snake.SNAKE_COLS, and
+        Snake starts when zooming in or out reaches snake.SNAKE_COLS, and
         stars.exe when zooming out any further isn't possible.
         """
         if cols < MIN_COLS:
             return hero.Hero()
-        reached = self.cols < snake.SNAKE_COLS <= cols
+        reached = self.cols != snake.SNAKE_COLS and (
+            min(self.cols, cols) <= snake.SNAKE_COLS <= max(self.cols, cols)
+        )
         old_cols = self.cols
         self.resize(cols)
         if reached:
-            return snake.Snake(self)
+            return snake.Intro(self)
         if cols > self.cols == old_cols:
             self.stars_pending = True
         return None

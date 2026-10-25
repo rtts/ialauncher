@@ -11,6 +11,7 @@ import pygame as pg
 from ialauncher.bios import speaker
 from ialauncher.cga import cga
 from ialauncher.engine import NextScene
+from ialauncher.game import Game
 from ialauncher.gamelist import gamelist
 from ialauncher.utils import grid_margin, sharp_scale
 
@@ -30,25 +31,96 @@ DIRECTIONS = {
 SNAKE_COLS = 40
 FPS = 16
 START_LENGTH = 8
+PAUSE = 500
 
 
-class Snake(Scene):
-    """Yes, the game."""
+class Field(Scene):
+    """Base class for scenes on the playing field of Snake."""
 
     def __init__(self, referrer: "Grid") -> None:
         """Store scene to hand back to."""
         super().__init__()
         self.referrer = referrer
 
-    @override
-    def run(self, screen: pg.Surface) -> NextScene:
-        """Lay out the playing field and start with snake in the middle."""
+    def layout(self, screen: pg.Surface) -> None:
+        """Lay out the playing field in whole rows of slightly stretched tiles."""
         width, height = screen.get_size()
         self.cols = self.referrer.cols
         self.rows = round(height / self.referrer.row_height)
         cell_width, cell_height = width // self.cols, height // self.rows
         margin = grid_margin(cell_width)
         self.tile_size = cell_width - margin, cell_height - margin
+
+    def title(self, game: Game) -> pg.Surface:
+        """Return the title screen of a game, scaled to the tile size."""
+        title = game.get_titlescreen(self.tile_size)
+        if title is None:
+            title = pg.image.load(game.titlescreen)
+        return sharp_scale(cga.apply(title), self.tile_size)
+
+    def cell(self, pos: Cell) -> pg.Rect:
+        """Return the tile rectangle centered in the cell at pos."""
+        x, y = pos
+        width, height = self.screen.get_size()
+        tile = pg.Rect((0, 0), self.tile_size)
+        tile.center = (
+            (2 * x + 1) * width // (2 * self.cols),
+            (2 * y + 1) * height // (2 * self.rows),
+        )
+        return tile
+
+    @override
+    def handle(self, event: pg.event.Event) -> NextScene:
+        """Hand back on Escape."""
+        if event.type == pg.KEYDOWN and event.key == pg.K_ESCAPE:
+            return self.referrer
+        return None
+
+
+class Intro(Field):
+    """The grid's tiles disappear two by two, then Snake starts."""
+
+    @override
+    def run(self, screen: pg.Surface) -> NextScene:
+        """Fill the playing field with the grid's games, in random order."""
+        self.layout(screen)
+        games = gamelist.games
+        top = self.referrer.top
+        self.tiles = [
+            (self.title(games[(top + i) % len(games)]), (i % self.cols, i // self.cols))
+            for i in range(self.cols * self.rows)
+        ]
+        random.shuffle(self.tiles)
+        self.start = pg.time.get_ticks() + PAUSE
+        return super().run(screen)
+
+    @override
+    def get_events(self) -> list[pg.event.Event]:
+        """Run as fast as possible."""
+        return pg.event.get()
+
+    @override
+    def update(self, screen: pg.Surface) -> NextScene:
+        """Pause, remove two tiles each frame, pause again, and start Snake."""
+        screen.fill(BLACK)
+        screen.fblits((image, self.cell(pos)) for image, pos in self.tiles)
+        if pg.time.get_ticks() < self.start:
+            return None
+        if not self.tiles:
+            return Snake(self.referrer)
+        del self.tiles[-2:]
+        if not self.tiles:
+            self.start = pg.time.get_ticks() + PAUSE
+        return None
+
+
+class Snake(Field):
+    """Yes, the game."""
+
+    @override
+    def run(self, screen: pg.Surface) -> NextScene:
+        """Lay out the playing field and start with snake in the middle."""
+        self.layout(screen)
 
         # The body is a list of cells composed of title screens.
         x, y = self.cols // 2, self.rows // 2
@@ -64,11 +136,7 @@ class Snake(Scene):
 
     def random_title(self) -> pg.Surface:
         """Return the title screen of a random game, scaled to the tile size."""
-        game = random.choice(gamelist.games)  # noqa: S311
-        title = game.get_titlescreen(self.tile_size)
-        if title is None:
-            title = pg.image.load(game.titlescreen)
-        return sharp_scale(cga.apply(title), self.tile_size)
+        return self.title(random.choice(gamelist.games))  # noqa: S311
 
     def place_food(self) -> bool:
         """Place food in a convenient location."""
@@ -97,14 +165,10 @@ class Snake(Scene):
     @override
     def handle(self, event: pg.event.Event) -> NextScene:
         """Take over from the AI with the arrow keys, or hand back on Escape."""
-        if event.type != pg.KEYDOWN:
-            return None
-        if event.key == pg.K_ESCAPE:
-            return self.referrer
-        if event.key in DIRECTIONS:
+        if event.type == pg.KEYDOWN and event.key in DIRECTIONS:
             self.ai = False
             self.turns.append(DIRECTIONS[event.key])
-        return None
+        return super().handle(event)
 
     def step(self) -> bool:
         """Move the snake one cell; return False when it dies."""
@@ -150,17 +214,6 @@ class Snake(Scene):
         """Return whether pos is on the playing field."""
         x, y = pos
         return 0 <= x < self.cols and 0 <= y < self.rows
-
-    def cell(self, pos: Cell) -> pg.Rect:
-        """Return the tile rectangle centered in the cell at pos."""
-        x, y = pos
-        width, height = self.screen.get_size()
-        tile = pg.Rect((0, 0), self.tile_size)
-        tile.center = (
-            (2 * x + 1) * width // (2 * self.cols),
-            (2 * y + 1) * height // (2 * self.rows),
-        )
-        return tile
 
     @override
     def get_events(self) -> list[pg.event.Event]:
