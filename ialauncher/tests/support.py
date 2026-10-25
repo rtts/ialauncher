@@ -20,16 +20,29 @@ from ialauncher.cga import cga
 from ialauncher.cheats import cheats
 from ialauncher.game import Game
 from ialauncher.gamelist import Gamelist, gamelist
+from ialauncher.scenes import loading
 
 type Step = pg.event.Event | list[pg.event.Event] | None
 type Script = Generator[Step, engine.Scene | None, None]
 
 TICK = pg.event.custom_type()
-MAX_FRAMES = 10_000  # 300 is typical
+MAX_FRAMES = 10_000  # 100 is typical
+GAMES_PER_FRAME = 1000  # Instead of 30, to get through Loading in a few frames
 
 # The games by directory, loaded once for all tests
 games: dict[Path, Game] = {}
 add_game = Gamelist.add
+load_games = loading.Loading.load_games
+
+
+@functools.cache
+def find_games(games_dir: Path) -> dict[str, dict[str, str] | None]:
+    """Find the games once, like a metadata cache without the metadata."""
+    return {
+        entry.name: None
+        for entry in games_dir.iterdir()
+        if (entry / "metadata.ini").exists()
+    }
 
 
 def add_game_once(
@@ -41,6 +54,25 @@ def add_game_once(
         games[game_dir] = copy.copy(gamelist.all_games[-1])
     else:
         gamelist.all_games.append(copy.copy(games[game_dir]))
+
+
+def load_many_games(scene: loading.Loading, _: int) -> None:
+    """Load GAMES_PER_FRAME games, however many the scene asks for."""
+    load_games(scene, GAMES_PER_FRAME)
+
+
+class Clock:
+    """A clock that doesn't cap the frame rate, so that tests run full speed."""
+
+    def tick(self, _: int = 0) -> int:
+        """Return immediately."""
+        return 0
+
+
+def stop_timers() -> None:
+    """Stop the timers of all custom events, which pg.quit() would do too."""
+    for event_type in range(pg.USEREVENT, pg.event.custom_type()):
+        pg.time.set_timer(event_type, 0)
 
 
 def finish_sound() -> None:
@@ -107,11 +139,16 @@ class HeadlessTestCase(unittest.TestCase):
         self.enterContext(mock.patch.object(sys, "argv", list(self.argv)))
         self.enterContext(mock.patch.object(Game, "get_emulator", return_value=[]))
         self.enterContext(mock.patch.object(Gamelist, "add", add_game_once))
+        self.enterContext(mock.patch.object(pg.time, "Clock", Clock))
+        self.enterContext(mock.patch.object(loading, "read_metadata_cache", find_games))
+        self.enterContext(
+            mock.patch.object(loading.Loading, "load_games", load_many_games)
+        )
         vars(gamelist).update(vars(Gamelist()))  # Start each test with no games
         for method in ("download", "start"):
             error = AssertionError(f"The app tried to {method} a game")
             self.enterContext(mock.patch.object(Game, method, side_effect=error))
-        self.addCleanup(pg.quit)
+        self.addCleanup(stop_timers)  # pygame stays initialized, which is slow
         self.addCleanup(finish_sound)
         self.addCleanup(cga.set_palette, None)
         cheats.typed = ""
