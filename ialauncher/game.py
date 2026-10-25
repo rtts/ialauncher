@@ -204,6 +204,22 @@ class Game:
             "w", encoding="utf-8", newline="\n"
         ) as f:
             self.config.write(f)
+        self.update_cache()
+
+    def reload_metadata(self) -> bool:
+        """Read metadata.ini again, and return whether the metadata changed.
+
+        Raise MetadataError if it's invalid, and keep the old metadata.
+        """
+        metadata = dict(Game(self.path).config["metadata"])
+        if metadata == dict(self.config["metadata"]):
+            return False
+        self.configure(given=metadata)
+        self.update_cache()
+        return True
+
+    def update_cache(self) -> None:
+        """Update the metadata of this game in the cache, if it's there."""
         cache = read_metadata_cache(self.path.parent)
         if self.identifier in cache:
             cache[self.identifier] = dict(self.config["metadata"])

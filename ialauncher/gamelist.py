@@ -9,6 +9,7 @@ from typing import override
 import pygame as pg
 
 from .game import Game
+from .watcher import MetadataWatcher
 
 GAMES_LOADED = pg.event.custom_type()
 LOADING_FAILED = pg.event.custom_type()
@@ -27,6 +28,7 @@ class Gamelist:
         self.current_game = 0
         self.query = ""
         self.loader: GameLoader | None = None
+        self.watcher: MetadataWatcher | None = None
 
     def add(self, game_dir: Path, metadata: dict[str, str] | None = None) -> None:
         """Add the game in the given directory, without its title screen."""
@@ -51,6 +53,30 @@ class Gamelist:
         """Stop loading the title screens, if that's still going on."""
         if self.loader:
             self.loader.stop()
+
+    def watch(self) -> None:
+        """Watch the metadata.ini files of all games for changes, on Linux."""
+        self.watcher = MetadataWatcher([game.path for game in self.all_games])
+        self.watcher.start()
+
+    def stop_watching(self) -> None:
+        """Stop watching the metadata.ini files, if that's going on."""
+        if self.watcher:
+            self.watcher.stop()
+            self.watcher = None
+
+    def changed_games(self) -> list[Game]:
+        """Return the games whose metadata.ini changed since the last call."""
+        if not self.watcher:
+            return []
+        changed = self.watcher.pop_changed()
+        return [game for game in self.all_games if game.path in changed]
+
+    def show_game(self, game: Game) -> None:
+        """Show all games, without any filter, and select the given game."""
+        self.query = ""
+        self.show_ready(ready=None)
+        self.current_game = self.games.index(game)
 
     def show_ready(self, *, ready: bool | None) -> None:
         """Show only the games that are (not) ready to play, or all games (None).

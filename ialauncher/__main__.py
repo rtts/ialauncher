@@ -110,6 +110,7 @@ def main() -> None:
         )
     finally:
         gamelist.stop_loading()
+        gamelist.stop_watching()
 
 
 def set_options(args: argparse.Namespace) -> None:

@@ -107,6 +107,7 @@ class Loading(TitleScreen):
         gamelist.random_game()
         hero = Hero()
         gamelist.load_titlescreens()
+        gamelist.watch()
         return hero
 
     @override

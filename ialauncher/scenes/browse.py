@@ -9,7 +9,7 @@ import pygame as pg
 
 from ialauncher import options
 from ialauncher.engine import NextScene
-from ialauncher.game import EMULATOR_FAILED, Game
+from ialauncher.game import EMULATOR_FAILED, Game, MetadataError
 from ialauncher.gamelist import gamelist
 from ialauncher.utils import find_emulator, show_error
 
@@ -246,6 +246,27 @@ class Browse(Scene):
     def wake(self) -> Scene:
         """Return the scene to show when the screensaver collides with a game."""
 
+    @abstractmethod
+    def show_hero(self) -> Scene:
+        """Return Hero, to show the current game."""
+
+    def reload_changed(self) -> NextScene:
+        """Reload the games whose metadata.ini changed, and show the last one in Hero.
+
+        Clear the filters, so that the game is shown.
+        """
+        changed = None
+        for game in gamelist.changed_games():
+            try:
+                if game.reload_metadata():
+                    changed = game
+            except MetadataError as e:
+                show_error(str(e))
+        if not changed:
+            return None
+        gamelist.show_game(changed)
+        return self.show_hero()
+
     def escape(self) -> NextScene:
         """Handle Escape."""
         return False
@@ -256,7 +277,12 @@ class Browse(Scene):
 
     @override
     def update(self, screen: pg.Surface) -> NextScene:
-        """Draw the game(s) and everything on top of them."""
+        """Draw the game(s) and everything on top of them.
+
+        But first, show the game whose metadata.ini changed, if any.
+        """
+        if next_scene := self.reload_changed():
+            return next_scene
         if self.skip_frame:
             self.skip_frame = False
             return None

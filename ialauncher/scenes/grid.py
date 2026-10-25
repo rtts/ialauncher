@@ -301,6 +301,11 @@ class Grid(Browse):
         return hero.Hero(autoplay=True)
 
     @override
+    def show_hero(self) -> Scene:
+        """Zoom in to Hero."""
+        return hero.Hero()
+
+    @override
     def escape(self) -> NextScene:
         """Go back to Hero."""
         return hero.Hero()

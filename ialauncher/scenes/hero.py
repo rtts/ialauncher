@@ -113,6 +113,11 @@ class Hero(Browse):
         return Hero(autoplay=True)
 
     @override
+    def show_hero(self) -> Scene:
+        """Start over, without the slideshow."""
+        return Hero()
+
+    @override
     def draw(self, screen: pg.Surface) -> None:
         """Draw the title screen of the current game, letterboxed."""
         game = gamelist.get_current_game()
