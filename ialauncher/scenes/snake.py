@@ -56,7 +56,6 @@ class Snake(Scene):
         self.direction = DIRECTIONS[pg.K_RIGHT]
         self.turns: deque[Cell] = deque()
         self.ai = True
-        self.plan: deque[Cell] = deque()
         self.game_over = False
         self.place_food()
         speaker.blip()
@@ -189,17 +188,15 @@ class Snake(Scene):
         1. Keep the tail within reach: never move where the head can no
            longer find a clear path to the tail.
         2. Go towards the food along the shortest path that keeps the tail
-           within reach once there, and stick to that plan.
+           within reach once there.
         3. Without such a path, wander randomly, keeping the tail within
            reach.
 
         The food helps by appearing where it doesn't cut off the tail,
         whenever there is such a place.
         """
-        if not self.plan:
-            self.plan = deque(self.path_to_food())
-        if self.plan:
-            return self.plan.popleft()
+        if path := self.path_to_food():
+            return path[0]
         wander = [d for d in DIRECTIONS.values() if self.keeps_tail([d])]
         if wander:
             return random.choice(wander)  # noqa: S311
