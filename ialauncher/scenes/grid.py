@@ -8,6 +8,7 @@ from typing import override
 
 import pygame as pg
 
+from ialauncher.bios import held_keys
 from ialauncher.cga import cga
 from ialauncher.engine import NextScene
 from ialauncher.game import Game
@@ -57,6 +58,7 @@ class Grid(Browse):
         self.cache: dict[tuple[Game, tuple[int, int], int | None], pg.Surface] = {}
         self.menu: Menu | None = None
         self.mouse_until = 0
+        self.stars_pending = False
         self.set_cursor(pg.SYSTEM_CURSOR_HAND)
 
     @override
@@ -169,8 +171,8 @@ class Grid(Browse):
         self.resize(cols)
         if reached:
             return snake.Snake(self)
-        if cols > self.cols == old_cols and not Stars.is_running():
-            Stars.launch()
+        if cols > self.cols == old_cols:
+            self.stars_pending = True
         return None
 
     def resize(self, cols: int) -> None:
@@ -323,6 +325,11 @@ class Grid(Browse):
             cursor = pg.SYSTEM_CURSOR_HAND
         if cursor != self.cursor:
             self.set_cursor(cursor)
+        # Wait until key repeats stop before launching stars.exe
+        if self.stars_pending and not held_keys:
+            self.stars_pending = False
+            if not Stars.is_running():
+                Stars.launch()
         return super().update(screen)
 
     @override
