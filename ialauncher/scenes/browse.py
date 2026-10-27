@@ -108,17 +108,20 @@ class Browse(Scene):
             self.download(game)
 
     def start(self, game: Game, mod: int, *, cpu_cycles: int | None = None) -> None:
-        """Download the game if needed and start it."""
+        """Start the game, after resetting it with Shift."""
         if game.is_running():
             return
         if not find_emulator(game):
             return
         if mod & pg.KMOD_SHIFT:
             game.reset()
+        self.launch(game, autorun=not mod & pg.KMOD_ALT, cpu_cycles=cpu_cycles)
+
+    def launch(self, game: Game, *, autorun: bool, cpu_cycles: int | None) -> None:
+        """Download the game if needed and start it."""
         if not game.is_ready():
             self.download(game)
         if game.is_ready():
-            autorun = not mod & pg.KMOD_ALT
             game.emulator = game.start(autorun=autorun, cpu_cycles=cpu_cycles)
 
     def download(self, game: Game) -> None:

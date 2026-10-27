@@ -8,15 +8,16 @@ from ialauncher.engine import NextScene
 from ialauncher.game import Game
 from ialauncher.utils import show_error
 
-from . import TitleScreen
+from . import BLACK, TitleScreen
 
 
 class Download(TitleScreen):
     """Title screen with progress bar while games are downloading."""
 
-    def __init__(self, game: Game) -> None:
-        """Start downloading the game."""
+    def __init__(self, game: Game, *, black: bool = False) -> None:
+        """Start downloading the game, on a black screen if black."""
         self.game = game
+        self.black = black
         super().__init__()
 
         # Start downloading (spawns a new thread)
@@ -46,11 +47,14 @@ class Download(TitleScreen):
 
     @override
     def update(self, screen: pg.Surface) -> NextScene:
-        """Draw the progress bar, or show the error if the download failed."""
+        """Draw the progress bar or black, or show the error if the download failed."""
         thread = self.game.download_thread
         if thread is None or not thread.is_alive():
             if thread is not None and thread.error:
                 show_error(thread.error)
             return False
-        self.draw_progress(screen, thread.progress)
+        if self.black:
+            screen.fill(BLACK)
+        else:
+            self.draw_progress(screen, thread.progress)
         return None

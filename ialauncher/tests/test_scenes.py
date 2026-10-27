@@ -259,7 +259,7 @@ class TestBrowse(HeadlessTestCase):
         self.assertIsNone((yield key(pg.K_ESCAPE)))
 
     def test_one_emulator(self) -> Script:
-        """A running emulator doesn't start a game twice, even when Enter is held."""
+        """Playing ignores Enter, until the emulator exits and Hero is back."""
         emulator = mock.Mock(is_alive=lambda: running)
         start = mock.Mock(return_value=emulator)
         self.enterContext(mock.patch.object(Game, "is_ready", return_value=True))
@@ -270,7 +270,7 @@ class TestBrowse(HeadlessTestCase):
         # Holding Enter starts the game once while the emulator runs
         running = True
         for _ in range(3):
-            yield enter
+            self.assertIsInstance((yield enter), hero.Play)
         self.assertEqual(start.call_count, 1)
 
         # Pressing Enter again doesn't start the game a second time
@@ -279,8 +279,10 @@ class TestBrowse(HeadlessTestCase):
 
         # But it starts the game again once the emulator has exited
         running = False
+        yield from self.wait_for(Hero)
         yield key(pg.K_RETURN)
         self.assertEqual(start.call_count, 2)
+        yield from self.wait_for(Hero)
         self.assertIsNone((yield key(pg.K_ESCAPE)))
 
 

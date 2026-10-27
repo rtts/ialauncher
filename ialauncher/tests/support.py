@@ -20,7 +20,7 @@ from ialauncher.cga import cga
 from ialauncher.cheats import cheats
 from ialauncher.game import Game
 from ialauncher.gamelist import Gamelist, gamelist
-from ialauncher.scenes import loading
+from ialauncher.scenes import hero, loading
 
 type Step = pg.event.Event | list[pg.event.Event] | None
 type Script = Generator[Step, engine.Scene | None, None]
@@ -140,6 +140,7 @@ class HeadlessTestCase(unittest.TestCase):
         self.enterContext(mock.patch.object(Game, "get_emulator", return_value=[]))
         self.enterContext(mock.patch.object(Gamelist, "add", add_game_once))
         self.enterContext(mock.patch.object(pg.time, "Clock", Clock))
+        self.enterContext(mock.patch.object(hero, "switch_crt"))  # Takes frames
         self.enterContext(mock.patch.object(loading, "read_metadata_cache", find_games))
         self.enterContext(
             mock.patch.object(loading.Loading, "load_games", load_many_games)

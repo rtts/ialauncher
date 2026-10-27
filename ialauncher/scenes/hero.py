@@ -8,18 +8,20 @@ from ialauncher import options
 from ialauncher.cga import cga
 from ialauncher.emulator import EmulatorError, get_dosbox_command
 from ialauncher.engine import NextScene
-from ialauncher.game import Emulator, Game
+from ialauncher.game import EMULATOR_FAILED, Emulator, Game
 from ialauncher.gamelist import gamelist
-from ialauncher.utils import letterbox, sharp_scale
+from ialauncher.utils import letterbox, sharp_scale, show_error
 
 from . import BLACK, GRID_LARGER, Blackout, Scene, grid
 from .browse import Browse
+from .download import Download
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
 ADVANCE = pg.event.custom_type()
 KEEP_SLIDESHOW = {pg.K_ESCAPE, pg.K_TAB, pg.K_BACKSPACE}
+CRT_STEPS = 8
 
 
 class Hero(Browse):
@@ -107,6 +109,11 @@ class Hero(Browse):
         return None
 
     @override
+    def launch(self, game: Game, *, autorun: bool, cpu_cycles: int | None) -> None:
+        """Play the game with the CRT switched off."""
+        Play(game, self, autorun=autorun, cpu_cycles=cpu_cycles).run(self.screen)
+
+    @override
     def wake(self) -> Scene:
         """Autoplay the game the screensaver collided with."""
         return Hero(autoplay=True)
@@ -137,35 +144,91 @@ class Hero(Browse):
         return letterbox(screen.get_rect())
 
 
-class Autoplay(Blackout):
-    """The title screen for a slideshow interval, then black behind the game."""
+class Play(Blackout):
+    """Switch off the CRT, play the game in black, and switch the CRT back on."""
 
-    def __init__(self, game: Game, hero: Hero) -> None:
-        """Unzip the game first, if needed."""
+    def __init__(
+        self,
+        game: Game,
+        hero: Hero,
+        *,
+        autorun: bool = True,
+        cpu_cycles: int | None = None,
+    ) -> None:
+        """Prepare to play the game."""
         super().__init__()
         self.game = game
         self.hero = hero
+        self.autorun = autorun
+        self.cpu_cycles = cpu_cycles
         self.emulator: Emulator | None = None
+
+    @override
+    def handle(self, event: pg.event.Event) -> NextScene:
+        """Show the error when the game exits suspiciously quickly."""
+        if event.type == EMULATOR_FAILED:
+            show_error(event.message)
+        return None
+
+    @override
+    def update(self, screen: pg.Surface) -> NextScene:
+        """Start the game, and continue with Hero when it exits."""
+        if self.emulator is None:
+            return self.start(screen)
+        if self.emulator.is_alive():
+            return None
+        return self.end(screen)
+
+    def start(self, screen: pg.Surface) -> NextScene:
+        """Switch off the CRT, get the game ready, and start it.
+
+        Show the progress bar only when the game needs to be downloaded.
+        """
+        switch_crt(screen, on=False)
+        game = self.game
+        if not game.is_ready():
+            Download(game, black=game.is_downloaded()).run(screen)
+        if not game.is_ready():
+            return self.end(screen)
+        self.emulator = game.emulator = game.start(
+            autorun=self.autorun, cpu_cycles=self.cpu_cycles
+        )
+        return super().update(screen)
+
+    def end(self, screen: pg.Surface) -> NextScene:
+        """Switch the CRT back on, showing Hero."""
+        screen.fill(BLACK)
+        self.hero.draw(screen)
+        switch_crt(screen, on=True)
+        return self.hero
+
+
+class Autoplay(Play):
+    """The title screen for a slideshow interval, then play for a while."""
+
+    def __init__(self, game: Game, hero: Hero) -> None:
+        """Prepare to show the title screen."""
+        super().__init__(game, hero)
         self.title_until = pg.time.get_ticks() + options.slideshow * 1000
         self.deadline = 0
-        self.unzipping = not game.is_ready()
-        if self.unzipping:
-            game.download()
 
     @override
     def run(self, screen: pg.Surface) -> NextScene:
-        """Stop unzipping or close DOSBox when the scene exits."""
+        """Close DOSBox when the scene exits."""
         try:
             return super().run(screen)
         finally:
-            if self.unzipping and (thread := self.game.download_thread):
-                thread.cancel()
             if self.emulator is not None:
                 self.emulator.stop()
 
     @override
+    def handle(self, event: pg.event.Event) -> NextScene:
+        """Ignore everything, including errors: the screensaver just continues."""
+        return None
+
+    @override
     def update(self, screen: pg.Surface) -> NextScene:
-        """Start the game once it's unzipped, and continue when time is up.
+        """Show the title screen, start the game, and continue when time is up.
 
         Continue with the screensaver, or with Hero if the game can't start.
         """
@@ -173,21 +236,42 @@ class Autoplay(Blackout):
             screen.fill(BLACK)
             self.hero.draw(screen)
             return None
-        super().update(screen)
-        game = self.game
         if self.emulator is None:
-            if self.unzipping and (thread := game.download_thread):
-                if thread.is_alive():
-                    return None
-                self.unzipping = False
-            if not game.is_ready():
-                return self.hero
-            self.emulator = game.emulator = game.start()
             self.deadline = pg.time.get_ticks() + options.autoplay * 1000
-            return None
+            return self.start(screen)
         if self.emulator.is_alive() and pg.time.get_ticks() < self.deadline:
             return None
         return self.hero.screensaver()
+
+
+def switch_crt(screen: pg.Surface, *, on: bool) -> None:
+    """Squeeze the title screen into a line, then into nothing, like a CRT.
+
+    Switching on does the same in reverse.
+    """
+    image = screen.copy()
+    rect = screen.get_rect()
+    box = letterbox(rect)
+    title = image.subsurface(box)
+    line = max(1, rect.height // 200)
+    clock = pg.time.Clock()
+    steps = range(CRT_STEPS, -CRT_STEPS, -1)
+    for i in reversed(steps) if on else steps:
+        clock.tick(60)
+        pg.event.pump()
+        screen.fill(BLACK)
+        if i > 0:
+            size = box.width, max(line, box.height * i // CRT_STEPS)
+        else:
+            size = box.width * (CRT_STEPS + i) // CRT_STEPS, line
+        squeezed = pg.transform.scale(title, size)
+        screen.blit(squeezed, squeezed.get_rect(center=rect.center))
+        pg.display.flip()
+    if on:
+        screen.blit(image, (0, 0))
+    else:
+        screen.fill(BLACK)
+    pg.display.flip()
 
 
 def autoplay_game() -> Game | None:
