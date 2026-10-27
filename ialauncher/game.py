@@ -93,6 +93,7 @@ class Game:
         self.emulator_start = metadata.get("emulator_start")
         self.dosbox_conf = metadata.get("dosbox_conf")
         self.cpu_cycles = metadata.getint("cpu_cycles")
+        self.autoplayable = metadata.getboolean("autoplayable", fallback=True)
         datadir = "scummvm_data" if self.engine == "scummvm" else "dosbox_drive_c"
         self.gamedir = self.path / datadir
 

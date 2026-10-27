@@ -156,8 +156,13 @@ class Gamelist:
         self.current_game = (self.current_game - 1) % len(self.games)
 
     def random_game(self) -> None:
-        """Jump to a random game."""
-        self.current_game = random.randrange(len(self.games))  # noqa: S311
+        """Jump to a random autoplayable game."""
+        game = random.choice(self.autoplayable_games())  # noqa: S311
+        self.current_game = self.games.index(game)
+
+    def autoplayable_games(self) -> list[Game]:
+        """Return the shown games that are autoplayable, or all if none are."""
+        return [game for game in self.games if game.autoplayable] or self.games
 
 
 class GameLoader(Thread):

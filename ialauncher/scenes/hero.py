@@ -193,7 +193,7 @@ def autoplay_game() -> Game | None:
     if not options.autoplay:
         return None
     game = gamelist.get_current_game()
-    if game.engine != "dosbox" or not game.emulator_start:
+    if not game.autoplayable or game.engine != "dosbox" or not game.emulator_start:
         return None
     try:
         get_dosbox_command()

@@ -58,7 +58,7 @@ class Stars(Blackout):
 
     @override
     def update(self, screen: pg.Surface) -> NextScene:
-        """Wake up with a random game once stars.exe has exited."""
+        """Wake up with a random autoplayable game once stars.exe has exited."""
         super().update(screen)
         if self.is_running():
             return None
