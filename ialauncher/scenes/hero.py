@@ -20,7 +20,6 @@ if TYPE_CHECKING:
 
 ADVANCE = pg.event.custom_type()
 KEEP_SLIDESHOW = {pg.K_ESCAPE, pg.K_TAB, pg.K_BACKSPACE}
-TITLE_DURATION = 1000  # milliseconds
 
 
 class Hero(Browse):
@@ -137,7 +136,7 @@ class Hero(Browse):
 
 
 class Autoplay(Blackout):
-    """The title screen for a second, then a black screen behind the game."""
+    """The title screen for a slideshow interval, then black behind the game."""
 
     def __init__(self, game: Game, hero: Hero) -> None:
         """Unzip the game first, if needed."""
@@ -145,7 +144,7 @@ class Autoplay(Blackout):
         self.game = game
         self.hero = hero
         self.emulator: Emulator | None = None
-        self.title_until = pg.time.get_ticks() + TITLE_DURATION
+        self.title_until = pg.time.get_ticks() + options.slideshow * 1000
         self.deadline = 0
         self.unzipping = not game.is_ready()
         if self.unzipping:

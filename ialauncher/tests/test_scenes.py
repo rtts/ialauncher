@@ -279,6 +279,8 @@ class TestBrowse(HeadlessTestCase):
 class TestAutoplay(HeadlessTestCase):
     """Autoplaying the game that the starfield collided with."""
 
+    argv = ("ialauncher", "--no-fullscreen", "--slideshow", "10")
+
     def setUp(self) -> None:
         """Set up autoplay."""
         super().setUp()
