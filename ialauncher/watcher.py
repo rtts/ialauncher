@@ -15,7 +15,6 @@ import pygame as pg
 METADATA_CHANGED = pg.event.custom_type()
 IN_CLOSE_WRITE = 0x8  # A file opened for writing was closed
 IN_MOVED_TO = 0x80  # A file was moved into the directory, like editors save
-IN_CLOEXEC = os.O_CLOEXEC
 INOTIFY_EVENT = struct.Struct("iIII")  # wd, mask, cookie, len, followed by name
 BUFFER_SIZE = 64 * 1024
 
@@ -42,7 +41,7 @@ class MetadataWatcher(Thread):
         if sys.platform != "linux":
             return
         libc = ctypes.CDLL(None, use_errno=True)
-        self.fd = libc.inotify_init1(IN_CLOEXEC)
+        self.fd = libc.inotify_init1(os.O_CLOEXEC)  # Equal to IN_CLOEXEC
         if self.fd < 0:
             return
         for game_dir in self.game_dirs:
