@@ -1,6 +1,8 @@
 """Base class for browsing title screens."""
 
 import random
+import shutil
+import subprocess
 from abc import abstractmethod
 from functools import cached_property
 from typing import override
@@ -95,6 +97,13 @@ class Browse(Scene):
         if game.engine == "dosbox":
             self.start(game, 0, cpu_cycles=cpu_cycles)
 
+    @staticmethod
+    def edit_metadata() -> None:
+        """Open the current game's metadata.ini in Emacs, if it's installed."""
+        if emacs := shutil.which("emacs"):
+            game = gamelist.get_current_game()
+            subprocess.Popen([emacs, game.path / "metadata.ini"])  # noqa: S603
+
     def add_or_remove(self, game: Game) -> None:
         """Delete the gamedir if it exists, or create it if it doesn't exist."""
         if game.is_ready():
@@ -149,6 +158,12 @@ class Browse(Scene):
             and event.key == pg.K_s
         ):
             self.play_at_speed(SLOW_CYCLES)
+        elif (
+            event.type == pg.KEYDOWN
+            and event.mod & pg.KMOD_SHIFT
+            and event.key == pg.K_e
+        ):
+            self.edit_metadata()
         elif event.type == pg.KEYDOWN:
             next_scene = self.handle_key(event)
         self.blink()
