@@ -117,18 +117,10 @@ class Game:
         2. autorun=False
 
             Do as above, but don't run dosbox.bat and don't exit
-            DOSBox. When DOSBox finishes, any changes made to
-            dosbox.bat will be saved to the `emulator_start` variable
-            in metadata.ini.
+            DOSBox.
 
         The frontend allows starting the game in the second mode by pressing
-        Alt-Enter. This allows the user to do the following from within DOSBox:
-
-            C:\> echo MYGAME.BAT >> dosbox.bat
-            C:\> exit
-
-        These changes will then be preserved for the next time the game
-        is run normally.
+        Alt-Enter.
 
         Raises EmulatorError if DOSBox (or ScummVM) isn't installed.
         """
@@ -136,7 +128,6 @@ class Game:
             return self.start_scummvm(autorun=autorun)
 
         dosbox = get_dosbox_command()
-        batfile = self.gamedir / "dosbox.bat"
         dosbox_args = [".", *get_dosbox_options()]
 
         if cpu_cycles and cpu_cycles != self.cpu_cycles:
@@ -163,17 +154,13 @@ class Game:
 
         else:
             autorun = False
-            if not batfile.is_file():
-                # Provide empty dosbox.bat for easy autocomplete
-                # (and correct filename capitalization!)
-                self.write_c("dosbox.bat", "\n")
 
         if autorun:
             dosbox_args.append("-exit")
 
         # Hand the game over to the DOSBox thread
         command = [*dosbox, *dosbox_args]
-        thread = DOSBox(self, command, batfile=batfile, autorun=autorun)
+        thread = DOSBox(self, command, autorun=autorun)
         thread.start()
         return thread
 
@@ -334,17 +321,14 @@ class Emulator(Thread):
 class DOSBox(Emulator):
     """A thread that runs a game in DOSBox."""
 
-    def __init__(
-        self, game: Game, command: list[str], *, batfile: Path, autorun: bool
-    ) -> None:
+    def __init__(self, game: Game, command: list[str], *, autorun: bool) -> None:
         """Prepare to run the game in DOSBox, with or without autorun."""
-        self.batfile = batfile
         self.autorun = autorun
         super().__init__(game, command)
 
     @override
     def run(self) -> None:
-        """Run DOSBox and save changes the user made to dosbox.bat."""
+        """Run DOSBox and report it if the game exits suspiciously quickly."""
         game = self.game
         started = monotonic()
         super().run()
@@ -361,13 +345,6 @@ class DOSBox(Emulator):
                 output = "\n".join(self.output)
                 message += f"\n\nDOSBox exited with code {self.returncode}:\n{output}"
             pg.event.post(pg.event.Event(EMULATOR_FAILED, message=message))
-
-        if not self.autorun and self.batfile.is_file():
-            batch = self.batfile.read_text(encoding="cp437")
-            emulator_start = batch.rstrip("\r\n")
-            if emulator_start and emulator_start != game.emulator_start:
-                game.emulator_start = emulator_start
-                game.save_metadata("emulator_start", emulator_start)
 
 
 class Download(Thread):
