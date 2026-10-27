@@ -31,7 +31,6 @@ DIRECTIONS = {
 SNAKE_COLS = 40
 FPS = 16
 START_LENGTH = 8
-PAUSE = 500
 
 
 class Field(Scene):
@@ -78,20 +77,27 @@ class Field(Scene):
 
 
 class Intro(Field):
-    """The grid's tiles disappear two by two, then Snake starts."""
+    """The grid's tiles disappear two by two until only Snake and its food remain."""
 
     @override
     def run(self, screen: pg.Surface) -> NextScene:
-        """Fill the playing field with the grid's games, in random order."""
+        """Fill the playing field with Snake and the grid's games, in random order."""
         self.layout(screen)
+        self.snake = Snake(self.referrer)
+        self.snake.setup(screen)
+        self.kept = [
+            *zip(self.snake.images, self.snake.body, strict=True),
+            (self.snake.food_image, self.snake.food),
+        ]
+        kept = {pos for _, pos in self.kept}
         games = gamelist.games
         top = self.referrer.top
         self.tiles = [
-            (self.title(games[(top + i) % len(games)]), (i % self.cols, i // self.cols))
+            (self.title(games[(top + i) % len(games)]), pos)
             for i in range(self.cols * self.rows)
+            if (pos := (i % self.cols, i // self.cols)) not in kept
         ]
         random.shuffle(self.tiles)
-        self.start = pg.time.get_ticks() + PAUSE
         return super().run(screen)
 
     @override
@@ -101,24 +107,19 @@ class Intro(Field):
 
     @override
     def update(self, screen: pg.Surface) -> NextScene:
-        """Pause, remove two tiles each frame, pause again, and start Snake."""
+        """Remove two tiles each frame, then start Snake."""
         screen.fill(BLACK)
-        screen.fblits((image, self.cell(pos)) for image, pos in self.tiles)
-        if pg.time.get_ticks() < self.start:
-            return None
+        screen.fblits((image, self.cell(pos)) for image, pos in self.kept + self.tiles)
         if not self.tiles:
-            return Snake(self.referrer)
+            return self.snake
         del self.tiles[-2:]
-        if not self.tiles:
-            self.start = pg.time.get_ticks() + PAUSE
         return None
 
 
 class Snake(Field):
     """Yes, the game."""
 
-    @override
-    def run(self, screen: pg.Surface) -> NextScene:
+    def setup(self, screen: pg.Surface) -> None:
         """Lay out the playing field and start with snake in the middle."""
         self.layout(screen)
 
@@ -131,6 +132,10 @@ class Snake(Field):
         self.ai = True
         self.game_over = False
         self.place_food()
+
+    @override
+    def run(self, screen: pg.Surface) -> NextScene:
+        """Start the game, which Intro has set up."""
         speaker.blip()
         return super().run(screen)
 
