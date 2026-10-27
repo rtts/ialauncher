@@ -130,16 +130,12 @@ carefully, this will be on the exam:
 
 - Press Alt-Enter to start DOSBox with the game directory mounted as
   the `C:` drive.
-- (Optional) Type `echo cd [directoryname] > dosbox.bat` to put the
-  `cd` command in the file named `dosbox.bat`.
-- Type `echo [command that launches the game] >> dosbox.bat` to append
-  the command that launches the game to the file `dosbox.bat`.
-- Execute `dosbox.bat` and verify that your game now launches correctly.
+- Find the command(s) that launch the game, and verify that the game
+  launches correctly.
 
-When you exit the emulator, IA Launcher will save the contents of
-`dosbox.bat` to the `emulator_start` variable inside the game's
-`metadata.ini`. The next time you launch the game, the `dosbox.bat`
-file will be run automatically.
+Then put those commands in the `emulator_start` variable inside the
+game's `metadata.ini`. The next time you launch the game, they will be
+run automatically.
 
 More advanced logic can be created with batch file syntax. As an
 example, here is the contents of `emulator_start` for the game SimCity
