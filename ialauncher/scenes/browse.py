@@ -4,18 +4,17 @@ import random
 import shutil
 import subprocess
 from abc import abstractmethod
-from functools import cached_property
 from typing import override
 
 import pygame as pg
 
-from ialauncher import options
+from ialauncher import ega, options
 from ialauncher.engine import NextScene
 from ialauncher.game import EMULATOR_FAILED, Game, MetadataError
 from ialauncher.gamelist import gamelist
 from ialauncher.utils import find_emulator, show_error
 
-from . import BLACK, CYAN, FONT_FAMILY, GRID_LARGER, GRID_SMALLER, MAGENTA, Scene
+from . import BLACK, CYAN, GRID_LARGER, GRID_SMALLER, MAGENTA, Scene
 from .download import Download
 from .starfield import Starfield
 from .stars import Stars
@@ -61,11 +60,6 @@ class Browse(Scene):
             self.dot_visible = False
             pg.time.set_timer(BLINK, BLINK_INTERVAL if blinking else 0)
 
-    @cached_property
-    def message_font(self) -> pg.font.Font:
-        """The font of the message."""
-        return pg.font.SysFont(FONT_FAMILY, 20)
-
     def show_ready(self, *, ready: bool | None) -> None:
         """Show only the games that are (not) ready to play, or all games (None)."""
         gamelist.show_ready(ready=ready)
@@ -86,6 +80,8 @@ class Browse(Scene):
         doesn't exist. The UI calls this "Add to / Remove from favorites".
         """
         game = gamelist.get_current_game()
+        if game is None:
+            return
         if mod & pg.KMOD_CTRL:
             self.add_or_remove(game)
         else:
@@ -94,14 +90,14 @@ class Browse(Scene):
     def play_at_speed(self, cpu_cycles: int) -> None:
         """Start the current DOSBox game with cpu_cycles, and remember it."""
         game = gamelist.get_current_game()
-        if game.engine == "dosbox":
+        if game and game.engine == "dosbox":
             self.start(game, 0, cpu_cycles=cpu_cycles)
 
     @staticmethod
     def edit_metadata() -> None:
         """Open the current game's metadata.ini in Emacs, if it's installed."""
-        if emacs := shutil.which("emacs"):
-            game = gamelist.get_current_game()
+        game = gamelist.get_current_game()
+        if game and (emacs := shutil.which("emacs")):
             subprocess.Popen([emacs, game.path / "metadata.ini"])  # noqa: S603
 
     def add_or_remove(self, game: Game) -> None:
@@ -143,6 +139,7 @@ class Browse(Scene):
         if event.type == IDLE:
             playing = any(game.is_running() for game in gamelist.all_games)
             busy = self.slideshow_running or playing or Stars.is_running()
+            busy = busy or not gamelist.games
             next_scene = None if busy else self.screensaver()
         elif event.type == BLINK:
             self.dot_visible = self.blinking and not self.dot_visible
@@ -204,13 +201,13 @@ class Browse(Scene):
         """
         if event.key == pg.K_ESCAPE:
             return self.escape()
-        typing = self.message_visible and self.message == gamelist.query
+        typing = self.message_visible and self.message == gamelist.query.upper()
         new_query = self.typeable(event) and event.key not in COMMAND_KEYS
         if new_query and gamelist.query and not typing:
             self.clear_filter()
         added = self.filter(event, typing=typing)
         if added:
-            self.show_message(gamelist.query)
+            self.show_message(gamelist.query.upper())
             self.reshow()
         elif new_query:
             return None
@@ -228,7 +225,7 @@ class Browse(Scene):
         return next_scene
 
     def filter(self, event: pg.event.Event, *, typing: bool) -> bool:
-        """Add the typed character to the filter if any game matches.
+        """Add the typed character to the filter.
 
         Space, plus and minus only add to the filter once it has been
         started with another key, and while it's being typed. Return
@@ -238,11 +235,18 @@ class Browse(Scene):
             return False
         if not typing and event.key in COMMAND_KEYS:
             return False
-        return gamelist.add_to_filter(event.unicode)
+        gamelist.add_to_filter(event.unicode)
+        return True
 
     @staticmethod
     def typeable(event: pg.event.Event) -> bool:
-        """Return whether the keystroke types a character."""
+        """Return whether the keystroke types a character.
+
+        Shift with a letter doesn't type, leaving those keys free for
+        commands. Shift with anything else does, for characters like ^.
+        """
+        if event.mod & pg.KMOD_SHIFT and event.unicode.isalpha():
+            return False
         return bool(event.unicode) and event.unicode.isprintable()
 
     def keystroke(self, event: pg.event.Event) -> None:
@@ -343,10 +347,8 @@ class Browse(Scene):
         pg.draw.ellipse(screen, color, rect)
 
     def draw_message(
-        self, screen: pg.Surface, padding: tuple[int, int] = (24, 16)
+        self, screen: pg.Surface, padding: tuple[int, int] = (8, 4)
     ) -> None:
         """Draw the message in the middle of the screen."""
-        image = self.message_font.render(self.message, antialias=True, color=BLACK)
-        rect = image.get_rect(center=screen.get_rect().center)
-        screen.fill(MAGENTA, rect.inflate(2 * padding[0], 2 * padding[1]))
-        screen.blit(image, rect)
+        image = ega.render(self.message, BLACK, MAGENTA, padding)
+        screen.blit(image, image.get_rect(center=screen.get_rect().center))

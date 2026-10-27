@@ -118,8 +118,10 @@ class Hero(Browse):
 
     @override
     def draw(self, screen: pg.Surface) -> None:
-        """Draw the title screen of the current game, letterboxed."""
+        """Draw the title screen of the current game, letterboxed, if any."""
         game = gamelist.get_current_game()
+        if game is None:
+            return
         rect = letterbox(screen.get_rect())
         key = game, rect.size, cga.palette
         image = self.cache.get(key)
@@ -193,6 +195,8 @@ def autoplay_game() -> Game | None:
     if not options.autoplay:
         return None
     game = gamelist.get_current_game()
+    if game is None:
+        return None
     if not game.autoplayable or game.engine != "dosbox" or not game.emulator_start:
         return None
     try:

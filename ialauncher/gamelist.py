@@ -1,6 +1,7 @@
 """The list of games."""
 
 import random
+import re
 import traceback
 from pathlib import Path
 from threading import Event, Thread
@@ -26,6 +27,7 @@ class Gamelist:
         self.games = self.all_games  # The games to be shown, post-filter
         self.ready: bool | None = None
         self.current_game = 0
+        self.current_identifier = ""  # Remembered while no games are shown
         self.query = ""
         self.loader: GameLoader | None = None
         self.watcher: MetadataWatcher | None = None
@@ -81,61 +83,63 @@ class Gamelist:
     def show_ready(self, *, ready: bool | None) -> None:
         """Show only the games that are (not) ready to play, or all games (None).
 
-        If no game matches, show all games. Keep the filter, unless no
-        ready game matches it.
+        If no game is (not) ready, show all games. Keep the filter, even
+        if no ready game matches it.
         """
         ready_games = [g for g in self.all_games if g.is_ready() == ready]
         self.ready = ready if ready_games else None
         self.ready_games = ready_games or self.all_games
-        games = self.matching(self.query)
-        if not games:
-            self.query = ""
-        self.show(games or self.ready_games)
+        self.show(self.matching(self.query))
 
     def show(self, games: list[Game]) -> None:
-        """Show the given games; keep the current game, or select the next one."""
-        current = self.get_current_game().identifier.lower()
+        """Show the given games; keep the current game, or select the next one.
+
+        While no games are shown, remember the current game for when
+        games are shown again.
+        """
+        if game := self.get_current_game():
+            self.current_identifier = game.identifier.lower()
         self.games = games
 
         # Update the current_game index to still point to the same
         # game, or the nearest one after it, or 0.
         self.current_game = next(
-            (i for i, g in enumerate(self.games) if g.identifier.lower() >= current),
+            (
+                i
+                for i, g in enumerate(self.games)
+                if g.identifier.lower() >= self.current_identifier
+            ),
             0,
         )
 
     def matching(self, query: str) -> list[Game]:
-        """Return the ready games whose identifier contains the query, ignoring case.
+        """Return the ready games whose identifier matches the regex, ignoring case.
 
-        Games whose year starts with the query match as well, so that
-        typing a year shows all games from that year. A query that
-        starts with ^ only matches the start of the identifier.
+        Games whose year matches at the start match as well, so that
+        typing a year shows all games from that year. While the regex
+        is incomplete, like "(doom", its longest valid prefix is used.
         """
-        query = query.lower()
-        if query.startswith("^"):
-            prefix = query[1:]
-            return [
-                g
-                for g in self.ready_games
-                if g.identifier.lower().startswith(prefix) or g.year.startswith(prefix)
-            ]
+        pattern = self.compile(query)
         return [
             g
             for g in self.ready_games
-            if query in g.identifier.lower() or g.year.startswith(query)
+            if pattern.search(g.identifier) or pattern.match(g.year)
         ]
 
-    def add_to_filter(self, char: str) -> bool:
-        """Add a character to the filter, unless no ready game would match.
+    @staticmethod
+    def compile(query: str) -> re.Pattern[str]:
+        """Compile the longest prefix of the query that is a valid regex."""
+        for end in range(len(query), 0, -1):
+            try:
+                return re.compile(query[:end], re.IGNORECASE)
+            except re.error:
+                continue
+        return re.compile("")
 
-        Return whether the character was added.
-        """
-        games = self.matching(self.query + char)
-        if not games:
-            return False
+    def add_to_filter(self, char: str) -> None:
+        """Add a character to the filter, even if no ready game matches."""
         self.query += char
-        self.show(games)
-        return True
+        self.show(self.matching(self.query))
 
     def clear_filter(self) -> None:
         """Show all ready games again."""
@@ -143,22 +147,25 @@ class Gamelist:
             self.query = ""
             self.show(self.ready_games)
 
-    def get_current_game(self) -> Game:
-        """Return the current game."""
-        return self.games[self.current_game]
+    def get_current_game(self) -> Game | None:
+        """Return the current game, or None if no games are shown."""
+        return self.games[self.current_game] if self.games else None
 
     def next_game(self) -> None:
         """Move to the next game, wrapping around at the end."""
-        self.current_game = (self.current_game + 1) % len(self.games)
+        if self.games:
+            self.current_game = (self.current_game + 1) % len(self.games)
 
     def previous_game(self) -> None:
         """Move to the previous game, wrapping around at the start."""
-        self.current_game = (self.current_game - 1) % len(self.games)
+        if self.games:
+            self.current_game = (self.current_game - 1) % len(self.games)
 
     def random_game(self) -> None:
-        """Jump to a random autoplayable game."""
-        game = random.choice(self.autoplayable_games())  # noqa: S311
-        self.current_game = self.games.index(game)
+        """Jump to a random autoplayable game, if any games are shown."""
+        if self.games:
+            game = random.choice(self.autoplayable_games())  # noqa: S311
+            self.current_game = self.games.index(game)
 
     def autoplayable_games(self) -> list[Game]:
         """Return the shown games that are autoplayable, or all if none are."""

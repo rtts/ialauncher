@@ -22,6 +22,12 @@ from ialauncher.scenes.stars import Stars
 from .support import HeadlessTestCase, Script, Step, key, text
 
 
+def current() -> str | None:
+    """Return the identifier of the current game, if any."""
+    game = gamelist.get_current_game()
+    return game.identifier if game else None
+
+
 class TestLoading(HeadlessTestCase):
     """The progress bar while the games are loading."""
 
@@ -64,7 +70,7 @@ class TestBrowse(HeadlessTestCase):
 
         yield text("prince")
         self.assertEqual(gamelist.query, "prince")
-        self.assertRegex(gamelist.get_current_game().identifier, "(?i)prince")
+        self.assertRegex(str(current()), "(?i)prince")
         yield key(pg.K_BACKSPACE)
 
         self.assertIsNone((yield key(pg.K_ESCAPE)))
@@ -91,15 +97,20 @@ class TestBrowse(HeadlessTestCase):
         self.assertEqual(shown(), matching("prince"))
         self.assertIn("Dizzy - Prince of the Yolkfolk", shown())
         self.assertIn("Machiavelli the Prince", shown())
-        self.assertIn(gamelist.get_current_game().identifier, shown())
+        self.assertIn(current(), shown())
 
-        # A character that matches no game is rejected, and the filter stays
+        # A character that matches no game is added, and no games are shown
         yield text("q")
-        self.assertEqual(gamelist.query, "PRINCE")
-        self.assertEqual(shown(), matching("prince"))
+        self.assertEqual(gamelist.query, "PRINCEq")
+        self.assertEqual(shown(), set())
+        self.assertIsNone(current())
+
+        # Typing again after Backspace shows games again
+        yield key(pg.K_BACKSPACE)
+        self.assertEqual(shown(), library)
 
         # Space adds to the filter
-        yield text(" of p")
+        yield text("PRINCE of p")
         self.assertEqual(gamelist.query, "PRINCE of p")
         self.assertEqual(shown(), {"Prince of Persia", "Prince of Persia 2"})
 
@@ -128,7 +139,7 @@ class TestBrowse(HeadlessTestCase):
         starting_with_p = {name for name in library if name.lower().startswith("p")}
         self.assertEqual(shown(), starting_with_p)
         self.assertNotIn("Dizzy - Prince of the Yolkfolk", shown())
-        self.assertEqual(hero.message, "^p")
+        self.assertEqual(hero.message, "^P")
 
         # Escape quits, even while filtering
         self.assertIsNone((yield key(pg.K_ESCAPE)))
@@ -215,9 +226,6 @@ class TestBrowse(HeadlessTestCase):
         self.enterContext(mock.patch.object(browse, "Download", download))
         yield from self.wait_for(Hero)
         total = len(gamelist.games)
-
-        def current() -> str:
-            return gamelist.get_current_game().identifier
 
         # Without ready games, Tab does nothing
         yield key(pg.K_TAB)

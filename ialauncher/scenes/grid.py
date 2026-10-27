@@ -171,7 +171,7 @@ class Grid(Browse):
         )
         old_cols = self.cols
         self.resize(cols)
-        if reached:
+        if reached and gamelist.games:
             return snake.Intro(self)
         if cols > self.cols == old_cols:
             self.stars_pending = True
@@ -194,7 +194,8 @@ class Grid(Browse):
     def select(self, pos: int) -> None:
         """Select the game at the given position."""
         self.pos = pos
-        gamelist.current_game = pos % len(gamelist.games)
+        if gamelist.games:
+            gamelist.current_game = pos % len(gamelist.games)
 
     def point(self, point: tuple[int, int]) -> bool:
         """Select the game under the mouse pointer; return False if there is none."""
@@ -277,13 +278,9 @@ class Grid(Browse):
         return None
 
     def open_menu(self, pos: tuple[int, int]) -> None:
-        """Open the menu of the current game at the given position."""
-        self.menu = Menu(
-            self.menu_font,
-            gamelist.get_current_game(),
-            pos,
-            self.screen.get_rect(),
-        )
+        """Open the menu of the current game at the given position, if any."""
+        if game := gamelist.get_current_game():
+            self.menu = Menu(self.menu_font, game, pos, self.screen.get_rect())
 
     @override
     def handle_wheel(self, event: pg.event.Event) -> NextScene:
@@ -353,6 +350,8 @@ class Grid(Browse):
             screen.fill(BLACK)
             return
         games = gamelist.games
+        if not games:
+            return
         cache: dict[tuple[Game, tuple[int, int], int | None], pg.Surface] = {}
         size = width, height = self.tile_size
         cols = self.cols
