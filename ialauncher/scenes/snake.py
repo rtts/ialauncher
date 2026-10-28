@@ -41,9 +41,16 @@ class Field(Scene):
         super().__init__()
         self.referrer = referrer
 
-    def layout(self, screen: pg.Surface) -> None:
+    @override
+    def handle(self, event: pg.event.Event) -> NextScene:
+        """Hand back on Escape."""
+        if event.type == pg.KEYDOWN and event.key == pg.K_ESCAPE:
+            return self.referrer
+        return None
+
+    def layout(self) -> None:
         """Lay out the playing field in whole rows of slightly stretched tiles."""
-        width, height = screen.get_size()
+        width, height = self.screen.get_size()
         self.cols = self.referrer.cols
         self.rows = round(height / self.referrer.row_height)
         cell_width, cell_height = width // self.cols, height // self.rows
@@ -68,23 +75,17 @@ class Field(Scene):
         )
         return tile
 
-    @override
-    def handle(self, event: pg.event.Event) -> NextScene:
-        """Hand back on Escape."""
-        if event.type == pg.KEYDOWN and event.key == pg.K_ESCAPE:
-            return self.referrer
-        return None
-
 
 class Intro(Field):
     """The grid's tiles disappear two by two until only Snake and its food remain."""
 
     @override
-    def run(self, screen: pg.Surface) -> NextScene:
+    def start(self) -> NextScene:
         """Fill the playing field with Snake and the grid's games, in random order."""
-        self.layout(screen)
+        self.layout()
         self.snake = Snake(self.referrer)
-        self.snake.setup(screen)
+        self.snake.screen = self.screen  # It hasn't run yet
+        self.snake.setup()
         self.kept = [
             *zip(self.snake.images, self.snake.body, strict=True),
             (self.snake.food_image, self.snake.food),
@@ -98,30 +99,64 @@ class Intro(Field):
             if (pos := (i % self.cols, i // self.cols)) not in kept
         ]
         random.shuffle(self.tiles)
-        return super().run(screen)
+        return None
+
+    @override
+    def update(self) -> NextScene:
+        """Remove two tiles each frame, then start Snake."""
+        self.screen.fill(BLACK)
+        self.screen.fblits(
+            (image, self.cell(pos)) for image, pos in self.kept + self.tiles
+        )
+        if not self.tiles:
+            return self.snake
+        del self.tiles[-2:]
+        return None
 
     @override
     def get_events(self) -> list[pg.event.Event]:
         """Run as fast as possible."""
         return pg.event.get()
 
-    @override
-    def update(self, screen: pg.Surface) -> NextScene:
-        """Remove two tiles each frame, then start Snake."""
-        screen.fill(BLACK)
-        screen.fblits((image, self.cell(pos)) for image, pos in self.kept + self.tiles)
-        if not self.tiles:
-            return self.snake
-        del self.tiles[-2:]
-        return None
-
 
 class Snake(Field):
     """Yes, the game."""
 
-    def setup(self, screen: pg.Surface) -> None:
+    @override
+    def start(self) -> NextScene:
+        """Start the game, which Intro has set up."""
+        speaker.blip()
+        return None
+
+    @override
+    def update(self) -> NextScene:
+        """Move snake and draw food, or beep for a frame when it dies."""
+        if self.game_over:
+            speaker.stop()
+            return self.referrer
+        if not self.step():
+            speaker.start()
+            self.game_over = True
+            return None
+        self.screen.fill(BLACK)
+        self.screen.blit(self.food_image, self.cell(self.food))
+        self.screen.fblits(
+            (image, self.cell(pos))
+            for image, pos in zip(self.images, self.body, strict=True)
+        )
+        return None
+
+    @override
+    def handle(self, event: pg.event.Event) -> NextScene:
+        """Take over from the AI with the arrow keys, or hand back on Escape."""
+        if event.type == pg.KEYDOWN and event.key in DIRECTIONS:
+            self.ai = False
+            self.turns.append(DIRECTIONS[event.key])
+        return super().handle(event)
+
+    def setup(self) -> None:
         """Lay out the playing field and start with snake in the middle."""
-        self.layout(screen)
+        self.layout()
 
         # The body is a list of cells composed of title screens.
         x, y = self.cols // 2, self.rows // 2
@@ -132,12 +167,6 @@ class Snake(Field):
         self.ai = True
         self.game_over = False
         self.place_food()
-
-    @override
-    def run(self, screen: pg.Surface) -> NextScene:
-        """Start the game, which Intro has set up."""
-        speaker.blip()
-        return super().run(screen)
 
     def random_title(self) -> pg.Surface:
         """Return the title screen of a random game, scaled to the tile size."""
@@ -166,14 +195,6 @@ class Snake(Field):
         self.food = random.choice(roomy or reachable or free)  # noqa: S311
         self.food_image = self.random_title()
         return True
-
-    @override
-    def handle(self, event: pg.event.Event) -> NextScene:
-        """Take over from the AI with the arrow keys, or hand back on Escape."""
-        if event.type == pg.KEYDOWN and event.key in DIRECTIONS:
-            self.ai = False
-            self.turns.append(DIRECTIONS[event.key])
-        return super().handle(event)
 
     def step(self) -> bool:
         """Move the snake one cell; return False when it dies."""
@@ -225,24 +246,6 @@ class Snake(Field):
         """Run at FPS frames per second."""
         self.clock.tick(FPS)
         return pg.event.get()
-
-    @override
-    def update(self, screen: pg.Surface) -> NextScene:
-        """Move snake and draw food, or beep for a frame when it dies."""
-        if self.game_over:
-            speaker.stop()
-            return self.referrer
-        if not self.step():
-            speaker.start()
-            self.game_over = True
-            return None
-        screen.fill(BLACK)
-        screen.blit(self.food_image, self.cell(self.food))
-        screen.fblits(
-            (image, self.cell(pos))
-            for image, pos in zip(self.images, self.body, strict=True)
-        )
-        return None
 
     def think(self) -> Cell:
         """Decide which way to go by following these rules.

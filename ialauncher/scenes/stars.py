@@ -4,8 +4,6 @@ import subprocess
 from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar, override
 
-import pygame as pg
-
 from ialauncher.emulator import (
     NO_WINDOW,
     EmulatorError,
@@ -15,7 +13,7 @@ from ialauncher.emulator import (
 from ialauncher.engine import NextScene
 from ialauncher.gamelist import gamelist
 
-from . import Blackout
+from . import Blackout, hero, starfield
 
 if TYPE_CHECKING:
     from .browse import Browse
@@ -31,10 +29,21 @@ class Stars(Blackout):
         super().__init__()
         self.referrer = referrer
 
-    @classmethod
-    def start(cls, referrer: "Browse") -> "Stars | None":
-        """Start stars.exe and return a black screen, or None if it can't."""
-        return cls(referrer) if cls.launch() else None
+    @override
+    def start(self) -> NextScene:
+        """Start stars.exe, or fall back to the starfield if it can't."""
+        if not Stars.launch():
+            return starfield.Starfield(self.referrer)
+        return None
+
+    @override
+    def update(self) -> NextScene:
+        """Continue with Hero, on a random autoplayable game, once stars.exe exits."""
+        super().update()
+        if self.is_running():
+            return None
+        gamelist.random_game()
+        return hero.Hero(screensaver=True)
 
     @classmethod
     def launch(cls, *, autorun: bool = True) -> bool:
@@ -55,12 +64,3 @@ class Stars(Blackout):
     def is_running(cls) -> bool:
         """Return whether stars.exe is still running."""
         return cls.dosbox is not None and cls.dosbox.poll() is None
-
-    @override
-    def update(self, screen: pg.Surface) -> NextScene:
-        """Wake up with a random autoplayable game once stars.exe has exited."""
-        super().update(screen)
-        if self.is_running():
-            return None
-        gamelist.random_game()
-        return self.referrer.wake()

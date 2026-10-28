@@ -22,7 +22,6 @@ from . import (
     GRID_LARGER,
     GRID_SMALLER,
     MAGENTA,
-    Scene,
     hero,
     snake,
 )
@@ -59,14 +58,41 @@ class Grid(Browse):
         self.menu: Menu | None = None
         self.mouse_until = 0
         self.stars_pending = False
+        self.layout_size = 0, 0
         self.set_cursor(pg.SYSTEM_CURSOR_HAND)
 
     @override
-    def run(self, screen: pg.Surface) -> NextScene:
-        """Lay out the grid on the screen."""
-        self.screen = screen
-        self.resize(self.cols)
-        return super().run(screen)
+    def update(self) -> NextScene:
+        """Lay out the grid when the screen size changed, and update the pointer."""
+        if self.screen.get_size() != self.layout_size:
+            self.layout_size = self.screen.get_size()
+            self.resize(self.cols)
+        if self.menu and self.menu.highlighted is None:
+            cursor = pg.SYSTEM_CURSOR_ARROW
+        else:
+            cursor = pg.SYSTEM_CURSOR_HAND
+        if cursor != self.cursor:
+            self.set_cursor(cursor)
+        # Wait until key repeats stop before launching stars.exe
+        if self.stars_pending and not held_keys:
+            self.stars_pending = False
+            if not Stars.is_running():
+                Stars.launch()
+        return super().update()
+
+    @override
+    def handle(self, event: pg.event.Event) -> NextScene:
+        """Show the pointer while it's used, and let the menu handle events first."""
+        if event.type in (pg.MOUSEMOTION, pg.MOUSEBUTTONDOWN, pg.MOUSEWHEEL):
+            self.mouse_until = pg.time.get_ticks() + MOUSE_TIMEOUT
+            pg.time.set_timer(MOUSE_EXPIRED, MOUSE_TIMEOUT, loops=1)
+        elif event.type == MOUSE_EXPIRED:
+            self.skip_frame = True
+        if menu := self.menu:
+            mod = menu.choice(event)
+            if self.handle_menu(menu, event):
+                return None if mod is None else self.play(mod)
+        return super().handle(event)
 
     @override
     def intercept(self, event: pg.event.Event) -> bool:
@@ -244,26 +270,12 @@ class Grid(Browse):
         if event.type in (pg.KEYDOWN, pg.MOUSEBUTTONDOWN, pg.MOUSEWHEEL):
             self.menu = None
             if event.type == pg.MOUSEBUTTONDOWN and event.button == pg.BUTTON_LEFT:
-                if menu.highlighted is not None:
-                    self.play(MENU_ITEMS[menu.highlighted][2])
                 return True
-            if event.type == pg.KEYDOWN and event.key == pg.K_RETURN:
-                self.play(event.mod)
-                return True
-            return event.type == pg.KEYDOWN and event.key == pg.K_ESCAPE
+            return event.type == pg.KEYDOWN and event.key in (
+                pg.K_RETURN,
+                pg.K_ESCAPE,
+            )
         return False
-
-    @override
-    def handle(self, event: pg.event.Event) -> NextScene:
-        """Show the pointer while it's used, and let the menu handle events first."""
-        if event.type in (pg.MOUSEMOTION, pg.MOUSEBUTTONDOWN, pg.MOUSEWHEEL):
-            self.mouse_until = pg.time.get_ticks() + MOUSE_TIMEOUT
-            pg.time.set_timer(MOUSE_EXPIRED, MOUSE_TIMEOUT, loops=1)
-        elif event.type == MOUSE_EXPIRED:
-            self.skip_frame = True
-        if self.menu and self.handle_menu(self.menu, event):
-            return None
-        return super().handle(event)
 
     @override
     def handle_mouse(self, event: pg.event.Event) -> NextScene:
@@ -272,7 +284,7 @@ class Grid(Browse):
             self.skip_frame = True
             self.point(event.pos)
         elif event.button == pg.BUTTON_LEFT and self.point(event.pos):
-            self.play(pg.key.get_mods())
+            return self.play(pg.key.get_mods())
         elif event.button == pg.BUTTON_RIGHT and self.point(event.pos):
             self.open_menu(event.pos)
         return None
@@ -293,16 +305,6 @@ class Grid(Browse):
         return None
 
     @override
-    def wake(self) -> Scene:
-        """Autoplay the game the screensaver collided with."""
-        return hero.Hero(autoplay=True)
-
-    @override
-    def show_hero(self) -> Scene:
-        """Zoom in to Hero."""
-        return hero.Hero()
-
-    @override
     def escape(self) -> NextScene:
         """Go back to Hero."""
         return hero.Hero()
@@ -311,6 +313,7 @@ class Grid(Browse):
     def navigate(self, event: pg.event.Event) -> NextScene:
         """Zoom, scroll, or jump to a random game in Hero, depending on the key."""
         if event.key == pg.K_SPACE:
+            gamelist.random_game()
             return hero.Hero(slideshow=True)
         if event.key in GRID_LARGER:
             return self.zoom(self.cols + 1)
@@ -321,23 +324,7 @@ class Grid(Browse):
         return None
 
     @override
-    def update(self, screen: pg.Surface) -> NextScene:
-        """Update the mouse pointer."""
-        if self.menu and self.menu.highlighted is None:
-            cursor = pg.SYSTEM_CURSOR_ARROW
-        else:
-            cursor = pg.SYSTEM_CURSOR_HAND
-        if cursor != self.cursor:
-            self.set_cursor(cursor)
-        # Wait until key repeats stop before launching stars.exe
-        if self.stars_pending and not held_keys:
-            self.stars_pending = False
-            if not Stars.is_running():
-                Stars.launch()
-        return super().update(screen)
-
-    @override
-    def draw(self, screen: pg.Surface) -> None:
+    def draw(self) -> None:
         """Draw the grid, one row at a time.
 
         Look up each visible game's image once, even when huge grids
@@ -347,7 +334,7 @@ class Grid(Browse):
         if min(self.tile_size) < 1:
             self.resize(self.cols)
         if min(self.tile_size) < 1:
-            screen.fill(BLACK)
+            self.screen.fill(BLACK)
             return
         games = gamelist.games
         if not games:
@@ -388,15 +375,15 @@ class Grid(Browse):
             top = y + (next_y - y) // 2 - height // 2
             start = row * cols % len(games)
             row_images = images[start : start + cols]
-            screen.fblits(zip(row_images, zip(lefts, repeat(top)), strict=True))
+            self.screen.fblits(zip(row_images, zip(lefts, repeat(top)), strict=True))
         self.cache = cache
 
     @override
-    def draw_overlays(self, screen: pg.Surface) -> None:
+    def draw_overlays(self) -> None:
         """Draw the dots, the message, and the menu, if any."""
-        super().draw_overlays(screen)
+        super().draw_overlays()
         if self.menu:
-            self.menu.draw(screen)
+            self.menu.draw(self.screen)
 
 
 class Menu:
@@ -436,6 +423,15 @@ class Menu:
         """Return the rectangle of the given menu item, where -1 is the title."""
         top = self.rect.top + (item + 1) * self.line_height
         return pg.Rect(self.rect.left, top, self.rect.width, self.line_height)
+
+    def choice(self, event: pg.event.Event) -> int | None:
+        """Return the modifiers of the item chosen by the event, if any."""
+        if event.type == pg.MOUSEBUTTONDOWN and event.button == pg.BUTTON_LEFT:
+            if self.highlighted is not None:
+                return MENU_ITEMS[self.highlighted][2]
+        elif event.type == pg.KEYDOWN and event.key == pg.K_RETURN:
+            return event.mod
+        return None
 
     def item_at(self, point: tuple[int, int]) -> int | None:
         """Return the menu item at the given point, or None."""

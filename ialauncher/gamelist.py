@@ -27,7 +27,7 @@ class Gamelist:
         self.games = self.all_games  # The games to be shown, post-filter
         self.ready: bool | None = None
         self.current_game = 0
-        self.current_identifier = ""  # Remembered while no games are shown
+        self.current_identifier = ""
         self.query = ""
         self.loader: GameLoader | None = None
         self.watcher: MetadataWatcher | None = None
@@ -162,10 +162,9 @@ class Gamelist:
             self.current_game = (self.current_game - 1) % len(self.games)
 
     def random_game(self) -> None:
-        """Jump to a random autoplayable game, if any games are shown."""
-        if self.games:
-            game = random.choice(self.autoplayable_games())  # noqa: S311
-            self.current_game = self.games.index(game)
+        """Jump to a random autoplayable game, if any are shown."""
+        if games := [game for game in self.games if game.autoplayable]:
+            self.current_game = self.games.index(random.choice(games))  # noqa: S311
 
     def autoplayable_games(self) -> list[Game]:
         """Return the shown games that are autoplayable, or all if none are."""

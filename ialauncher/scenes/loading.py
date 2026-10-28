@@ -46,72 +46,7 @@ class Loading(TitleScreen):
         super().__init__()
 
     @override
-    def get_events(self) -> list[pg.event.Event]:
-        """Uncap the frame rate."""
-        return pg.event.get()
-
-    @override
-    def handle(self, event: pg.event.Event) -> NextScene:
-        """Quit on Escape."""
-        if event.type == pg.KEYDOWN and event.key == pg.K_ESCAPE:
-            return False
-        return None
-
-    @override
-    def run(self, screen: pg.Surface) -> NextScene:
-        """Cancel the download in progress when the scene exits.
-
-        This waits for the download thread to terminate by calling
-        Thread.join(). If the network is stalled, that can take up to
-        60 seconds, and the window is frozen until then.
-
-        Using processes instead of threads would fix this, but they
-        don't play nice on Windows.
-        """
-        try:
-            return super().run(screen)
-        finally:
-            if self.downloading and (thread := self.downloading.download_thread):
-                thread.cancel()
-
-    def load_games(self, number_of_games: int) -> None:
-        """Load the next N games."""
-        while self.todo and number_of_games:
-            path, metadata = self.todo.pop()
-            gamelist.add(path, metadata)
-            number_of_games -= 1
-
-    def download_game(self) -> None:
-        """Download the next game."""
-        if self.downloading:
-            thread = self.downloading.download_thread
-            if thread is not None and thread.is_alive():
-                return
-            self.downloading = None
-        if self.todo:
-            path, _ = self.todo.pop()
-            gamelist.add(path)
-            self.downloading = gamelist.games[-1]
-            self.downloading.download(unzip=False)
-
-    def done(self) -> NextScene:
-        """Choose the next scene."""
-        if self.slurp:
-            return False
-        if not gamelist.games:
-            show_error(
-                f"No games were found!\n\nThere are no games in {self.games_dir}"
-            )
-            return False
-        gamelist.sort()
-        gamelist.random_game()
-        hero = Hero()
-        gamelist.load_titlescreens()
-        gamelist.watch()
-        return hero
-
-    @override
-    def update(self, screen: pg.Surface) -> NextScene:
+    def update(self) -> NextScene:
         """Load (or in slurp mode, download) games and draw the progress.
 
         Quit if a game has invalid metadata.
@@ -132,5 +67,67 @@ class Loading(TitleScreen):
         if not self.todo and not self.downloading:
             return self.done()
         finished = self.total - len(self.todo) - bool(self.downloading)
-        self.draw_progress(screen, finished / self.total)
+        self.draw_progress(finished / self.total)
         return None
+
+    @override
+    def handle(self, event: pg.event.Event) -> NextScene:
+        """Quit on Escape."""
+        if event.type == pg.KEYDOWN and event.key == pg.K_ESCAPE:
+            return False
+        return None
+
+    @override
+    def stop(self) -> None:
+        """Cancel the download in progress.
+
+        This waits for the download thread to terminate by calling
+        Thread.join(). If the network is stalled, that can take up to
+        60 seconds, and the window is frozen until then.
+
+        Using processes instead of threads would fix this, but they
+        don't play nice on Windows.
+        """
+        if self.downloading and (thread := self.downloading.download_thread):
+            thread.cancel()
+
+    @override
+    def get_events(self) -> list[pg.event.Event]:
+        """Uncap the frame rate."""
+        return pg.event.get()
+
+    def load_games(self, number_of_games: int) -> None:
+        """Load the next N games."""
+        while self.todo and number_of_games:
+            path, metadata = self.todo.pop()
+            gamelist.add(path, metadata)
+            number_of_games -= 1
+
+    def download_game(self) -> None:
+        """Download the next game."""
+        if self.downloading:
+            thread = self.downloading.download_thread
+            if thread is not None and thread.is_alive():
+                return
+            self.downloading = None
+        if self.todo:
+            path, _ = self.todo.pop()
+            gamelist.add(path)
+            self.downloading = gamelist.games[-1]
+            self.downloading.download()
+
+    def done(self) -> NextScene:
+        """Choose the next scene."""
+        if self.slurp:
+            return False
+        if not gamelist.games:
+            show_error(
+                f"No games were found!\n\nThere are no games in {self.games_dir}"
+            )
+            return False
+        gamelist.sort()
+        gamelist.random_game()
+        hero = Hero()
+        gamelist.load_titlescreens()
+        gamelist.watch()
+        return hero

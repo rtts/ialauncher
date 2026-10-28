@@ -12,7 +12,7 @@ from typing import override
 
 import pygame as pg
 
-METADATA_CHANGED = pg.event.custom_type()
+METADATA = pg.event.custom_type()
 IN_CLOSE_WRITE = 0x8  # A file opened for writing was closed
 IN_MOVED_TO = 0x80  # A file was moved into the directory, like editors save
 INOTIFY_EVENT = struct.Struct("iIII")  # wd, mask, cookie, len, followed by name
@@ -72,7 +72,7 @@ class MetadataWatcher(Thread):
             with self.lock:
                 self.changed_dirs |= changed
             with suppress(pg.error):  # pygame has quit
-                pg.event.post(pg.event.Event(METADATA_CHANGED))
+                pg.event.post(pg.event.Event(METADATA))
 
     def pop_changed(self) -> set[Path]:
         """Return the directories whose metadata.ini changed since the last call."""

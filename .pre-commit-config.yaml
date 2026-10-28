@@ -17,7 +17,7 @@ repos:
         entry: python -m unittest
         language: python
         additional_dependencies: [pygame-ce]
-        always_run: true
+        types: [python]
         pass_filenames: false
       - id: tabs
         name: tabs

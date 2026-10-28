@@ -57,6 +57,7 @@ class Game:
         self.path = path
         self.identifier = path.name
         self.download_thread: Download | None = None
+        self.unzip_thread: Unzip | None = None
         self.emulator: Emulator | None = None
         self.thumbnails: dict[tuple[int, int], pg.Surface] = {}
         self.color: tuple[int, int, int] | None = None
@@ -249,7 +250,8 @@ class Game:
 
     def is_ready(self) -> bool:
         """Return whether the game has been downloaded and unzipped."""
-        return self.gamedir.is_dir()
+        unzipping = self.unzip_thread is not None and self.unzip_thread.is_alive()
+        return self.gamedir.is_dir() and not unzipping
 
     def is_downloaded(self) -> bool:
         """Return whether the game has been downloaded or unzipped."""
@@ -267,15 +269,23 @@ class Game:
             return
         shutil.rmtree(self.gamedir, ignore_errors=True)
 
-    def download(self, *, unzip: bool = True) -> None:
+    def download(self) -> None:
         """Start downloading the game in a new thread."""
-        # ScummVM can't read disc images, so extract them. DOSBox games
-        # mount their disc images themselves.
-        extract = self.engine == "scummvm"
-        self.download_thread = Download(
-            self.urls, self.gamedir, size=self.size, unzip=unzip, extract=extract
-        )
+        self.download_thread = Download(self.urls, self.gamedir, size=self.size)
         self.download_thread.start()
+
+    def unzip(self) -> "Unzip":
+        """Start unzipping the downloaded game in a new thread, unless it is.
+
+        Return the thread that unzips it.
+        """
+        if self.unzip_thread is None or not self.unzip_thread.is_alive():
+            # ScummVM can't read disc images, so extract them. DOSBox games
+            # mount their disc images themselves.
+            extract = self.engine == "scummvm"
+            self.unzip_thread = Unzip(self.urls, self.gamedir, extract=extract)
+            self.unzip_thread.start()
+        return self.unzip_thread
 
 
 class Emulator(Thread):
@@ -348,53 +358,38 @@ class DOSBox(Emulator):
             pg.event.post(pg.event.Event(EMULATOR_FAILED, message=message))
 
 
-class Download(Thread):
-    """A thread that downloads a game and unzips it."""
+class Job(Thread):
+    """A thread that works on the files of a game."""
 
-    def __init__(
-        self,
-        urls: list[str],
-        gamedir: Path,
-        *,
-        size: int | None = None,
-        unzip: bool = True,
-        extract: bool = False,
-    ) -> None:
-        """Prepare to download the URLs and unpack them into gamedir."""
+    def __init__(self, urls: list[str], gamedir: Path) -> None:
+        """Prepare to work on the downloaded files of the URLs."""
         self.urls = urls
         self.gamedir = gamedir
-        self.size = size
-        self.downloaded = 0
-        self.step = 0
-        self.steps = 1
-        self.should_unzip = unzip
-        self.should_extract = extract
-        self.progress = 0.0
+        self.files = downloaded_filenames(urls, gamedir.parent)
         self.filename = ""
-        self.action = "download"
+        self.action = ""
         self.error: str | None = None
-        self.cancelled = Event()
         super().__init__(daemon=True)
-
-    def cancel(self) -> None:
-        """Cancel the download and wait for the thread to finish."""
-        self.cancelled.set()
-        self.join()
 
     @override
     def run(self) -> None:
-        """Download the game, and clean up if that fails."""
+        """Do the work, and clean up if that fails or is cancelled."""
         try:
-            self.download()
+            self.work()
         except InterruptedError:
             print(" cancelled.")
         except Exception as e:  # noqa: BLE001 - a corrupt archive can raise anything
             self.fail(e)
         else:
             return
+        self.clean_up()
 
-        # Remove the partially unzipped or extracted game
-        shutil.rmtree(self.gamedir, ignore_errors=True)
+    def work(self) -> None:
+        """Do the work."""
+        raise NotImplementedError
+
+    def clean_up(self) -> None:
+        """Remove what's left of the unfinished work."""
 
     def fail(self, error: Exception) -> None:
         """Record an action that failed, with the full error."""
@@ -409,12 +404,33 @@ class Download(Thread):
         self.error = f"Failed to {self.action} {self.filename}\n\n{reason}"
         print(" failed :(")
 
-    def download(self) -> None:
-        """Download each URL (unless it already was), then unpack them all."""
-        files = downloaded_filenames(self.urls, self.gamedir.parent)
+
+class Download(Job):
+    """A thread that downloads a game, and can be cancelled."""
+
+    def __init__(
+        self, urls: list[str], gamedir: Path, *, size: int | None = None
+    ) -> None:
+        """Prepare to download the URLs next to gamedir."""
+        super().__init__(urls, gamedir)
+        self.size = size
+        self.downloaded = 0
+        self.step = 0
+        self.steps = 1
+        self.progress = 0.0
         self.action = "download"
-        self.steps = 1 if self.size else len(files)
-        for i, (u, dest) in enumerate(zip(self.urls, files, strict=True)):
+        self.cancelled = Event()
+
+    def cancel(self) -> None:
+        """Cancel the download and wait for the thread to finish."""
+        self.cancelled.set()
+        self.join()
+
+    @override
+    def work(self) -> None:
+        """Download each URL, unless it already was."""
+        self.steps = 1 if self.size else len(self.files)
+        for i, (u, dest) in enumerate(zip(self.urls, self.files, strict=True)):
             self.step = 0 if self.size else i
             self.filename = dest.name
             if not dest.is_file():
@@ -425,25 +441,6 @@ class Download(Thread):
             else:
                 self.downloaded += dest.stat().st_size
         self.progress = 1.0
-        if not self.should_unzip:
-            return
-        for dest in files:
-            self.filename = filename = dest.name
-            if self.should_extract and filename.lower().endswith((".iso", ".bin")):
-                self.unpack("extract", dest, self.extract_iso)
-            elif filename.lower().endswith((".zip", ".play")):
-                self.unpack("unzip", dest, self.unzip)
-            else:
-                self.unpack("copy", dest, self.copy)
-
-    def unpack(
-        self, action: str, archive: Path, method: Callable[[Path], None]
-    ) -> None:
-        """Unpack (or copy) the file with the given method, and print the result."""
-        self.action = action
-        print(f"Trying to {action} {archive.name}...", end="", flush=True)
-        method(archive)
-        print(" done!")
 
     def request(self, url: str, dest: Path) -> None:
         """Download the URL to dest, and remove dest if that fails."""
@@ -481,24 +478,58 @@ class Download(Thread):
 
     def report(self, done: int, total: int) -> None:
         """Set progress to fraction of total progress, or stop if cancelled."""
-        self.check_cancelled("Download")
+        if self.cancelled.is_set():
+            msg = "Download cancelled"
+            raise InterruptedError(msg)
         if self.size:
             done, total = self.downloaded + done, self.size
         fraction = min(done / total, 1.0) if total > 0 else 0.0
         self.progress = (self.step + fraction) / self.steps
 
-    def check_cancelled(self, action: str) -> None:
-        """Stop if cancelled."""
-        if self.cancelled.is_set():
-            msg = f"{action} cancelled"
-            raise InterruptedError(msg)
+
+class Unzip(Job):
+    """A thread that unzips a downloaded game into its game directory.
+
+    It can't be cancelled, and quitting waits for it, so that a game is
+    never left half unzipped.
+    """
+
+    def __init__(self, urls: list[str], gamedir: Path, *, extract: bool) -> None:
+        """Prepare to unzip the downloaded files into gamedir."""
+        super().__init__(urls, gamedir)
+        self.daemon = False
+        self.should_extract = extract
+
+    @override
+    def work(self) -> None:
+        """Unzip (or copy) each downloaded file."""
+        for dest in self.files:
+            self.filename = filename = dest.name
+            if self.should_extract and filename.lower().endswith((".iso", ".bin")):
+                self.unpack("extract", dest, self.extract_iso)
+            elif filename.lower().endswith((".zip", ".play")):
+                self.unpack("unzip", dest, self.unzip)
+            else:
+                self.unpack("copy", dest, self.copy)
+
+    @override
+    def clean_up(self) -> None:
+        """Remove the partially unzipped game."""
+        shutil.rmtree(self.gamedir, ignore_errors=True)
+
+    def unpack(
+        self, action: str, archive: Path, method: Callable[[Path], None]
+    ) -> None:
+        """Unpack (or copy) the file with the given method, and print the result."""
+        self.action = action
+        print(f"Trying to {action} {archive.name}...", end="", flush=True)
+        method(archive)
+        print(" done!")
 
     def unzip(self, zipfile: Path) -> None:
-        """Unzip the archive into the game directory, or stop if cancelled."""
+        """Unzip the archive into the game directory."""
         with ZipFile(zipfile, "r") as f:
-            for member in f.infolist():
-                self.check_cancelled("Unzip")
-                f.extract(member, self.gamedir)
+            f.extractall(self.gamedir)
 
     def copy(self, file: Path) -> None:
         """Copy the file into the game directory."""
