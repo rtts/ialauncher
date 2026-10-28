@@ -22,7 +22,17 @@ from .stars import Stars
 COMMAND_KEYS = {pg.K_SPACE} | GRID_LARGER | GRID_SMALLER
 ARROW_KEYS = {pg.K_RIGHT, pg.K_LEFT, pg.K_DOWN, pg.K_UP}
 BLINK = pg.event.custom_type()
-BLINK_INTERVAL = 1000
+BLINK_INTERVAL = 120
+DOT_PULSE = (
+    (),
+    (),
+    (),
+    (),
+    ((4, 4, 4, 4),),
+    ((2, 2, 8, 8),),
+    ((2, 0, 8, 12), (0, 2, 12, 8)),
+    ((2, 2, 8, 8),),
+)
 IDLE = pg.event.custom_type()
 INPUT_EVENTS = {pg.KEYDOWN, pg.MOUSEMOTION, pg.MOUSEBUTTONDOWN, pg.MOUSEWHEEL}
 MESSAGE_EXPIRED = pg.event.custom_type()
@@ -42,7 +52,7 @@ class Browse(Scene):
         self.skip_frame = False
         self.slideshow_running = False
         self.blinking = False
-        self.dot_visible = False
+        self.dot_phase = 0
         super().__init__()
 
     @override
@@ -57,7 +67,7 @@ class Browse(Scene):
         blinking = self.slideshow_running or bool(gamelist.query)
         if restart or blinking != self.blinking:
             self.blinking = blinking
-            self.dot_visible = False
+            self.dot_phase = 0
             pg.time.set_timer(BLINK, BLINK_INTERVAL if blinking else 0)
 
     def show_ready(self, *, ready: bool | None) -> None:
@@ -145,7 +155,7 @@ class Browse(Scene):
             busy = busy or not gamelist.games
             next_scene = None if busy else self.screensaver()
         elif event.type == BLINK:
-            self.dot_visible = self.blinking and not self.dot_visible
+            self.dot_phase = (self.dot_phase + 1) % len(DOT_PULSE)
         elif event.type == EMULATOR_FAILED:
             show_error(event.message)
         elif event.type in (pg.MOUSEMOTION, pg.MOUSEBUTTONDOWN):
@@ -315,9 +325,9 @@ class Browse(Scene):
 
     def draw_overlays(self, screen: pg.Surface) -> None:
         """Draw the dots and the message, if any."""
-        if self.dot_visible and self.slideshow_running:
+        if self.slideshow_running:
             self.draw_dot(screen, MAGENTA, right=True)
-        if self.dot_visible and gamelist.query:
+        if gamelist.query:
             self.draw_dot(screen, CYAN, right=False)
         if self.message_visible:
             self.draw_message(screen)
@@ -327,27 +337,17 @@ class Browse(Scene):
         return screen.get_rect()
 
     def draw_dot(
-        self,
-        screen: pg.Surface,
-        color: tuple[int, int, int],
-        *,
-        right: bool,
-        size: int = 8,
-        margin: int = 16,
+        self, screen: pg.Surface, color: tuple[int, int, int], *, right: bool
     ) -> None:
-        """Draw a dot in the bottom right or left corner.
+        """Draw a dot 16 pixels from the bottom right or left corner.
 
         The slideshow dot is on the right, the filter dot on the left.
         """
-        rect = pg.Rect(0, 0, size, size)
         area = self.dot_area(screen)
-        if right:
-            rect.bottomright = area.bottomright
-            rect.move_ip(-margin, -margin)
-        else:
-            rect.bottomleft = area.bottomleft
-            rect.move_ip(margin, -margin)
-        pg.draw.ellipse(screen, color, rect)
+        left = area.right - 28 if right else area.left + 16
+        top = area.bottom - 28
+        for x, y, width, height in DOT_PULSE[self.dot_phase]:
+            screen.fill(color, (left + x, top + y, width, height))
 
     def draw_message(
         self, screen: pg.Surface, padding: tuple[int, int] = (8, 4)
