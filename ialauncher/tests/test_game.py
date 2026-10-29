@@ -72,6 +72,36 @@ class TestDownload(unittest.TestCase):
         """Cancelling a download shows no error."""
         self.assertIsNone(self.download(InterruptedError("Download cancelled")).error)
 
+    def shared_download(self, other_url: str) -> tuple[Path, Path, mock.Mock]:
+        """Download URL after another game downloaded the same filename.
+
+        Return the two files and the mocked request.
+        """
+        games = Path(self.enterContext(tempfile.TemporaryDirectory()))
+        for name, url in (("Other", other_url), ("Game", URL)):
+            (games / name).mkdir()
+            (games / name / "metadata.ini").write_text(f"[metadata]\nurl = {url}\n")
+        other = games / "Other" / "Example Game (1992).zip"
+        other.write_text("PK")
+        download = Download([URL], games / "Game" / "dosbox_drive_c")
+        with (
+            mock.patch.object(Download, "request") as request,
+            contextlib.redirect_stdout(io.StringIO()),
+        ):
+            download.run()
+        return games / "Game" / "Example Game (1992).zip", other, request
+
+    def test_shared_download(self) -> None:
+        """A file another game downloaded from the same URL is linked to."""
+        file, other, request = self.shared_download(URL)
+        request.assert_not_called()
+        self.assertTrue(file.samefile(other))
+
+    def test_same_filename(self) -> None:
+        """A file with the same name from another URL is downloaded anyway."""
+        _, _, request = self.shared_download("https://example.org/Example%20Game.zip")
+        request.assert_called_once()
+
 
 class TestUnzip(unittest.TestCase):
     """The thread that unzips a game."""
@@ -97,11 +127,19 @@ class TestUnzip(unittest.TestCase):
         self.assertIsNone(self.unzip("GAME.ZIP").error)
         self.assertEqual((self.gamedir / "GAME" / "GAME.EXE").read_text(), "MZ")
 
-    def test_copy(self) -> None:
-        """A file that isn't an archive is copied into the game directory."""
+    def test_link(self) -> None:
+        """A file that isn't an archive is linked into the game directory."""
         (self.dir / "GAME.EXE").write_text("MZ")
         self.assertIsNone(self.unzip("GAME.EXE").error)
+        self.assertTrue((self.gamedir / "GAME.EXE").samefile(self.dir / "GAME.EXE"))
+
+    def test_copy(self) -> None:
+        """The file is copied instead where hard links aren't possible."""
+        (self.dir / "GAME.EXE").write_text("MZ")
+        with mock.patch("pathlib.Path.hardlink_to", side_effect=OSError):
+            self.assertIsNone(self.unzip("GAME.EXE").error)
         self.assertEqual((self.gamedir / "GAME.EXE").read_text(), "MZ")
+        self.assertFalse((self.gamedir / "GAME.EXE").samefile(self.dir / "GAME.EXE"))
 
     def test_corrupt(self) -> None:
         """A corrupt zip file fails, and leaves no game directory behind."""

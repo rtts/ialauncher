@@ -1,6 +1,7 @@
 """A single game."""
 
 import configparser
+import glob
 import json
 import shlex
 import shutil
@@ -92,7 +93,6 @@ class Game:
         self.scummvm_game = metadata.get("scummvm_game")
         self.scummvm_args = (metadata.get("scummvm_args") or "").split()
         self.emulator_start = metadata.get("emulator_start")
-        self.dosbox_conf = metadata.get("dosbox_conf")
         self.cpu_cycles = metadata.getint("cpu_cycles")
         self.autoplayable = metadata.getboolean("autoplayable", fallback=True)
         datadir = "scummvm_data" if self.engine == "scummvm" else "dosbox_drive_c"
@@ -137,10 +137,6 @@ class Game:
             self.save_metadata("cpu_cycles", str(cpu_cycles))
         if self.cpu_cycles:
             dosbox_args.extend(["--set", f"cpu_cycles={self.cpu_cycles}"])
-
-        if self.dosbox_conf:
-            self.write_c("dosbox.conf", self.dosbox_conf)
-            dosbox_args.extend(["-conf", "dosbox.conf"])
 
         # Copy patch files to C:\
         for file in filter(Path.is_file, self.path.glob("patches/*")):
@@ -433,13 +429,17 @@ class Download(Job):
         for i, (u, dest) in enumerate(zip(self.urls, self.files, strict=True)):
             self.step = 0 if self.size else i
             self.filename = dest.name
-            if not dest.is_file():
+            if dest.is_file():
+                self.downloaded += dest.stat().st_size
+            elif source := find_download(u, dest):
+                print(f"Linking {dest.name} from {source.parent.name}")
+                link_or_copy(source, dest)
+                self.downloaded += dest.stat().st_size
+            else:
                 print(f"Downloading {u}", end="", flush=True)
                 self.report(0, 0)
                 self.request(u, dest)
                 print(" done!")
-            else:
-                self.downloaded += dest.stat().st_size
         self.progress = 1.0
 
     def request(self, url: str, dest: Path) -> None:
@@ -532,9 +532,9 @@ class Unzip(Job):
             f.extractall(self.gamedir)
 
     def copy(self, file: Path) -> None:
-        """Copy the file into the game directory."""
+        """Link (or copy) the file into the game directory."""
         self.gamedir.mkdir(parents=True, exist_ok=True)
-        shutil.copy(file, self.gamedir)
+        link_or_copy(file, self.gamedir / file.name)
 
     def extract_iso(self, isofile: Path) -> None:
         """Extract the disc image into the game directory."""
@@ -546,6 +546,26 @@ class Unzip(Job):
 def downloaded_filenames(urls: list[str], directory: Path) -> list[Path]:
     """Return all downloaded filenames."""
     return [directory / unquote(u.split("/")[-1]).split("/")[-1] for u in urls]
+
+
+def find_download(url: str, dest: Path) -> Path | None:
+    """Return the file another game downloaded from the URL, if there is one."""
+    games_dir = dest.parent.parent
+    for file in games_dir.glob(f"*/{glob.escape(dest.name)}"):
+        config = RawConfigParser()
+        config.read(file.parent / "metadata.ini", encoding="utf-8")
+        urls = config.get("metadata", "url", fallback="").split()
+        if file.is_file() and url in urls:
+            return file
+    return None
+
+
+def link_or_copy(source: Path, dest: Path) -> None:
+    """Hard link dest to source, or copy it where hard links aren't possible."""
+    try:
+        dest.hardlink_to(source)
+    except OSError:
+        shutil.copy(source, dest)
 
 
 def read_metadata_cache(games_dir: Path) -> dict[str, dict[str, str]]:
