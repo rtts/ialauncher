@@ -166,10 +166,6 @@ class Gamelist:
         if games := [game for game in self.games if game.autoplayable]:
             self.current_game = self.games.index(random.choice(games))  # noqa: S311
 
-    def autoplayable_games(self) -> list[Game]:
-        """Return the shown games that are autoplayable, or all if none are."""
-        return [game for game in self.games if game.autoplayable] or self.games
-
 
 class GameLoader(Thread):
     """A thread that loads the title screens of games.

@@ -48,7 +48,8 @@ class Starfield(Scene):
         self.referrer = referrer
         self.stars: list[Star] = []
         self.dots: dict[Game, pg.Surface] = {}
-        self.games = gamelist.autoplayable_games()
+        self.games = gamelist.games
+        self.intro_games = [game for game in gamelist.games if game.intro] or self.games
         self.step = options.warp / (SPEED * FPS)
         # Filling at this rate prevents "waves" of stars.
         self.rate = options.density * self.step / TRAVELLED
@@ -119,7 +120,7 @@ class Starfield(Scene):
     def star(self, *, center: bool = False) -> Star:
         """Return a new star at depth z = 1, optionally in the exact center."""
         width, height = self.screen.get_size()
-        game = random.choice(self.games)  # noqa: S311
+        game = random.choice(self.intro_games if center else self.games)  # noqa: S311
         if center:
             x = y = 0.0
         else:

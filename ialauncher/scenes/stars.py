@@ -1,5 +1,6 @@
 """Starfield Simulation running as a 16-bit executable in DOSBox."""
 
+import random
 import subprocess
 from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar, override
@@ -38,11 +39,12 @@ class Stars(Blackout):
 
     @override
     def update(self) -> NextScene:
-        """Continue with Hero, on a random autoplayable game, once stars.exe exits."""
+        """Continue with Hero, on a random game with an intro, once stars.exe exits."""
         super().update()
         if self.is_running():
             return None
-        gamelist.random_game()
+        if games := [game for game in gamelist.games if game.intro] or gamelist.games:
+            gamelist.current_game = gamelist.games.index(random.choice(games))  # noqa: S311
         return hero.Hero(screensaver=True)
 
     @classmethod

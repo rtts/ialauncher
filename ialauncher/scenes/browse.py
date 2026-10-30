@@ -162,6 +162,7 @@ class Browse(Scene):
             game.save_metadata("autoplayable", "no")
             self.show_message("AUTOPLAYABLE = NO")
         elif key == pg.K_i and (game := gamelist.get_current_game()):
+            game.intro = True
             game.save_metadata("intro", "yes")
             self.show_message("INTRO = YES")
         elif key == pg.K_m:
