@@ -40,6 +40,12 @@ def zoom_to_snake(grid: Grid) -> Events:
     return key(pg.K_MINUS)
 
 
+def skip_intro(intro: snake.Intro) -> Events:
+    """Let all tiles disappear at once."""
+    intro.tiles.clear()
+    return None
+
+
 class TestLoading(HeadlessTestCase):
     """The transitions from Loading."""
 
@@ -145,7 +151,13 @@ class TestGrid(HeadlessTestCase):
 
     def test_zoom(self) -> Script:
         """Grid > zoom > Intro > Snake > Grid."""
-        yield from self.expect(Grid(), zoom_to_snake, {snake.Snake: key(pg.K_ESCAPE)})
+        tile = pg.Surface((1, 1))
+        self.enterContext(mock.patch.object(snake.Intro, "title", return_value=tile))
+        yield from self.expect(
+            Grid(),
+            zoom_to_snake,
+            {snake.Intro: skip_intro, snake.Snake: key(pg.K_ESCAPE)},
+        )
 
     def test_idle(self) -> Script:
         """Grid > IDLE > Starfield/Stars."""

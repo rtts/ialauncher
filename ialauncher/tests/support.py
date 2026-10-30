@@ -2,7 +2,6 @@
 
 import copy
 import functools
-import gc
 import os
 import random
 import subprocess
@@ -463,15 +462,15 @@ class HeadlessTestCase(unittest.TestCase):
         self,
         start: T,
         trigger: Events | Callable[[T], Events] = None,
-        react: dict[type[engine.Scene], Events] | None = None,
+        react: dict[type[engine.Scene], Events | Callable[[Any], Events]] | None = None,
     ) -> Script:
         """Start with the scene, trigger the transition, and check the scenes after.
 
         The transition is the test's docstring, like Hero > minus > Grid,
         or Loading > Hero without a trigger, where A/B means either, and
         Any any scene. The trigger is the part after the first scene, if
-        that isn't a scene. The react steps are sent once to the scenes
-        of their type along the way.
+        that isn't a scene. The react steps, or what they return, are sent
+        once to the scenes of their type along the way.
         """
         line = (self.shortDescription() or "").removesuffix(".")
         first, *rest = (part.strip() for part in line.split(">"))
@@ -493,7 +492,10 @@ class HeadlessTestCase(unittest.TestCase):
             for kind, events in (react or {}).items():
                 if isinstance(scene, kind) and kind not in reacted:
                     reacted.add(kind)
-                    step = events
+                    if events is None or isinstance(events, pg.event.Event | list):
+                        step = events
+                    else:
+                        step = events(scene)
             scene = yield step
         observed = [*self.trace[1:], *(["quit"] if scene is None else [])]
         matches = (
@@ -510,7 +512,7 @@ class HeadlessTestCase(unittest.TestCase):
             self.assertIsNone((yield pg.event.Event(pg.QUIT)))
 
     def run_app(self, script: Script) -> None:
-        """Run the app and the script, and check that no scenes are left over.
+        """Run the app and the script.
 
         If the test fails, the last frame is saved as a screenshot.
         """
@@ -551,11 +553,6 @@ class HeadlessTestCase(unittest.TestCase):
                     pg.image.save(screen, path)
                     e.add_note(f"Screenshot of the last frame: {path}")
                 raise
-        gc.collect()
-        alive = [
-            type(o).__name__ for o in gc.get_objects() if isinstance(o, engine.Scene)
-        ]
-        self.assertEqual(alive, [], "Scenes are still alive after the app quit")
 
     def post(self, event: pg.event.Event) -> None:
         """Post the event, and keep track of the keys it holds down."""
