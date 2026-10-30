@@ -101,15 +101,9 @@ class Browse(Scene):
         elif (
             event.type == pg.KEYDOWN
             and event.mod & pg.KMOD_SHIFT
-            and event.key == pg.K_s
+            and pg.K_a <= event.key <= pg.K_z
         ):
-            next_scene = self.play_at_speed(SLOW_CYCLES)
-        elif (
-            event.type == pg.KEYDOWN
-            and event.mod & pg.KMOD_SHIFT
-            and event.key == pg.K_e
-        ):
-            self.edit_metadata()
+            next_scene = self.shift_command(event.key)
         elif event.type == pg.KEYDOWN:
             next_scene = self.handle_key(event)
         self.blink()
@@ -157,6 +151,18 @@ class Browse(Scene):
             return self.start_game(game, 0)
         return None
 
+    def shift_command(self, key: int) -> NextScene:
+        """Execute one of the Shift commands."""
+        if key == pg.K_s:
+            return self.play_at_speed(SLOW_CYCLES)
+        if key == pg.K_e:
+            self.edit_metadata()
+        elif key == pg.K_a and (game := gamelist.get_current_game()):
+            game.autoplayable = False
+            game.save_metadata("autoplayable", "no")
+            self.show_message("AUTOPLAYABLE = NO")
+        return None
+
     @staticmethod
     def edit_metadata() -> None:
         """Open the current game's metadata.ini in Emacs, if it's installed."""
@@ -168,7 +174,9 @@ class Browse(Scene):
         """Delete the gamedir if it exists, or get the game ready if it doesn't."""
         if game.is_ready():
             game.reset()
+            self.show_message("REMOVED FROM FAVORITES")
             return None
+        self.show_message("ADDED TO FAVORITES")
         return Download(game, Unzip(game, self))
 
     def start_game(self, game: Game, mod: int) -> NextScene:
