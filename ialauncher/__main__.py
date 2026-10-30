@@ -81,6 +81,11 @@ def main() -> None:
         help=argparse.SUPPRESS,
     )
     parser.add_argument(
+        "--stats",
+        action="store_true",
+        help="Print game statistics",
+    )
+    parser.add_argument(
         "--build-cache",
         action="store_true",
         help="Build metadata cache (for faster startup!)",
@@ -98,6 +103,10 @@ def main() -> None:
         print("Done!")
         return
 
+    if args.stats:
+        print_stats(Path(games.__file__).parent)
+        return
+
     set_options(args)
     has_opengl()
     if isinstance(sys.stdout, io.TextIOWrapper):
@@ -111,6 +120,17 @@ def main() -> None:
     finally:
         gamelist.stop_loading()
         gamelist.stop_watching()
+
+
+def print_stats(games_dir: Path) -> None:
+    """Print game statistics."""
+    all_games = [
+        Game(path) for path in games_dir.iterdir() if (path / "metadata.ini").exists()
+    ]
+    print(f"Total: {len(all_games)}")
+    print(f"Downloaded: {sum(game.is_downloaded() for game in all_games)}")
+    print(f"Autoplayable: {sum(game.autoplayable for game in all_games)}")
+    print(f"Played: {sum(game.gamedir.is_dir() for game in all_games)}")
 
 
 def set_options(args: argparse.Namespace) -> None:
