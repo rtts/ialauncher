@@ -164,6 +164,9 @@ class Browse(Scene):
         elif key == pg.K_i and (game := gamelist.get_current_game()):
             game.save_metadata("intro", "yes")
             self.show_message("INTRO = YES")
+        elif key == pg.K_m:
+            options.muted = not options.muted
+            self.show_message("MUTED" if options.muted else "UNMUTED")
         return None
 
     @staticmethod

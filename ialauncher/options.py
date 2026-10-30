@@ -10,5 +10,6 @@ warp: float = 1.0
 density: int = 5000
 mtbc: int = 60
 autoplay: int = 0
+muted: bool = False
 dosbox_executable: str | None = None
 scummvm_executable: str | None = None
