@@ -173,7 +173,7 @@ class TestUnzip(unittest.TestCase):
 
 
 class TestGame(unittest.TestCase):
-    """A game, while it's being unzipped."""
+    """A game."""
 
     def test_one_unzip(self) -> None:
         """A game that's being unzipped isn't ready, and isn't unzipped twice."""
@@ -189,3 +189,19 @@ class TestGame(unittest.TestCase):
             release.set()
             thread.join()
         self.assertTrue(game.is_ready())
+
+    def test_set_cpu_cycles(self) -> None:
+        """Slowing a game down configures cpu_cycles at the top, once."""
+        directory = Path(self.enterContext(tempfile.TemporaryDirectory()))
+        (directory / "metadata.ini").write_text(
+            "[metadata]\ntitle = Game\nyear = 1990\nurl = https://example.com/G.ZIP\n"
+            "emulator_start = \n\tcd game\n\tgame\n"
+        )
+        (directory / "title.png").touch()
+        game = Game(directory)
+        game.set_cpu_cycles(300)
+        game.set_cpu_cycles(300)
+        self.assertEqual(
+            Game(directory).emulator_start,
+            "\nconfig -set cpu_cycles=300\ncd game\ngame",
+        )

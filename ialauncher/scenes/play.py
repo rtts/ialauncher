@@ -26,7 +26,6 @@ class Play(Blackout):
         then: Scene,
         *,
         autorun: bool = True,
-        cpu_cycles: int | None = None,
         wait: bool = True,
     ) -> None:
         """Prepare to play the game."""
@@ -34,7 +33,6 @@ class Play(Blackout):
         self.game = game
         self.then = then
         self.autorun = autorun
-        self.cpu_cycles = cpu_cycles
         self.wait = wait
         self.emulator: Emulator | None = None
 
@@ -48,9 +46,7 @@ class Play(Blackout):
         if self.emulator is None:
             if not self.game.is_ready():  # Downloading or unzipping failed
                 return self.then
-            self.emulator = self.game.emulator = self.game.start(
-                autorun=self.autorun, cpu_cycles=self.cpu_cycles
-            )
+            self.emulator = self.game.emulator = self.game.start(autorun=self.autorun)
             if not self.wait:
                 return self.then
         if self.emulator.is_alive():

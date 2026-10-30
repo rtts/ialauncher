@@ -152,8 +152,9 @@ class Browse(Scene):
     def play_at_speed(self, cpu_cycles: int) -> NextScene:
         """Start the current DOSBox game with cpu_cycles, and remember it."""
         game = gamelist.get_current_game()
-        if game and game.engine == "dosbox":
-            return self.start_game(game, 0, cpu_cycles=cpu_cycles)
+        if game and game.engine == "dosbox" and not game.is_running():
+            game.set_cpu_cycles(cpu_cycles)
+            return self.start_game(game, 0)
         return None
 
     @staticmethod
@@ -170,19 +171,17 @@ class Browse(Scene):
             return None
         return Download(game, Unzip(game, self))
 
-    def start_game(
-        self, game: Game, mod: int, *, cpu_cycles: int | None = None
-    ) -> NextScene:
+    def start_game(self, game: Game, mod: int) -> NextScene:
         """Start the game, after resetting it with Shift."""
         if game.is_running() or not find_emulator(game):
             return None
         if mod & pg.KMOD_SHIFT:
             game.reset()
-        return self.launch(game, autorun=not mod & pg.KMOD_ALT, cpu_cycles=cpu_cycles)
+        return self.launch(game, autorun=not mod & pg.KMOD_ALT)
 
-    def launch(self, game: Game, *, autorun: bool, cpu_cycles: int | None) -> NextScene:
+    def launch(self, game: Game, *, autorun: bool) -> NextScene:
         """Get the game ready if needed, and play it alongside this scene."""
-        play = Play(game, self, autorun=autorun, cpu_cycles=cpu_cycles, wait=False)
+        play = Play(game, self, autorun=autorun, wait=False)
         return Download(game, Unzip(game, play))
 
     @override

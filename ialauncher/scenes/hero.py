@@ -134,9 +134,9 @@ class Hero(Browse):
         return None
 
     @override
-    def launch(self, game: Game, *, autorun: bool, cpu_cycles: int | None) -> NextScene:
+    def launch(self, game: Game, *, autorun: bool) -> NextScene:
         """Switch off the CRT, get the game ready and play it, and switch it on."""
-        play = Play(game, CRT(self, on=True), autorun=autorun, cpu_cycles=cpu_cycles)
+        play = Play(game, CRT(self, on=True), autorun=autorun)
         return CRT(Download(game, Unzip(game, play)), on=False)
 
     @override

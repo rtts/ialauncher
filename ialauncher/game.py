@@ -93,7 +93,6 @@ class Game:
         self.scummvm_game = metadata.get("scummvm_game")
         self.scummvm_args = (metadata.get("scummvm_args") or "").split()
         self.emulator_start = metadata.get("emulator_start")
-        self.cpu_cycles = metadata.getint("cpu_cycles")
         self.autoplayable = metadata.getboolean("autoplayable", fallback=True)
         datadir = "scummvm_data" if self.engine == "scummvm" else "dosbox_drive_c"
         self.gamedir = self.path / datadir
@@ -104,9 +103,7 @@ class Game:
             return get_scummvm_command()
         return get_dosbox_command()
 
-    def start(
-        self, *, autorun: bool = True, cpu_cycles: int | None = None
-    ) -> "Emulator":
+    def start(self, *, autorun: bool = True) -> "Emulator":
         r"""Start the game and return the thread that runs the emulator.
 
         There are two modes:
@@ -131,12 +128,6 @@ class Game:
 
         dosbox = get_dosbox_command()
         dosbox_args = [".", *get_dosbox_options()]
-
-        if cpu_cycles and cpu_cycles != self.cpu_cycles:
-            self.cpu_cycles = cpu_cycles
-            self.save_metadata("cpu_cycles", str(cpu_cycles))
-        if self.cpu_cycles:
-            dosbox_args.extend(["--set", f"cpu_cycles={self.cpu_cycles}"])
 
         # Copy patch files to C:\
         for file in filter(Path.is_file, self.path.glob("patches/*")):
@@ -181,6 +172,19 @@ class Game:
         thread = Emulator(self, [*scummvm, *args])
         thread.start()
         return thread
+
+    def set_cpu_cycles(self, cpu_cycles: int) -> None:
+        """Set cpu_cycles at the top of `emulator_start`."""
+        if not self.emulator_start:
+            return
+        line = f"config -set cpu_cycles={cpu_cycles}"
+        lines = self.emulator_start.split("\n")
+        top = 0 if lines[0] else 1
+        if lines[top : top + 1] == [line]:
+            return
+        lines.insert(top, line)
+        self.emulator_start = "\n".join(lines)
+        self.save_metadata("emulator_start", self.emulator_start)
 
     def save_metadata(self, key: str, value: str) -> None:
         """Save the value to metadata.ini and the cache."""
