@@ -4,12 +4,12 @@ Scene transitions:
 
 - Loading > Fadeout > Fadein > Hero
 - Loading > escape > quit
-- Hero > enter > CRT > Download > Unzip > Play > CRT > Hero
+- Hero > enter > CRToff > Download > Unzip > Play > CRTon > Hero
 - Hero > ctrl-enter > Download > Unzip > Hero
-- Hero > space/ADVANCE > CRT > Unzip > Autoplay > CRT > Hero
-- Hero > space/ADVANCE > CRT > CRT > Hero
+- Hero > space/ADVANCE > CRToff > Unzip > Autoplay > CRTon > Hero
+- Hero > space/ADVANCE > CRToff > CRTon > Hero
 - Hero > space/ADVANCE > Dissolve > Hero
-- Hero > CRT > Unzip > Autoplay > Starfield/Stars
+- Hero > CRToff > Unzip > Autoplay > Starfield/Stars
 - Hero > IDLE > Starfield/Stars
 - Hero > minus > Grid
 - Hero > METADATA > Hero
@@ -51,7 +51,7 @@ class Scene(engine.Scene):
     """Base class for the scenes of IA Launcher."""
 
     def draw(self) -> None:
-        """Draw the scene on a black screen, for CRT to switch on with."""
+        """Draw the scene on a black screen, for CRTon to switch on with."""
 
     @override
     def intercept(self, event: pg.event.Event) -> bool:

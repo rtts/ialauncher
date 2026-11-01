@@ -63,7 +63,7 @@ class TestHero(HeadlessTestCase):
         yield hero
         yield key(pg.K_SPACE)
         self.assertIs((yield from self.wait_for(Hero)), hero)
-        self.assertEqual(self.trace, ["Hero", "CRT", "CRT", "Hero"])
+        self.assertEqual(self.trace, ["Hero", "CRToff", "CRTon", "Hero"])
         self.assertEqual(self.unzips, [])
         self.assertIsNot(gamelist.get_current_game(), game)
         self.assertTrue(hero.slideshow_running)

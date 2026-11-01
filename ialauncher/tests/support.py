@@ -37,7 +37,6 @@ GAMES_DIR = Path(gd.__file__).parent
 games: dict[Path, Game] = {}
 add_game = Gamelist.add
 load_games = loading.Loading.load_games
-start_crt = crt.CRT.start
 
 
 @functools.cache
@@ -307,10 +306,14 @@ class HeadlessTestCase(unittest.TestCase):
     def fake_crt(self) -> None:
         """Skip the frames of CRT, unless the test animates it."""
 
-        def start(scene: crt.CRT) -> engine.NextScene:
-            return start_crt(scene) if self.animate_crt else scene.then
+        def skip(start: Callable[[Any], engine.NextScene]) -> Callable[[Any], Any]:
+            def wrapper(scene: crt.CRT) -> engine.NextScene:
+                return start(scene) if self.animate_crt else scene.then
 
-        self.enterContext(mock.patch.object(crt.CRT, "start", start))
+            return wrapper
+
+        for cls in (crt.CRToff, crt.CRTon):
+            self.enterContext(mock.patch.object(cls, "start", skip(cls.start)))
 
     def fake_errors(self) -> None:
         """Collect the errors instead of showing them."""

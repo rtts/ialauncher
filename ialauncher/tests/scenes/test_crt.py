@@ -4,7 +4,7 @@ import pygame as pg
 
 from ialauncher.engine import Scene
 from ialauncher.scenes import BLACK, MAGENTA
-from ialauncher.scenes.crt import CRT
+from ialauncher.scenes.crt import CRT, CRToff, CRTon
 from ialauncher.tests.support import End, HeadlessTestCase, Paint, Script, screen
 
 
@@ -34,17 +34,17 @@ class TestCRT(HeadlessTestCase):
 
     def test_off(self) -> Script:
         """Switching off squeezes the last frame into a line, and then into black."""
-        yield from self.frames(Paint(MAGENTA, CRT(End(), on=False)))
+        yield from self.frames(Paint(MAGENTA, CRToff(End())))
         self.assertEqual(len(self.pixels), 17)
         self.assertEqual(self.pixels[0], (MAGENTA, MAGENTA))
         self.assertEqual(self.pixels[8], (MAGENTA, BLACK))
         self.assertEqual(self.pixels[-1], (BLACK, BLACK))
-        self.assertEqual(self.trace, ["Paint", "CRT", "End"])
+        self.assertEqual(self.trace, ["Paint", "CRToff", "End"])
 
     def test_on(self) -> Script:
         """Switching on unsqueezes the first frame of a scene that hasn't run yet."""
-        yield from self.frames(CRT(Paint(MAGENTA, End()), on=True))
+        yield from self.frames(CRTon(Paint(MAGENTA, End())))
         self.assertEqual(len(self.pixels), 17)
         self.assertEqual(self.pixels[0], (MAGENTA, BLACK))
         self.assertEqual(self.pixels[-1], (MAGENTA, MAGENTA))
-        self.assertEqual(self.trace, ["CRT", "Paint", "End"])
+        self.assertEqual(self.trace, ["CRTon", "Paint", "End"])

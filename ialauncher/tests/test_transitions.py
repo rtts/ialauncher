@@ -64,7 +64,7 @@ class TestHero(HeadlessTestCase):
     loaded = True
 
     def test_enter(self) -> Script:
-        """Hero > enter > CRT > Download > Unzip > Play > CRT > Hero."""
+        """Hero > enter > CRToff > Download > Unzip > Play > CRTon > Hero."""
         yield from self.expect(Hero(), key(pg.K_RETURN))
 
     def test_ctrl_enter(self) -> Script:
@@ -72,7 +72,7 @@ class TestHero(HeadlessTestCase):
         yield from self.expect(Hero(), key(pg.K_RETURN, pg.KMOD_LCTRL))
 
     def test_space(self) -> Script:
-        """Hero > space/ADVANCE > CRT > Unzip > Autoplay > CRT > Hero."""
+        """Hero > space/ADVANCE > CRToff > Unzip > Autoplay > CRTon > Hero."""
         options.autoplay = 300
         yield from self.expect(Hero(), key(pg.K_SPACE))
 
@@ -85,19 +85,19 @@ class TestHero(HeadlessTestCase):
         yield from self.expect(Hero(slideshow=True), pg.event.Event(ADVANCE))
 
     def test_space_not_autoplayable(self) -> Script:
-        """Hero > space/ADVANCE > CRT > CRT > Hero."""
+        """Hero > space/ADVANCE > CRToff > CRTon > Hero."""
         options.autoplay = 300
         self.game().autoplayable = False
         gamelist.current_game = 0
         yield from self.expect(Hero(), key(pg.K_SPACE))
 
     def test_slideshow(self) -> Script:
-        """Hero > space/ADVANCE > CRT > Unzip > Autoplay > CRT > Hero."""
+        """Hero > space/ADVANCE > CRToff > Unzip > Autoplay > CRTon > Hero."""
         self.qualify(gamelist.get_current_game())
         yield from self.expect(Hero(slideshow=True), pg.event.Event(ADVANCE))
 
     def test_after_screensaver(self) -> Script:
-        """Hero > CRT > Unzip > Autoplay > Starfield/Stars."""
+        """Hero > CRToff > Unzip > Autoplay > Starfield/Stars."""
         options.slideshow = 0
         self.qualify(gamelist.get_current_game())
         yield from self.expect(Hero(screensaver=True))

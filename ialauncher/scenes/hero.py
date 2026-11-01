@@ -13,7 +13,7 @@ from ialauncher.utils import letterbox, sharp_scale
 
 from . import GRID_LARGER, grid
 from .browse import Browse
-from .crt import CRT
+from .crt import CRToff, CRTon
 from .dissolve import Dissolve
 from .download import Download
 from .play import Autoplay, Play
@@ -75,10 +75,10 @@ class Hero(Browse):
             return Dissolve(self)
         else:
             gamelist.random_game()
-            then = CRT(self, on=True)
+            then = CRTon(self)
         if game and game.autoplayable and options.autoplay:
             then = Unzip(game, Autoplay(game, then))
-        return CRT(then, on=False)
+        return CRToff(then)
 
     @override
     def stop(self) -> None:
@@ -141,8 +141,8 @@ class Hero(Browse):
     @override
     def launch(self, game: Game, *, autorun: bool) -> NextScene:
         """Switch off the CRT, get the game ready and play it, and switch it on."""
-        play = Play(game, CRT(self, on=True), autorun=autorun)
-        return CRT(Download(game, Unzip(game, play)), on=False)
+        play = Play(game, CRTon(self), autorun=autorun)
+        return CRToff(Download(game, Unzip(game, play)))
 
     @override
     def draw(self) -> None:
