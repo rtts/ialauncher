@@ -2,6 +2,7 @@
 
 import pygame as pg
 
+from ialauncher import options
 from ialauncher.scenes import BLACK
 from ialauncher.scenes.hero import Hero
 from ialauncher.scenes.starfield import Starfield
@@ -13,6 +14,26 @@ class TestStarfield(HeadlessTestCase):
     """Starfield."""
 
     loaded = True
+
+    def test_full(self) -> Script:
+        """The field starts full, with stars at all depths, all on screen."""
+        starfield = Starfield(Hero())
+        yield starfield
+        stars = starfield.stars
+        self.assertEqual(len(stars), options.density)
+        self.assertLess(min(star.z for star in stars), 0.1)
+        # Stars off screen would have been replaced by new ones at z = 1.
+        self.assertLess(sum(star.z == 1 for star in stars), 100)
+        self.assertIsNone((yield pg.event.Event(pg.QUIT)))
+
+    def test_far_to_near(self) -> Script:
+        """Stars are drawn from far to near, also after adding a center star."""
+        starfield = Starfield(Hero())
+        yield starfield
+        yield key(pg.K_SPACE)
+        depths = [star.z for star in starfield.stars]
+        self.assertEqual(depths, sorted(depths, reverse=True))
+        self.assertIsNone((yield pg.event.Event(pg.QUIT)))
 
     def test_space(self) -> Script:
         """Space adds a star in the exact center."""

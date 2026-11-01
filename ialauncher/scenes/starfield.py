@@ -1,5 +1,6 @@
 """Starfield Simulation."""
 
+import math
 import random
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, override
@@ -21,10 +22,14 @@ if TYPE_CHECKING:
 FPS = 30
 SPEED = 30  # seconds from z = 1 to z = 0
 
-# How far stars travel on average before they leave the screen,
-# assuming a triangular distribution of stars, is equal to
-# the integral of 4z² - 4z³ + z⁴ from 0 to 1.
-TRAVELLED = 8 / 15
+# Close calls: this share of stars is born in a narrow triangle that is
+# CLOSE_CALL_OUTER_WIDTH of the screen wide, so they pass close to the
+# viewer.
+CLOSE_CALLS = 0.0005
+CLOSE_CALL_OUTER_WIDTH = 0.005
+
+# Stars that grow larger than this many pixels are discarded.
+MAX_SIZE = 50_000
 
 
 @dataclass(slots=True)
@@ -51,11 +56,24 @@ class Starfield(Scene):
         self.games = gamelist.games
         self.intro_games = [game for game in gamelist.games if game.intro] or self.games
         self.step = options.warp / (SPEED * FPS)
-        # Filling at this rate prevents "waves" of stars.
-        self.rate = options.density * self.step / TRAVELLED
-        self.due = 0.0
         # Chance per frame of adding a star in the exact center.
         self.chance = 1 / (options.mtbc * FPS) if options.mtbc else 0
+
+    @override
+    def start(self) -> NextScene:
+        """Fill the field as if it has been flying forever."""
+        width, height = self.screen.get_size()
+        while len(self.stars) < options.density:
+            star = self.star()
+            star.z = 1 - random.random()  # noqa: S311
+            scale = 1 / star.z
+            size = int(scale)
+            left = width // 2 - size // 2 + star.x * scale
+            top = height // 2 - size // 2 + star.y * scale
+            if -size < left < width and -size < top < height:
+                self.stars.append(star)
+        self.stars.sort(key=lambda star: star.z, reverse=True)
+        return None
 
     @override
     def update(self) -> NextScene:
@@ -68,40 +86,41 @@ class Starfield(Scene):
         # anywhere on the screen at depth z = 1, mostly near the center,
         # and moves toward the viewer at z = 0 by the same distance every
         # frame. Dividing x and y by z projects it onto the screen.
-        new = 0
         stars = []
         blits = []
+        close = []
         for star in self.stars:
             star.z -= self.step
-            if star.z <= 1 / height:
-                if star.x == star.y == 0:
-                    # Collision!
-                    gamelist.current_game = gamelist.games.index(star.game)
-                    return hero.Hero(screensaver=True)
-                new += 1
+            if star.x == star.y == 0 and star.z <= 1 / height:
+                # Collision!
+                gamelist.current_game = gamelist.games.index(star.game)
+                return hero.Hero(screensaver=True)
+            if star.z * MAX_SIZE < 1:
                 continue
             scale = 1 / star.z
-            if int(scale) != star.size:
-                star.size = int(scale)
-                star.image = self.image(star.game, star.size)
-            left = center_x - star.size // 2 + star.x * scale
-            top = center_y - star.size // 2 + star.y * scale
-            if not (-star.size < left < width and -star.size < top < height):
-                new += 1
+            size = int(scale)
+            left = center_x - size // 2 + star.x * scale
+            top = center_y - size // 2 + star.y * scale
+            if not (-size < left < width and -size < top < height):
                 continue
             stars.append(star)
+            if size > height:
+                close.append((star.game, left, top, size))
+                continue
+            if size != star.size:
+                star.size = size
+                star.image = self.image(star.game, size)
             blits.append((star.image, (left, top)))
         self.screen.fblits(blits)
+        for game, left, top, size in close:
+            self.draw_close(game, left, top, size)
 
-        # Replace stars that left and add more until field is full.
-        self.due += self.rate
-        due = int(self.due)
-        self.due -= due
-        new = min(max(new, due), options.density - len(stars))
+        # Replace the stars that left.
+        new = options.density - len(stars)
         self.stars = [self.star() for _ in range(new)] + stars
 
         if random.random() < self.chance:  # noqa: S311
-            self.stars.append(self.star(center=True))
+            self.stars.insert(0, self.star(center=True))
         return None
 
     @override
@@ -113,7 +132,7 @@ class Starfield(Scene):
             Stars.launch(autorun=not event.mod & pg.KMOD_ALT)
             return None
         if event.key == pg.K_SPACE:
-            self.stars.append(self.star(center=True))
+            self.stars.insert(0, self.star(center=True))
             return None
         return self.referrer if event.key == pg.K_ESCAPE else None
 
@@ -124,7 +143,10 @@ class Starfield(Scene):
         if center:
             x = y = 0.0
         else:
-            x, y = random.triangular(-width, width), random.triangular(-height, height)  # noqa: S311
+            close_call = random.random() < CLOSE_CALLS  # noqa: S311
+            spread = CLOSE_CALL_OUTER_WIDTH if close_call else 1
+            x = random.triangular(-width, width) * spread  # noqa: S311
+            y = random.triangular(-height, height) * spread  # noqa: S311
         return Star(x / 2, y / 2, 1, game, size=1, image=self.image(game, 1))
 
     def image(self, game: Game, size: int) -> pg.Surface:
@@ -136,6 +158,24 @@ class Starfield(Scene):
             return dot
         thumbnail = game.get_titlescreen((size, size)) or pg.Surface((1, 1))
         return sharp_scale(thumbnail, (size, size))
+
+    def draw_close(self, game: Game, left: float, top: float, size: int) -> None:
+        """Draw a star larger than the screen, scaling up only the part in view."""
+        image = game.get_titlescreen((size, size))
+        if image is None:
+            return
+        image_width, image_height = image.get_size()
+        width, height = self.screen.get_size()
+        # Screen pixels per title screen pixel, and the ones (partly) in view.
+        pixel_width, pixel_height = size / image_width, size / image_height
+        x0 = max(0, math.floor(-left / pixel_width))
+        x1 = min(image_width, math.ceil((width - left) / pixel_width))
+        y0 = max(0, math.floor(-top / pixel_height))
+        y1 = min(image_height, math.ceil((height - top) / pixel_height))
+        part = image.subsurface((x0, y0, x1 - x0, y1 - y0))
+        scaled_size = round((x1 - x0) * pixel_width), round((y1 - y0) * pixel_height)
+        position = round(left + x0 * pixel_width), round(top + y0 * pixel_height)
+        self.screen.blit(sharp_scale(part, scaled_size), position)
 
     @override
     def get_events(self) -> list[pg.event.Event]:
