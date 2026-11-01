@@ -4,6 +4,7 @@ import pygame as pg
 
 from ialauncher import options
 from ialauncher.scenes import BLACK
+from ialauncher.scenes.grid import Grid
 from ialauncher.scenes.hero import Hero
 from ialauncher.scenes.starfield import Starfield
 from ialauncher.scenes.stars import Stars
@@ -46,13 +47,6 @@ class TestStarfield(HeadlessTestCase):
         )
         self.assertIsNone((yield pg.event.Event(pg.QUIT)))
 
-    def test_enter(self) -> Script:
-        """Enter starts stars.exe alongside the starfield."""
-        yield Starfield(Hero())
-        self.assertIsInstance((yield key(pg.K_RETURN)), Starfield)
-        self.assertEqual(self.stars_launched, 1)
-        self.assertIsNone((yield pg.event.Event(pg.QUIT)))
-
 
 class TestStars(HeadlessTestCase):
     """Stars."""
@@ -60,9 +54,16 @@ class TestStars(HeadlessTestCase):
     loaded = True
 
     def test_stars(self) -> Script:
-        """The screen is black while stars.exe runs."""
+        """The screen is black while stars.exe runs, and keys are ignored."""
         yield Stars(Hero())
         self.assertIsInstance((yield key(pg.K_ESCAPE)), Stars)
         self.assertEqual(screen().get_at((0, 0)), BLACK)
         self.assertEqual(self.stars_launched, 1)
+        self.assertIsNone((yield pg.event.Event(pg.QUIT)))
+
+    def test_cant_start(self) -> Script:
+        """Without DOSBox, return to the previous scene right away."""
+        self.stars_start = False
+        grid = Grid()
+        self.assertIs((yield Stars(grid)), grid)
         self.assertIsNone((yield pg.event.Event(pg.QUIT)))

@@ -1,6 +1,5 @@
 """Base class for browsing title screens."""
 
-import random
 import shutil
 import subprocess
 from typing import override
@@ -17,7 +16,6 @@ from . import BLACK, CYAN, GRID_LARGER, GRID_SMALLER, MAGENTA, Scene, hero
 from .download import Download
 from .play import Play
 from .starfield import Starfield
-from .stars import Stars
 from .unzip import Unzip
 
 COMMAND_KEYS = {pg.K_SPACE} | GRID_LARGER | GRID_SMALLER
@@ -87,8 +85,7 @@ class Browse(Scene):
             pg.time.set_timer(IDLE, options.idle * 1000)
         if event.type == IDLE:
             playing = any(game.is_running() for game in gamelist.all_games)
-            busy = self.slideshow_running or playing or Stars.is_running()
-            busy = busy or not gamelist.games
+            busy = self.slideshow_running or playing or not gamelist.games
             next_scene = None if busy else self.screensaver()
         elif event.type == BLINK:
             self.dot_phase = (self.dot_phase + 1) % len(DOT_PULSE)
@@ -240,10 +237,13 @@ class Browse(Scene):
         - Tab: toggle "favorites"
         - Any character: append to filter query
         - Backspace: end filtering
+        - Delete: start the screensaver
         - Esc: quit, or whatever escape() does instead
         """
         if event.key == pg.K_ESCAPE:
             return self.escape()
+        if event.key == pg.K_DELETE:
+            return self.screensaver()
         typing = self.typing
         new_query = self.typeable(event) and event.key not in COMMAND_KEYS
         if new_query and gamelist.query and not typing:
@@ -296,9 +296,7 @@ class Browse(Scene):
         """React to a keystroke that wasn't ignored."""
 
     def screensaver(self) -> Scene:
-        """Sometimes leave it to stars.exe instead of the starfield."""
-        if not random.randrange(20):  # noqa: S311
-            return Stars(self)
+        """Return the screensaver."""
         return Starfield(self)
 
     def reload_changed(self) -> NextScene:

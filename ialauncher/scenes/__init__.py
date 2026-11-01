@@ -9,8 +9,9 @@ Scene transitions:
 - Hero > space/ADVANCE > CRToff > Unzip > Autoplay > CRTon > Hero
 - Hero > space/ADVANCE > CRToff > CRTon > Hero
 - Hero > space/ADVANCE > Dissolve > Hero
-- Hero > CRToff > Unzip > Autoplay > Starfield/Stars
-- Hero > IDLE > Starfield/Stars
+- Hero > CRToff > Unzip > Autoplay > Starfield
+- Hero > IDLE > Starfield
+- Hero > delete > Starfield
 - Hero > minus > Grid
 - Hero > METADATA > Hero
 - Hero > escape > quit
@@ -19,11 +20,12 @@ Scene transitions:
 - Grid > space > Hero
 - Grid > escape/plus/METADATA > Hero
 - Grid > zoom > Intro > Snake > Grid
-- Grid > IDLE > Starfield/Stars
+- Grid > zoom out > Stars > Grid
+- Grid > IDLE > Starfield
+- Grid > delete > Starfield
 - Starfield > collision > Hero
 - Starfield > escape > Hero/Grid
-- Stars > exit > Hero
-- Stars > Starfield
+- Stars > exit > Grid
 - Any > close > quit
 """
 

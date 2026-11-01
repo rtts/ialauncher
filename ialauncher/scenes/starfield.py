@@ -14,7 +14,6 @@ from ialauncher.gamelist import gamelist
 from ialauncher.utils import sharp_scale
 
 from . import BLACK, Scene, hero
-from .stars import Stars
 
 if TYPE_CHECKING:
     from .browse import Browse
@@ -125,11 +124,8 @@ class Starfield(Scene):
 
     @override
     def handle(self, event: pg.event.Event) -> NextScene:
-        """Exit on Escape, start DOS version on Enter, add center star on Space."""
+        """Exit on Escape, add center star on Space."""
         if event.type != pg.KEYDOWN:
-            return None
-        if event.key in (pg.K_RETURN, pg.K_KP_ENTER):
-            Stars.launch(autorun=not event.mod & pg.KMOD_ALT)
             return None
         if event.key == pg.K_SPACE:
             self.stars.insert(0, self.star(center=True))

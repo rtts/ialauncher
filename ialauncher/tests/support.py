@@ -21,6 +21,7 @@ import games as gd
 from ialauncher import __main__, bios, engine, options, scenes, utils
 from ialauncher.cga import cga
 from ialauncher.cheats import cheats
+from ialauncher.emulator import EmulatorError
 from ialauncher.game import EMULATOR_FAILED, Download, Emulator, Game, Unzip
 from ialauncher.gamelist import Gamelist, gamelist
 from ialauncher.scenes import browse, crt, download, loading, play, stars, unzip
@@ -391,18 +392,24 @@ class HeadlessTestCase(unittest.TestCase):
         """Fake stars.exe, which starts unless the test says it can't."""
         self.stars_start = True
         self.stars_launched = 0
-        self.enterContext(mock.patch.object(stars.Stars, "dosbox", None))
 
-        def launch(**_: object) -> bool:
+        def get_dosbox_command() -> list[str]:
             if not self.stars_start:
-                return False
+                raise EmulatorError
+            return []
+
+        def popen(*_: object, **__: object) -> subprocess.Popen[bytes]:
             self.stars_launched += 1
             process: Any = mock.create_autospec(subprocess.Popen, instance=True)
             process.poll.return_value = None
-            stars.Stars.dosbox = process
-            return True
+            return process
 
-        self.enterContext(mock.patch.object(stars.Stars, "launch", launch))
+        fake_subprocess = mock.Mock(Popen=popen)
+        self.enterContext(
+            mock.patch.object(stars, "get_dosbox_command", get_dosbox_command)
+        )
+        self.enterContext(mock.patch.object(stars, "get_dosbox_options", list))
+        self.enterContext(mock.patch.object(stars, "subprocess", fake_subprocess))
 
     def job[T: FakeDownload | FakeUnzip](self, jobs: list[T], job: T) -> T:
         """Keep track of the job, and finish it right away, unless told not to."""
@@ -442,9 +449,9 @@ class HeadlessTestCase(unittest.TestCase):
             self.changed.append(game)
         return None
 
-    def exit_stars(self) -> None:
+    def exit_stars(self, scene: stars.Stars) -> None:
         """Make stars.exe exit."""
-        process: Any = stars.Stars.dosbox
+        process: Any = scene.dosbox
         process.poll.return_value = 0
 
     def wait_for[T: engine.Scene](

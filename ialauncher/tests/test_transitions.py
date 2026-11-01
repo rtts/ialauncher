@@ -40,6 +40,12 @@ def zoom_to_snake(grid: Grid) -> Events:
     return key(pg.K_MINUS)
 
 
+def zoom_to_stars(grid: Grid) -> Events:
+    """Zoom out to the most columns possible, and then try one more."""
+    grid.resize(10_000)
+    return key(pg.K_MINUS)
+
+
 def skip_intro(intro: snake.Intro) -> Events:
     """Let all tiles disappear at once."""
     intro.tiles.clear()
@@ -97,14 +103,18 @@ class TestHero(HeadlessTestCase):
         yield from self.expect(Hero(slideshow=True), pg.event.Event(ADVANCE))
 
     def test_after_screensaver(self) -> Script:
-        """Hero > CRToff > Unzip > Autoplay > Starfield/Stars."""
+        """Hero > CRToff > Unzip > Autoplay > Starfield."""
         options.slideshow = 0
         self.qualify(gamelist.get_current_game())
         yield from self.expect(Hero(screensaver=True))
 
     def test_idle(self) -> Script:
-        """Hero > IDLE > Starfield/Stars."""
+        """Hero > IDLE > Starfield."""
         yield from self.expect(Hero(), pg.event.Event(IDLE))
+
+    def test_delete(self) -> Script:
+        """Hero > delete > Starfield."""
+        yield from self.expect(Hero(), key(pg.K_DELETE))
 
     def test_minus(self) -> Script:
         """Hero > minus > Grid."""
@@ -159,9 +169,17 @@ class TestGrid(HeadlessTestCase):
             {snake.Intro: skip_intro, snake.Snake: key(pg.K_ESCAPE)},
         )
 
+    def test_zoom_out(self) -> Script:
+        """Grid > zoom out > Stars > Grid."""
+        yield from self.expect(Grid(), zoom_to_stars, {Stars: self.exit_stars})
+
     def test_idle(self) -> Script:
-        """Grid > IDLE > Starfield/Stars."""
+        """Grid > IDLE > Starfield."""
         yield from self.expect(Grid(), pg.event.Event(IDLE))
+
+    def test_delete(self) -> Script:
+        """Grid > delete > Starfield."""
+        yield from self.expect(Grid(), key(pg.K_DELETE))
 
 
 class TestScreensaver(HeadlessTestCase):
@@ -182,13 +200,8 @@ class TestScreensaver(HeadlessTestCase):
         yield from self.expect(Starfield(Grid()), key(pg.K_ESCAPE))
 
     def test_exit(self) -> Script:
-        """Stars > exit > Hero."""
-        yield from self.expect(Stars(Hero()), lambda _: self.exit_stars())
-
-    def test_cant_start(self) -> Script:
-        """Stars > Starfield."""
-        self.stars_start = False
-        yield from self.expect(Stars(Hero()))
+        """Stars > exit > Grid."""
+        yield from self.expect(Stars(Grid()), self.exit_stars)
 
 
 class TestAny(HeadlessTestCase):

@@ -1,9 +1,8 @@
 """Starfield Simulation running as a 16-bit executable in DOSBox."""
 
-import random
 import subprocess
 from pathlib import Path
-from typing import TYPE_CHECKING, ClassVar, override
+from typing import override
 
 from ialauncher.emulator import (
     NO_WINDOW,
@@ -12,57 +11,35 @@ from ialauncher.emulator import (
     get_dosbox_options,
 )
 from ialauncher.engine import NextScene
-from ialauncher.gamelist import gamelist
 
-from . import Blackout, hero, starfield
-
-if TYPE_CHECKING:
-    from .browse import Browse
+from . import Blackout, Scene
 
 
 class Stars(Blackout):
     """A black screen behind STARS.EXE."""
 
-    dosbox: ClassVar[subprocess.Popen[bytes] | None] = None
+    dosbox: subprocess.Popen[bytes]
 
-    def __init__(self, referrer: "Browse") -> None:
-        """Initialize."""
+    def __init__(self, then: Scene) -> None:
+        """Prepare to run stars.exe."""
         super().__init__()
-        self.referrer = referrer
+        self.then = then
 
     @override
     def start(self) -> NextScene:
-        """Start stars.exe, or fall back to the starfield if it can't."""
-        if not Stars.launch():
-            return starfield.Starfield(self.referrer)
+        """Start stars.exe, or return if DOSBox can't be found."""
+        try:
+            dosbox = get_dosbox_command()
+        except EmulatorError:
+            return self.then
+        command = [*dosbox, "stars.exe", *get_dosbox_options(), "-exit"]
+        self.dosbox = subprocess.Popen(  # noqa: S603
+            command, cwd=Path(__file__).parent, creationflags=NO_WINDOW
+        )
         return None
 
     @override
     def update(self) -> NextScene:
-        """Continue with Hero, on a random game with an intro, once stars.exe exits."""
+        """Stay black, and return to the previous scene once stars.exe exits."""
         super().update()
-        if self.is_running():
-            return None
-        if games := [game for game in gamelist.games if game.intro] or gamelist.games:
-            gamelist.current_game = gamelist.games.index(random.choice(games))  # noqa: S311
-        return hero.Hero(screensaver=True)
-
-    @classmethod
-    def launch(cls, *, autorun: bool = True) -> bool:
-        """Start stars.exe, or do nothing. Return whether it started."""
-        try:
-            dosbox = get_dosbox_command()
-        except EmulatorError:
-            return False
-        command = [*dosbox, "stars.exe" if autorun else ".", *get_dosbox_options()]
-        if autorun:
-            command.append("-exit")
-        cls.dosbox = subprocess.Popen(  # noqa: S603
-            command, cwd=Path(__file__).parent, creationflags=NO_WINDOW
-        )
-        return True
-
-    @classmethod
-    def is_running(cls) -> bool:
-        """Return whether stars.exe is still running."""
-        return cls.dosbox is not None and cls.dosbox.poll() is None
+        return None if self.dosbox.poll() is None else self.then

@@ -76,8 +76,7 @@ class Grid(Browse):
         # Wait until key repeats stop before launching stars.exe
         if self.stars_pending and not held_keys:
             self.stars_pending = False
-            if not Stars.is_running():
-                Stars.launch()
+            return Stars(self)
         return super().update()
 
     @override
