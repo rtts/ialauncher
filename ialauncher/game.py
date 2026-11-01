@@ -340,12 +340,17 @@ class DOSBox(Emulator):
 
     @override
     def run(self) -> None:
-        """Run DOSBox and report it if the game exits suspiciously quickly."""
+        """Run DOSBox and report it if the game exits suspiciously quickly.
+
+        Only report it to end users, who have the metadata cache.
+        """
         game = self.game
         started = monotonic()
         super().run()
         seconds = monotonic() - started
 
+        if not (game.path.parent / METADATA_CACHE).exists():
+            return
         if self.autorun and seconds < QUICK_EXIT and not self.stopped:
             message = (
                 f"{game.title} exited in {seconds:.3f} seconds.\n\n"

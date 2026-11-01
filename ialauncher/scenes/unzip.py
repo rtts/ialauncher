@@ -15,14 +15,16 @@ from . import CHECK_INTERVAL, Scene
 class Unzip(Scene):
     """Unzip the game if needed, and continue with the next scene.
 
-    Meanwhile, keep showing whatever was shown before.
+    Meanwhile, keep showing whatever was shown before. When quiet, don't
+    show the error if unzipping fails.
     """
 
-    def __init__(self, game: Game, then: Scene) -> None:
+    def __init__(self, game: Game, then: Scene, *, quiet: bool = False) -> None:
         """Prepare to unzip the game."""
         super().__init__()
         self.game = game
         self.then = then
+        self.quiet = quiet
         self.thread: UnzipThread | None = None
 
     @override
@@ -34,7 +36,7 @@ class Unzip(Scene):
             self.thread = self.game.unzip()
         if self.thread.is_alive():
             return None
-        if self.thread.error:
+        if self.thread.error and not self.quiet:
             show_error(self.thread.error)
         return self.then
 

@@ -78,7 +78,7 @@ class Hero(Browse):
                 return Dissolve(self)
             then, seconds = CRTon(self), options.idle
         if game and autoplay:
-            then = Unzip(game, Autoplay(game, then, seconds=seconds))
+            then = Unzip(game, Autoplay(game, then, seconds=seconds), quiet=True)
         return CRToff(then)
 
     @override
