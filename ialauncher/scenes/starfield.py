@@ -18,8 +18,14 @@ from . import BLACK, Scene, hero
 if TYPE_CHECKING:
     from .browse import Browse
 
-FPS = 30
-SPEED = 30  # seconds from z = 1 to z = 0
+FPS = 60
+SPEED = 5
+ZOOM = 3
+
+# How long stars live on average before they leave the screen, in seconds
+# at warp 1. Assuming a triangular distribution of stars, they complete
+# the integral of 4z² - 4z³ + z⁴ from 0 to 1 = 8/15 of the flight.
+LIFESPAN = 8 / 15 * 100 / SPEED
 
 # Close calls: this share of stars is born in a narrow triangle that is
 # CLOSE_CALL_OUTER_WIDTH of the screen wide, so they pass close to the
@@ -33,7 +39,7 @@ MAX_SIZE = 50_000
 
 @dataclass(slots=True)
 class Star:
-    """A star with a fixed x and y and a moving z."""
+    """A star with a fixed x and y and a moving z from 1 to 0."""
 
     x: float
     y: float
@@ -46,31 +52,43 @@ class Star:
 class Starfield(Scene):
     """Starfield Simulation."""
 
-    def __init__(self, referrer: "Browse") -> None:
+    def __init__(self, referrer: "Browse", *, are_we_there_yet: float = 0.5) -> None:
         """Initialize."""
+        if not 0 <= are_we_there_yet <= 1:
+            raise ValueError
         super().__init__()
         self.referrer = referrer
         self.stars: list[Star] = []
         self.dots: dict[Game, pg.Surface] = {}
         self.games = gamelist.games
         self.intro_games = [game for game in gamelist.games if game.intro] or self.games
-        self.step = options.warp / (SPEED * FPS)
+        self.are_we_there_yet = are_we_there_yet
+        self.step = options.warp * SPEED / (100 * FPS)
+        # Filling at this rate prevents "waves" of stars.
+        self.rate = options.density * options.warp / (LIFESPAN * FPS)
+        self.due = 0.0
         # Chance per frame of adding a star in the exact center.
         self.chance = 1 / (options.mtbc * FPS) if options.mtbc else 0
 
     @override
     def start(self) -> NextScene:
-        """Fill the field as if it has been flying forever."""
+        """Fill the field as if it has been filling for a while."""
+        if not self.are_we_there_yet:
+            return None
         width, height = self.screen.get_size()
-        while len(self.stars) < options.density:
+        nearest = 1 - self.are_we_there_yet
+        full = 0
+        while full < options.density:
             star = self.star()
             star.z = 1 - random.random()  # noqa: S311
             scale = 1 / star.z
-            size = int(scale)
+            size = size_at(star.z)
             left = width // 2 - size // 2 + star.x * scale
             top = height // 2 - size // 2 + star.y * scale
             if -size < left < width and -size < top < height:
-                self.stars.append(star)
+                full += 1
+                if star.z > nearest:
+                    self.stars.append(star)
         self.stars.sort(key=lambda star: star.z, reverse=True)
         return None
 
@@ -80,6 +98,8 @@ class Starfield(Scene):
         self.screen.fill(BLACK)
         width, height = self.screen.get_size()
         center_x, center_y = self.screen.get_rect().center
+        collision_z = depth_at(height)
+        min_z = depth_at(MAX_SIZE)
 
         # Each star is a point in space, at a fixed x and y that put it
         # anywhere on the screen at depth z = 1, mostly near the center,
@@ -90,14 +110,14 @@ class Starfield(Scene):
         close = []
         for star in self.stars:
             star.z -= self.step
-            if star.x == star.y == 0 and star.z <= 1 / height:
+            if star.x == star.y == 0 and star.z <= collision_z:
                 # Collision!
                 gamelist.current_game = gamelist.games.index(star.game)
                 return hero.Hero(screensaver=True)
-            if star.z * MAX_SIZE < 1:
+            if star.z < min_z:
                 continue
             scale = 1 / star.z
-            size = int(scale)
+            size = size_at(star.z)
             left = center_x - size // 2 + star.x * scale
             top = center_y - size // 2 + star.y * scale
             if not (-size < left < width and -size < top < height):
@@ -114,8 +134,12 @@ class Starfield(Scene):
         for game, left, top, size in close:
             self.draw_close(game, left, top, size)
 
-        # Replace the stars that left.
-        new = options.density - len(stars)
+        # Replace the stars that left, and add more until the field is full.
+        left = len(self.stars) - len(stars)
+        self.due += self.rate
+        due = int(self.due)
+        self.due -= due
+        new = min(max(left, due), options.density - len(stars))
         self.stars = [self.star() for _ in range(new)] + stars
 
         if random.random() < self.chance:  # noqa: S311
@@ -162,7 +186,6 @@ class Starfield(Scene):
             return
         image_width, image_height = image.get_size()
         width, height = self.screen.get_size()
-        # Screen pixels per title screen pixel, and the ones (partly) in view.
         pixel_width, pixel_height = size / image_width, size / image_height
         x0 = max(0, math.floor(-left / pixel_width))
         x1 = min(image_width, math.ceil((width - left) / pixel_width))
@@ -178,3 +201,13 @@ class Starfield(Scene):
         """Run at FPS frames per second."""
         self.clock.tick(FPS)
         return pg.event.get()
+
+
+def size_at(z: float) -> int:
+    """Return the size of a star at depth z, in pixels."""
+    return int(1 + ZOOM * (1 / z - 1))
+
+
+def depth_at(size: int) -> float:
+    """Return the depth z at which a star becomes the given size."""
+    return ZOOM / (ZOOM + size - 1)
