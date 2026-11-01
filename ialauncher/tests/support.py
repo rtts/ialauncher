@@ -477,15 +477,15 @@ class HeadlessTestCase(unittest.TestCase):
         """Start with the scene, trigger the transition, and check the scenes after.
 
         The transition is the test's docstring, like Hero > minus > Grid,
-        or Loading > Hero without a trigger, where A/B means either, and
-        Any any scene. The trigger is the part after the first scene, if
-        that isn't a scene. The react steps, or what they return, are sent
-        once to the scenes of their type along the way.
+        or Loading > Hero without a trigger, where Any means any scene.
+        The trigger is the part after the first scene, if that isn't a
+        scene. The react steps, or what they return, are sent once to the
+        scenes of their type along the way.
         """
         line = (self.shortDescription() or "").removesuffix(".")
         first, *rest = (part.strip() for part in line.split(">"))
         names = scene_names() | {"quit"}
-        if rest and not set(rest[0].split("/")) <= names:
+        if rest and rest[0] not in names:
             causes, expected = rest[:1], rest[1:]
         else:
             causes, expected = [], rest
@@ -508,14 +508,7 @@ class HeadlessTestCase(unittest.TestCase):
                         step = events(scene)
             scene = yield step
         observed = [*self.trace[1:], *(["quit"] if scene is None else [])]
-        matches = (
-            first in ("Any", *self.trace[:1])
-            and len(observed) == len(expected)
-            and all(
-                name in alternatives.split("/")
-                for name, alternatives in zip(observed, expected, strict=True)
-            )
-        )
+        matches = first in ("Any", *self.trace[:1]) and observed == expected
         actual = " > ".join([*self.trace[:1], *causes, *observed])
         self.assertTrue(matches, f"{actual} instead of {line}")
         if scene is not None:

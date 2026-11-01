@@ -6,25 +6,29 @@ Scene transitions:
 - Loading > escape > quit
 - Hero > enter > CRToff > Download > Unzip > Play > CRTon > Hero
 - Hero > ctrl-enter > Download > Unzip > Hero
-- Hero > space/ADVANCE > CRToff > Unzip > Autoplay > CRTon > Hero
-- Hero > space/ADVANCE > CRToff > CRTon > Hero
-- Hero > space/ADVANCE > Dissolve > Hero
+- Hero > space > CRToff > Unzip > Autoplay > CRTon > Hero
+- Hero > ADVANCE > CRToff > Unzip > Autoplay > CRTon > Hero
+- Hero > space > Dissolve > Hero
+- Hero > ADVANCE > Dissolve > Hero
 - Hero > CRToff > Unzip > Autoplay > Starfield
-- Hero > IDLE > Starfield
 - Hero > delete > Starfield
+- Hero > IDLE > Starfield
 - Hero > minus > Grid
 - Hero > METADATA > Hero
 - Hero > escape > quit
 - Grid > click > Download > Unzip > Play > Grid
 - Grid > ctrl-click > Download > Unzip > Grid
 - Grid > space > Hero
-- Grid > escape/plus/METADATA > Hero
+- Grid > escape > Hero
+- Grid > plus > Hero
+- Grid > METADATA > Hero
 - Grid > zoom > Intro > Snake > Grid
 - Grid > zoom out > Stars > Grid
-- Grid > IDLE > Starfield
 - Grid > delete > Starfield
+- Grid > IDLE > Starfield
 - Starfield > collision > Hero
-- Starfield > escape > Hero/Grid
+- Starfield > escape > Hero
+- Starfield > escape > Grid
 - Stars > exit > Grid
 - Any > close > quit
 """

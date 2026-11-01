@@ -54,7 +54,7 @@ class TestHero(HeadlessTestCase):
         self.assertIsNone((yield key(pg.K_ESCAPE)))
 
     def test_not_autoplayable(self) -> Script:
-        """Space on a game that never autoplays only switches the CRT off and on."""
+        """Space on a game that never autoplays dissolves into the next game."""
         options.autoplay = 300
         game = self.game("downloaded")
         game.autoplayable = False
@@ -63,7 +63,7 @@ class TestHero(HeadlessTestCase):
         yield hero
         yield key(pg.K_SPACE)
         self.assertIs((yield from self.wait_for(Hero)), hero)
-        self.assertEqual(self.trace, ["Hero", "CRToff", "CRTon", "Hero"])
+        self.assertEqual(self.trace, ["Hero", "Dissolve", "Hero"])
         self.assertEqual(self.unzips, [])
         self.assertIsNot(gamelist.get_current_game(), game)
         self.assertTrue(hero.slideshow_running)
@@ -79,6 +79,18 @@ class TestHero(HeadlessTestCase):
         self.assertEqual(self.trace, ["Hero", "Dissolve", "Hero"])
         self.assertIsNot(gamelist.get_current_game(), game)
         self.assertFalse(game.is_ready())
+        self.assertEqual(self.unzips, [])
+        self.assertEqual(self.emulators, [])
+        self.assertIsNone((yield key(pg.K_ESCAPE)))
+
+    def test_not_downloaded(self) -> Script:
+        """Space on an autoplayable game that isn't downloaded dissolves."""
+        game = self.qualify(gamelist.get_current_game(), state="missing")
+        yield Hero()
+        yield key(pg.K_SPACE)
+        yield from self.wait_for(Hero)
+        self.assertEqual(self.trace, ["Hero", "Dissolve", "Hero"])
+        self.assertIsNot(gamelist.get_current_game(), game)
         self.assertEqual(self.unzips, [])
         self.assertEqual(self.emulators, [])
         self.assertIsNone((yield key(pg.K_ESCAPE)))

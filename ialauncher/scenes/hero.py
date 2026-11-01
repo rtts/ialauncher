@@ -61,22 +61,22 @@ class Hero(Browse):
         """Switch off the CRT when the slideshow advances, and autoplay the game.
 
         Switch the CRT back on with the next game, or after the
-        screensaver, continue with the screensaver. Without autoplay,
-        dissolve into the next game instead.
+        screensaver, continue with the screensaver. When the game can't
+        be autoplayed, dissolve into the next game instead.
         """
         if event.type != ADVANCE:
             return super().handle(event)
         game = gamelist.get_current_game()
+        autoplay = bool(game and Autoplay.qualifies(game))
         if self.after_screensaver:
             self.after_screensaver = False
             then = self.screensaver()
-        elif not options.autoplay:
-            gamelist.random_game()
-            return Dissolve(self)
         else:
             gamelist.random_game()
+            if not autoplay:
+                return Dissolve(self)
             then = CRTon(self)
-        if game and game.autoplayable and options.autoplay:
+        if game and autoplay:
             then = Unzip(game, Autoplay(game, then))
         return CRToff(then)
 

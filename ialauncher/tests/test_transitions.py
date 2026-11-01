@@ -78,27 +78,34 @@ class TestHero(HeadlessTestCase):
         yield from self.expect(Hero(), key(pg.K_RETURN, pg.KMOD_LCTRL))
 
     def test_space(self) -> Script:
-        """Hero > space/ADVANCE > CRToff > Unzip > Autoplay > CRTon > Hero."""
-        options.autoplay = 300
+        """Hero > space > CRToff > Unzip > Autoplay > CRTon > Hero."""
+        self.qualify(gamelist.get_current_game())
         yield from self.expect(Hero(), key(pg.K_SPACE))
 
     def test_space_without_autoplay(self) -> Script:
-        """Hero > space/ADVANCE > Dissolve > Hero."""
+        """Hero > space > Dissolve > Hero."""
         yield from self.expect(Hero(), key(pg.K_SPACE))
 
     def test_slideshow_without_autoplay(self) -> Script:
-        """Hero > space/ADVANCE > Dissolve > Hero."""
+        """Hero > ADVANCE > Dissolve > Hero."""
         yield from self.expect(Hero(slideshow=True), pg.event.Event(ADVANCE))
 
     def test_space_not_autoplayable(self) -> Script:
-        """Hero > space/ADVANCE > CRToff > CRTon > Hero."""
+        """Hero > space > Dissolve > Hero."""
         options.autoplay = 300
         self.game().autoplayable = False
         gamelist.current_game = 0
         yield from self.expect(Hero(), key(pg.K_SPACE))
 
+    def test_slideshow_not_autoplayable(self) -> Script:
+        """Hero > ADVANCE > Dissolve > Hero."""
+        options.autoplay = 300
+        self.game().autoplayable = False
+        gamelist.current_game = 0
+        yield from self.expect(Hero(slideshow=True), pg.event.Event(ADVANCE))
+
     def test_slideshow(self) -> Script:
-        """Hero > space/ADVANCE > CRToff > Unzip > Autoplay > CRTon > Hero."""
+        """Hero > ADVANCE > CRToff > Unzip > Autoplay > CRTon > Hero."""
         self.qualify(gamelist.get_current_game())
         yield from self.expect(Hero(slideshow=True), pg.event.Event(ADVANCE))
 
@@ -148,15 +155,15 @@ class TestGrid(HeadlessTestCase):
         yield from self.expect(Grid(), key(pg.K_SPACE))
 
     def test_escape(self) -> Script:
-        """Grid > escape/plus/METADATA > Hero."""
+        """Grid > escape > Hero."""
         yield from self.expect(Grid(), key(pg.K_ESCAPE))
 
     def test_plus(self) -> Script:
-        """Grid > escape/plus/METADATA > Hero."""
+        """Grid > plus > Hero."""
         yield from self.expect(Grid(), key(pg.K_PLUS))
 
     def test_metadata(self) -> Script:
-        """Grid > escape/plus/METADATA > Hero."""
+        """Grid > METADATA > Hero."""
         yield from self.expect(Grid(), self.change_metadata)
 
     def test_zoom(self) -> Script:
@@ -192,11 +199,11 @@ class TestScreensaver(HeadlessTestCase):
         yield from self.expect(Starfield(Hero()), collide)
 
     def test_escape_to_hero(self) -> Script:
-        """Starfield > escape > Hero/Grid."""
+        """Starfield > escape > Hero."""
         yield from self.expect(Starfield(Hero()), key(pg.K_ESCAPE))
 
     def test_escape_to_grid(self) -> Script:
-        """Starfield > escape > Hero/Grid."""
+        """Starfield > escape > Grid."""
         yield from self.expect(Starfield(Grid()), key(pg.K_ESCAPE))
 
     def test_exit(self) -> Script:
