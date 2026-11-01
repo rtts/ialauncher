@@ -50,7 +50,7 @@ class TestLoading(HeadlessTestCase):
     """The transitions from Loading."""
 
     def test_loaded(self) -> Script:
-        """Loading > Hero."""
+        """Loading > Fadeout > Fadein > Hero."""
         yield from self.expect(Loading())
 
     def test_escape(self) -> Script:

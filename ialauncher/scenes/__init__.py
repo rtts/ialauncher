@@ -2,7 +2,7 @@
 
 Scene transitions:
 
-- Loading > Hero
+- Loading > Fadeout > Fadein > Hero
 - Loading > escape > quit
 - Hero > enter > CRT > Download > Unzip > Play > CRT > Hero
 - Hero > ctrl-enter > Download > Unzip > Hero

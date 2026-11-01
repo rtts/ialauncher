@@ -19,6 +19,7 @@ from ialauncher.gamelist import gamelist
 from ialauncher.utils import show_error
 
 from . import TitleScreen
+from .fade import Fadein, Fadeout
 from .hero import Hero
 
 if TYPE_CHECKING:
@@ -127,7 +128,6 @@ class Loading(TitleScreen):
             return False
         gamelist.sort()
         gamelist.random_game()
-        hero = Hero()
         gamelist.load_titlescreens()
         gamelist.watch()
-        return hero
+        return Fadeout(Fadein(Hero()))
