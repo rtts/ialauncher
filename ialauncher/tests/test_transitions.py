@@ -77,11 +77,11 @@ class TestHero(HeadlessTestCase):
         yield from self.expect(Hero(), key(pg.K_SPACE))
 
     def test_space_without_autoplay(self) -> Script:
-        """Hero > space/ADVANCE > CRT > CRT > Hero."""
+        """Hero > space/ADVANCE > Dissolve > Hero."""
         yield from self.expect(Hero(), key(pg.K_SPACE))
 
     def test_slideshow_without_autoplay(self) -> Script:
-        """Hero > space/ADVANCE > CRT > CRT > Hero."""
+        """Hero > space/ADVANCE > Dissolve > Hero."""
         yield from self.expect(Hero(slideshow=True), pg.event.Event(ADVANCE))
 
     def test_space_not_autoplayable(self) -> Script:

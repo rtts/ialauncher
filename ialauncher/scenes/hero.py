@@ -14,6 +14,7 @@ from ialauncher.utils import letterbox, sharp_scale
 from . import GRID_LARGER, grid
 from .browse import Browse
 from .crt import CRT
+from .dissolve import Dissolve
 from .download import Download
 from .play import Autoplay, Play
 from .unzip import Unzip
@@ -60,7 +61,8 @@ class Hero(Browse):
         """Switch off the CRT when the slideshow advances, and autoplay the game.
 
         Switch the CRT back on with the next game, or after the
-        screensaver, continue with the screensaver.
+        screensaver, continue with the screensaver. Without autoplay,
+        dissolve into the next game instead.
         """
         if event.type != ADVANCE:
             return super().handle(event)
@@ -68,6 +70,9 @@ class Hero(Browse):
         if self.after_screensaver:
             self.after_screensaver = False
             then = self.screensaver()
+        elif not options.autoplay:
+            gamelist.random_game()
+            return Dissolve(self)
         else:
             gamelist.random_game()
             then = CRT(self, on=True)

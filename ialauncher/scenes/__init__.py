@@ -8,6 +8,7 @@ Scene transitions:
 - Hero > ctrl-enter > Download > Unzip > Hero
 - Hero > space/ADVANCE > CRT > Unzip > Autoplay > CRT > Hero
 - Hero > space/ADVANCE > CRT > CRT > Hero
+- Hero > space/ADVANCE > Dissolve > Hero
 - Hero > CRT > Unzip > Autoplay > Starfield/Stars
 - Hero > IDLE > Starfield/Stars
 - Hero > minus > Grid

@@ -70,13 +70,14 @@ class TestHero(HeadlessTestCase):
         self.assertIsNone((yield key(pg.K_ESCAPE)))
 
     def test_without_autoplay(self) -> Script:
-        """Without autoplay, the slideshow only switches the CRT off and on."""
+        """Without autoplay, the slideshow dissolves into the next game."""
         game = self.game("downloaded")
         gamelist.current_game = 0
         yield Hero()
         yield key(pg.K_SPACE)
         yield from self.wait_for(Hero)
-        self.assertEqual(self.trace, ["Hero", "CRT", "CRT", "Hero"])
+        self.assertEqual(self.trace, ["Hero", "Dissolve", "Hero"])
+        self.assertIsNot(gamelist.get_current_game(), game)
         self.assertFalse(game.is_ready())
         self.assertEqual(self.unzips, [])
         self.assertEqual(self.emulators, [])
