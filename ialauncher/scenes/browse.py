@@ -169,10 +169,10 @@ class Browse(Scene):
 
     @staticmethod
     def edit_metadata() -> None:
-        """Open the current game's metadata.ini in Emacs, if it's installed."""
+        """Open the current game's metadata.ini in xjed, if it's installed."""
         game = gamelist.get_current_game()
-        if game and (emacs := shutil.which("emacs")):
-            subprocess.Popen([emacs, game.path / "metadata.ini"])  # noqa: S603
+        if game and (editor := shutil.which("xjed")):
+            subprocess.Popen([editor, game.path / "metadata.ini"])  # noqa: S603
 
     def add_or_remove(self, game: Game) -> NextScene:
         """Delete the gamedir if it exists, or get the game ready if it doesn't."""
