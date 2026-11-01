@@ -33,7 +33,8 @@ class Hero(Browse):
     for --slideshow seconds, then unzip, start the game, terminate it
     after --autoplay seconds, and show the next screensaver.
 
-    With the slideshow enabled, do the same without the screensaver.
+    With the slideshow enabled, do the same without the screensaver,
+    but terminate the game after --idle seconds.
     """
 
     def __init__(self, *, slideshow: bool = False, screensaver: bool = False) -> None:
@@ -62,7 +63,7 @@ class Hero(Browse):
 
         Switch the CRT back on with the next game, or after the
         screensaver, continue with the screensaver. When the game can't
-        be autoplayed, dissolve into the next game instead.
+        be autoplayed, or --idle is 0, dissolve into the next game instead.
         """
         if event.type != ADVANCE:
             return super().handle(event)
@@ -70,14 +71,14 @@ class Hero(Browse):
         autoplay = bool(game and Autoplay.qualifies(game))
         if self.after_screensaver:
             self.after_screensaver = False
-            then = self.screensaver()
+            then, seconds = self.screensaver(), options.autoplay
         else:
             gamelist.random_game()
-            if not autoplay:
+            if not autoplay or not options.idle:
                 return Dissolve(self)
-            then = CRTon(self)
+            then, seconds = CRTon(self), options.idle
         if game and autoplay:
-            then = Unzip(game, Autoplay(game, then))
+            then = Unzip(game, Autoplay(game, then, seconds=seconds))
         return CRToff(then)
 
     @override

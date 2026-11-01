@@ -71,7 +71,7 @@ class TestAutoplay(HeadlessTestCase):
 
     def test_skip(self) -> Script:
         """A game that doesn't qualify continues right away."""
-        yield Autoplay(self.game("ready"), End())
+        yield Autoplay(self.game("ready"), End(), seconds=300)
         yield from self.wait_until_quit()
         self.assertEqual(self.emulators, [])
         self.assertEqual(self.trace, ["Autoplay", "End"])
@@ -79,7 +79,7 @@ class TestAutoplay(HeadlessTestCase):
     def test_time_up(self) -> Script:
         """The game stops when time is up, and Autoplay continues."""
         self.keep_running = True
-        autoplay = Autoplay(self.qualify(self.game(), "ready"), End())
+        autoplay = Autoplay(self.qualify(self.game(), "ready"), End(), seconds=300)
         yield autoplay
         remaining = autoplay.deadline - pg.time.get_ticks()
         self.assertGreater(remaining, 299_000)
@@ -92,7 +92,7 @@ class TestAutoplay(HeadlessTestCase):
     def test_error(self) -> Script:
         """A game that fails continues without showing the error."""
         self.keep_running = True
-        yield Autoplay(self.qualify(self.game(), "ready"), End())
+        yield Autoplay(self.qualify(self.game(), "ready"), End(), seconds=300)
         self.emulators[0].exit("Illegal function call")
         yield from self.wait_until_quit()
         self.assertEqual(self.errors, [])
