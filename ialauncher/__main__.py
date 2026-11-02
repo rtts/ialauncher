@@ -130,6 +130,7 @@ def print_stats(games_dir: Path) -> None:
     print(f"Total: {len(all_games)}")
     print(f"Downloaded: {sum(game.is_downloaded() for game in all_games)}")
     print(f"Autoplayable: {sum(game.autoplayable for game in all_games)}")
+    print(f"Intros: {sum(game.intro for game in all_games)}")
     print(f"Played: {sum(game.gamedir.is_dir() for game in all_games)}")
 
 
