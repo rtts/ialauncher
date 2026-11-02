@@ -108,11 +108,11 @@ class TestHero(HeadlessTestCase):
         self.assertIsNot(gamelist.get_current_game(), game)
         self.assertIsNone((yield key(pg.K_ESCAPE)))
 
-    def test_shift_a(self) -> Script:
-        """Shift-A plays the game, and saves how long it ran as autoplay."""
+    def test_ctrl_r(self) -> Script:
+        """Ctrl-R plays the game, and saves how long it ran as autoplay."""
         game = gamelist.get_current_game()
         yield Hero()
-        yield key(pg.K_a, pg.KMOD_LSHIFT, "A")
+        yield key(pg.K_r, pg.KMOD_LCTRL, "\x12")
         yield from self.wait_for(Hero)
         self.assertIs(self.emulators[0].game, game)
         self.assertEqual(self.saved, [(game, "autoplay", "0")])

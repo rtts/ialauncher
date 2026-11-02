@@ -25,6 +25,7 @@ if TYPE_CHECKING:
 
 ADVANCE = pg.event.custom_type()
 SLIDESHOW_KEYS = {pg.K_SPACE, pg.K_RETURN} | ARROW_KEYS | GRID_LARGER
+TIMED_KEYS: dict[int, type[Autoplay | Record]] = {pg.K_a: Autoplay, pg.K_r: Record}
 
 
 class Hero(Browse):
@@ -67,14 +68,11 @@ class Hero(Browse):
         screensaver, continue with the screensaver. When the game can't
         be autoplayed, dissolve into the next game instead.
 
-        Ctrl-A autoplays the game right away.
+        Ctrl-A autoplays the game right away, Ctrl-R records it.
         """
-        if (
-            event.type == pg.KEYDOWN
-            and event.key == pg.K_a
-            and event.mod & pg.KMOD_CTRL
-        ):
-            return self.play_timed(Autoplay)
+        ctrl = event.type == pg.KEYDOWN and event.mod & pg.KMOD_CTRL
+        if ctrl and (scene := TIMED_KEYS.get(event.key)):
+            return self.play_timed(scene)
         if event.type != ADVANCE:
             return super().handle(event)
         game = gamelist.get_current_game()
@@ -151,13 +149,6 @@ class Hero(Browse):
         """Switch off the CRT, get the game ready and play it, and switch it on."""
         play = Play(game, CRTon(self), autorun=autorun)
         return CRToff(Download(game, Unzip(game, play)))
-
-    @override
-    def shift_command(self, key: int) -> NextScene:
-        """Record how long the game runs with Shift-A, or another Shift command."""
-        if key == pg.K_a:
-            return self.play_timed(Record)
-        return super().shift_command(key)
 
     def play_timed(self, scene: type[Autoplay | Record]) -> NextScene:
         """Get the game ready, and autoplay or record it with the CRT off."""

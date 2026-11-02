@@ -51,12 +51,12 @@ class TestGrid(HeadlessTestCase):
         self.assertEqual(self.trace, ["Grid", "Download", "Unzip", "Play", "Grid"])
         self.assertIsNone((yield pg.event.Event(pg.QUIT)))
 
-    def test_shift_a_ctrl_a(self) -> Script:
-        """Shift-A and Ctrl-A neither play the game nor type in the filter."""
+    def test_ctrl_a_ctrl_r(self) -> Script:
+        """Ctrl-A and Ctrl-R neither play the game nor type in the filter."""
         grid = Grid()
         yield grid
-        yield key(pg.K_a, pg.KMOD_LSHIFT, "A")
         yield key(pg.K_a, pg.KMOD_LCTRL, "\x01")
+        yield key(pg.K_r, pg.KMOD_LCTRL, "\x12")
         yield None
         self.assertEqual(self.trace, ["Grid"])
         self.assertEqual(self.emulators, [])
