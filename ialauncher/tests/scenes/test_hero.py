@@ -120,6 +120,24 @@ class TestHero(HeadlessTestCase):
         self.assertIs(gamelist.get_current_game(), game)
         self.assertIsNone((yield key(pg.K_ESCAPE)))
 
+    def test_ctrl_shift_r(self) -> Script:
+        """Ctrl-Shift-R resets the game before recording it."""
+        game = self.qualify(gamelist.get_current_game(), "ready")
+        # Resetting deletes the unzipped game, but keeps the download.
+        self.enterContext(
+            mock.patch.object(
+                type(game),
+                "reset",
+                lambda _: self.files.update({game.identifier: "downloaded"}),
+            )
+        )
+        yield Hero()
+        yield key(pg.K_r, pg.KMOD_LCTRL | pg.KMOD_LSHIFT, "\x12")
+        yield from self.wait_for(Hero)
+        self.assertEqual(len(self.unzips), 1)
+        self.assertIs(self.emulators[0].game, game)
+        self.assertIsNone((yield key(pg.K_ESCAPE)))
+
     def test_ctrl_a(self) -> Script:
         """Ctrl-A autoplays the game for its seconds, even without --autoplay."""
         self.keep_running = True

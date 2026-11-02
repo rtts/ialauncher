@@ -68,11 +68,13 @@ class Hero(Browse):
         screensaver, continue with the screensaver. When the game can't
         be autoplayed, dissolve into the next game instead.
 
-        Ctrl-A autoplays the game right away, Ctrl-R records it.
+        Ctrl-A autoplays the game right away, Ctrl-R records it, and
+        Ctrl-Shift-R resets the game before recording it.
         """
         ctrl = event.type == pg.KEYDOWN and event.mod & pg.KMOD_CTRL
         if ctrl and (scene := TIMED_KEYS.get(event.key)):
-            return self.play_timed(scene)
+            reset = scene is Record and bool(event.mod & pg.KMOD_SHIFT)
+            return self.play_timed(scene, reset=reset)
         if event.type != ADVANCE:
             return super().handle(event)
         game = gamelist.get_current_game()
@@ -150,7 +152,9 @@ class Hero(Browse):
         play = Play(game, CRTon(self), autorun=autorun)
         return CRToff(Download(game, Unzip(game, play)))
 
-    def play_timed(self, scene: type[Autoplay | Record]) -> NextScene:
+    def play_timed(
+        self, scene: type[Autoplay | Record], *, reset: bool = False
+    ) -> NextScene:
         """Unzip the game if needed, and autoplay or record it with the CRT off.
 
         Like the slideshow, never download the game.
@@ -162,6 +166,8 @@ class Hero(Browse):
             return None
         if not find_emulator(game):
             return None
+        if reset:
+            game.reset()
         return CRToff(Unzip(game, scene(game, CRTon(self))))
 
     @override
