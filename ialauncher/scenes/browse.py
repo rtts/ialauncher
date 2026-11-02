@@ -277,10 +277,10 @@ class Browse(Scene):
     def typeable(event: pg.event.Event) -> bool:
         """Return whether the keystroke types a character.
 
-        Shift or Alt with a letter doesn't type, leaving those keys free
-        for commands. Shift with anything else does, for characters like ^.
+        Shift with a letter doesn't type, leaving those keys free for
+        commands. Shift with anything else does, for characters like ^.
         """
-        if event.mod & (pg.KMOD_SHIFT | pg.KMOD_ALT) and event.unicode.isalpha():
+        if event.mod & pg.KMOD_SHIFT and event.unicode.isalpha():
             return False
         return bool(event.unicode) and event.unicode.isprintable()
 

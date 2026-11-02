@@ -67,9 +67,13 @@ class Hero(Browse):
         screensaver, continue with the screensaver. When the game can't
         be autoplayed, dissolve into the next game instead.
 
-        Alt-A autoplays the game right away.
+        Ctrl-A autoplays the game right away.
         """
-        if event.type == pg.KEYDOWN and event.key == pg.K_a and event.mod & pg.KMOD_ALT:
+        if (
+            event.type == pg.KEYDOWN
+            and event.key == pg.K_a
+            and event.mod & pg.KMOD_CTRL
+        ):
             return self.play_timed(Autoplay)
         if event.type != ADVANCE:
             return super().handle(event)

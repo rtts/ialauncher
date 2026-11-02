@@ -119,14 +119,14 @@ class TestHero(HeadlessTestCase):
         self.assertIs(gamelist.get_current_game(), game)
         self.assertIsNone((yield key(pg.K_ESCAPE)))
 
-    def test_alt_a(self) -> Script:
-        """Alt-A autoplays the game for its seconds, even without --autoplay."""
+    def test_ctrl_a(self) -> Script:
+        """Ctrl-A autoplays the game for its seconds, even without --autoplay."""
         self.keep_running = True
         game = self.qualify(gamelist.get_current_game())
         game.autoplay = 42
         options.autoplay = False
         yield Hero()
-        yield key(pg.K_a, pg.KMOD_LALT, "a")
+        yield key(pg.K_a, pg.KMOD_LCTRL, "\x01")
         autoplay = yield from self.wait_for(Autoplay)
         yield None
         self.assertIs(self.emulators[0].game, game)

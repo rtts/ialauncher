@@ -7,7 +7,7 @@ Scene transitions:
 - Hero > enter > CRToff > Download > Unzip > Play > CRTon > Hero
 - Hero > ctrl-enter > Download > Unzip > Hero
 - Hero > shift-A > CRToff > Download > Unzip > Record > CRTon > Hero
-- Hero > alt-A > CRToff > Download > Unzip > Autoplay > CRTon > Hero
+- Hero > ctrl-A > CRToff > Download > Unzip > Autoplay > CRTon > Hero
 - Hero > space > CRToff > Unzip > Autoplay > CRTon > Hero
 - Hero > ADVANCE > CRToff > Unzip > Autoplay > CRTon > Hero
 - Hero > space > Dissolve > Hero
