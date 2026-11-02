@@ -7,11 +7,11 @@ from ialauncher.game import Game
 from ialauncher.gamelist import Gamelist
 
 
-def game(name: str, *, autoplayable: bool) -> Game:
-    """Return a game that is autoplayable, or not."""
+def game(name: str, *, autoplay: int) -> Game:
+    """Return a game that autoplays for the given seconds."""
     metadata = {"title": name, "year": "1990", "url": f"https://example.com/{name}"}
     game = Game(Path(name), metadata)
-    game.autoplayable = autoplayable
+    game.autoplay = autoplay
     return game
 
 
@@ -22,9 +22,9 @@ class TestGamelist(unittest.TestCase):
         """A random game is always one that autoplays."""
         gamelist = Gamelist()
         gamelist.all_games[:] = [
-            game("A", autoplayable=False),
-            game("B", autoplayable=True),
-            game("C", autoplayable=False),
+            game("A", autoplay=0),
+            game("B", autoplay=60),
+            game("C", autoplay=0),
         ]
         for _ in range(20):
             gamelist.random_game()
@@ -34,8 +34,8 @@ class TestGamelist(unittest.TestCase):
         """Without games that autoplay, the current game stays."""
         gamelist = Gamelist()
         gamelist.all_games[:] = [
-            game("A", autoplayable=False),
-            game("B", autoplayable=False),
+            game("A", autoplay=0),
+            game("B", autoplay=0),
         ]
         gamelist.current_game = 1
         gamelist.random_game()

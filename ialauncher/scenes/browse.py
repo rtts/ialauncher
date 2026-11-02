@@ -154,15 +154,7 @@ class Browse(Scene):
             return self.play_at_speed(SLOW_CYCLES)
         if key == pg.K_e:
             self.edit_metadata()
-        elif key == pg.K_a and (game := gamelist.get_current_game()):
-            game.autoplayable = False
-            game.save_metadata("autoplayable", "no")
-            self.show_message("AUTOPLAYABLE = NO")
-        elif key == pg.K_i and (game := gamelist.get_current_game()):
-            game.intro = True
-            game.save_metadata("intro", "yes")
-            self.show_message("INTRO = YES")
-        elif key == pg.K_m:
+        if key == pg.K_m:
             options.muted = not options.muted
             self.show_message("MUTED" if options.muted else "UNMUTED")
         return None
@@ -285,10 +277,10 @@ class Browse(Scene):
     def typeable(event: pg.event.Event) -> bool:
         """Return whether the keystroke types a character.
 
-        Shift with a letter doesn't type, leaving those keys free for
-        commands. Shift with anything else does, for characters like ^.
+        Shift or Alt with a letter doesn't type, leaving those keys free
+        for commands. Shift with anything else does, for characters like ^.
         """
-        if event.mod & pg.KMOD_SHIFT and event.unicode.isalpha():
+        if event.mod & (pg.KMOD_SHIFT | pg.KMOD_ALT) and event.unicode.isalpha():
             return False
         return bool(event.unicode) and event.unicode.isprintable()
 

@@ -55,9 +55,8 @@ def main() -> None:
     )
     parser.add_argument(
         "--autoplay",
-        type=int,
-        metavar="N",
-        help="Autoplay the current game for N seconds (disabled by default)",
+        action=argparse.BooleanOptionalAction,
+        help="Autoplay games in the slideshow and screensaver (disabled by default)",
     )
     parser.add_argument(
         "--fullscreen",
@@ -129,8 +128,7 @@ def print_stats(games_dir: Path) -> None:
     ]
     print(f"Total: {len(all_games)}")
     print(f"Downloaded: {sum(game.is_downloaded() for game in all_games)}")
-    print(f"Autoplayable: {sum(game.autoplayable for game in all_games)}")
-    print(f"Intros: {sum(game.intro for game in all_games)}")
+    print(f"Autoplayable: {sum(bool(game.autoplay) for game in all_games)}")
     print(f"Played: {sum(game.gamedir.is_dir() for game in all_games)}")
 
 
@@ -149,7 +147,7 @@ def set_options(args: argparse.Namespace) -> None:
     if args.mtbc is not None:
         options.mtbc = max(0, args.mtbc)
     if args.autoplay is not None:
-        options.autoplay = max(0, args.autoplay)
+        options.autoplay = args.autoplay
     if args.dosbox is not None:
         options.dosbox_executable = args.dosbox
     if args.scummvm is not None:

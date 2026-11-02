@@ -4,7 +4,6 @@ from typing import override
 
 import pygame as pg
 
-from ialauncher import options
 from ialauncher.emulator import EmulatorError, get_dosbox_command
 from ialauncher.engine import NextScene
 from ialauncher.game import EMULATOR_FAILED, Emulator, Game
@@ -64,9 +63,8 @@ class Play(Blackout):
 
 
 class Autoplay(Play):
-    """Play the game for a while, and continue with the next scene.
+    """Play the game for its autoplay seconds, and continue with the next scene.
 
-    Intros play for --autoplay seconds, other games for --idle seconds.
     Continue right away if the game doesn't qualify.
     """
 
@@ -81,8 +79,7 @@ class Autoplay(Play):
         if self.emulator is None:
             if not self.qualifies(self.game):
                 return self.then
-            seconds = options.autoplay if self.game.intro else options.idle
-            self.deadline = pg.time.get_ticks() + seconds * 1000
+            self.deadline = pg.time.get_ticks() + self.game.autoplay * 1000
         elif pg.time.get_ticks() >= self.deadline or not self.emulator.is_alive():
             self.emulator.stop()
             return self.then
@@ -96,9 +93,9 @@ class Autoplay(Play):
     @staticmethod
     def qualifies(game: Game) -> bool:
         """Return whether the game qualifies to autoplay."""
-        if not options.autoplay or not (game.intro or options.idle):
+        if not game.autoplay:
             return False
-        if not game.autoplayable or game.engine != "dosbox" or not game.emulator_start:
+        if game.engine != "dosbox" or not game.emulator_start:
             return False
         try:
             get_dosbox_command()

@@ -51,6 +51,18 @@ class TestGrid(HeadlessTestCase):
         self.assertEqual(self.trace, ["Grid", "Download", "Unzip", "Play", "Grid"])
         self.assertIsNone((yield pg.event.Event(pg.QUIT)))
 
+    def test_shift_a_alt_a(self) -> Script:
+        """Shift-A and Alt-A neither play the game nor type in the filter."""
+        grid = Grid()
+        yield grid
+        yield key(pg.K_a, pg.KMOD_LSHIFT, "A")
+        yield key(pg.K_a, pg.KMOD_LALT, "a")
+        yield None
+        self.assertEqual(self.trace, ["Grid"])
+        self.assertEqual(self.emulators, [])
+        self.assertEqual(gamelist.query, "")
+        self.assertIsNone((yield pg.event.Event(pg.QUIT)))
+
     def test_layout(self) -> Script:
         """The grid is laid out again when the window changes size."""
         grid = Grid()

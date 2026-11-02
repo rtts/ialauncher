@@ -8,7 +8,7 @@ from ialauncher import options
 from ialauncher.gamelist import gamelist
 from ialauncher.scenes.grid import Grid
 from ialauncher.scenes.hero import ADVANCE, Hero
-from ialauncher.scenes.play import Play
+from ialauncher.scenes.play import Autoplay, Play
 from ialauncher.tests.support import HeadlessTestCase, Script, key, text
 
 
@@ -56,9 +56,9 @@ class TestHero(HeadlessTestCase):
 
     def test_not_autoplayable(self) -> Script:
         """Space on a game that never autoplays dissolves into the next game."""
-        options.autoplay = 300
+        options.autoplay = True
         game = self.game("downloaded")
-        game.autoplayable = False
+        game.autoplay = 0
         gamelist.current_game = 0
         hero = Hero()
         yield hero
@@ -106,6 +106,37 @@ class TestHero(HeadlessTestCase):
         self.assertTrue(game.is_ready())
         self.assertIs(self.emulators[0].game, game)
         self.assertIsNot(gamelist.get_current_game(), game)
+        self.assertIsNone((yield key(pg.K_ESCAPE)))
+
+    def test_shift_a(self) -> Script:
+        """Shift-A plays the game, and saves how long it ran as autoplay."""
+        game = gamelist.get_current_game()
+        yield Hero()
+        yield key(pg.K_a, pg.KMOD_LSHIFT, "A")
+        yield from self.wait_for(Hero)
+        self.assertIs(self.emulators[0].game, game)
+        self.assertEqual(self.saved, [(game, "autoplay", "0")])
+        self.assertIs(gamelist.get_current_game(), game)
+        self.assertIsNone((yield key(pg.K_ESCAPE)))
+
+    def test_alt_a(self) -> Script:
+        """Alt-A autoplays the game for its seconds, even without --autoplay."""
+        self.keep_running = True
+        game = self.qualify(gamelist.get_current_game())
+        game.autoplay = 42
+        options.autoplay = False
+        yield Hero()
+        yield key(pg.K_a, pg.KMOD_LALT, "a")
+        autoplay = yield from self.wait_for(Autoplay)
+        yield None
+        self.assertIs(self.emulators[0].game, game)
+        remaining = autoplay.deadline - pg.time.get_ticks()
+        self.assertGreater(remaining, 41_000)
+        self.assertLessEqual(remaining, 42_000)
+        autoplay.deadline = 0
+        yield from self.wait_for(Hero)
+        self.assertTrue(self.emulators[0].stopped)
+        self.assertEqual(self.saved, [])
         self.assertIsNone((yield key(pg.K_ESCAPE)))
 
     def test_after_screensaver(self) -> Script:

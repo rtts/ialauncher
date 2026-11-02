@@ -9,7 +9,7 @@ from ialauncher.cga import cga
 from ialauncher.engine import NextScene
 from ialauncher.game import Game
 from ialauncher.gamelist import gamelist
-from ialauncher.utils import letterbox, sharp_scale
+from ialauncher.utils import find_emulator, letterbox, sharp_scale
 
 from . import GRID_LARGER, grid
 from .browse import ARROW_KEYS, Browse
@@ -17,6 +17,7 @@ from .crt import CRToff, CRTon
 from .dissolve import Dissolve
 from .download import Download
 from .play import Autoplay, Play
+from .record import Record
 from .unzip import Unzip
 
 if TYPE_CHECKING:
@@ -41,7 +42,9 @@ class Hero(Browse):
         super().__init__()
         self.slideshow_running = slideshow and options.slideshow > 0
         game = gamelist.get_current_game()
-        self.after_screensaver = bool(screensaver and game and Autoplay.qualifies(game))
+        self.after_screensaver = bool(
+            screensaver and game and options.autoplay and Autoplay.qualifies(game)
+        )
         self.cache: dict[tuple[Game, tuple[int, int], int | None], pg.Surface] = {}
         self.handlers: dict[int, Callable[[], None]] = {
             pg.K_RIGHT: gamelist.next_game,
@@ -63,11 +66,15 @@ class Hero(Browse):
         Switch the CRT back on with the next game, or after the
         screensaver, continue with the screensaver. When the game can't
         be autoplayed, dissolve into the next game instead.
+
+        Alt-A autoplays the game right away.
         """
+        if event.type == pg.KEYDOWN and event.key == pg.K_a and event.mod & pg.KMOD_ALT:
+            return self.play_timed(Autoplay)
         if event.type != ADVANCE:
             return super().handle(event)
         game = gamelist.get_current_game()
-        autoplay = bool(game and Autoplay.qualifies(game))
+        autoplay = bool(game and options.autoplay and Autoplay.qualifies(game))
         if self.after_screensaver:
             self.after_screensaver = False
             then = self.screensaver()
@@ -140,6 +147,20 @@ class Hero(Browse):
         """Switch off the CRT, get the game ready and play it, and switch it on."""
         play = Play(game, CRTon(self), autorun=autorun)
         return CRToff(Download(game, Unzip(game, play)))
+
+    @override
+    def shift_command(self, key: int) -> NextScene:
+        """Record how long the game runs with Shift-A, or another Shift command."""
+        if key == pg.K_a:
+            return self.play_timed(Record)
+        return super().shift_command(key)
+
+    def play_timed(self, scene: type[Autoplay | Record]) -> NextScene:
+        """Get the game ready, and autoplay or record it with the CRT off."""
+        game = gamelist.get_current_game()
+        if game is None or game.is_running() or not find_emulator(game):
+            return None
+        return CRToff(Download(game, Unzip(game, scene(game, CRTon(self)))))
 
     @override
     def draw(self) -> None:

@@ -77,6 +77,14 @@ class TestHero(HeadlessTestCase):
         """Hero > ctrl-enter > Download > Unzip > Hero."""
         yield from self.expect(Hero(), key(pg.K_RETURN, pg.KMOD_LCTRL))
 
+    def test_shift_a(self) -> Script:
+        """Hero > shift-A > CRToff > Download > Unzip > Record > CRTon > Hero."""
+        yield from self.expect(Hero(), key(pg.K_a, pg.KMOD_LSHIFT, "A"))
+
+    def test_alt_a(self) -> Script:
+        """Hero > alt-A > CRToff > Download > Unzip > Autoplay > CRTon > Hero."""
+        yield from self.expect(Hero(), key(pg.K_a, pg.KMOD_LALT, "a"))
+
     def test_space(self) -> Script:
         """Hero > space > CRToff > Unzip > Autoplay > CRTon > Hero."""
         self.qualify(gamelist.get_current_game())
@@ -92,15 +100,15 @@ class TestHero(HeadlessTestCase):
 
     def test_space_not_autoplayable(self) -> Script:
         """Hero > space > Dissolve > Hero."""
-        options.autoplay = 300
-        self.game().autoplayable = False
+        options.autoplay = True
+        self.game().autoplay = 0
         gamelist.current_game = 0
         yield from self.expect(Hero(), key(pg.K_SPACE))
 
     def test_slideshow_not_autoplayable(self) -> Script:
         """Hero > ADVANCE > Dissolve > Hero."""
-        options.autoplay = 300
-        self.game().autoplayable = False
+        options.autoplay = True
+        self.game().autoplay = 0
         gamelist.current_game = 0
         yield from self.expect(Hero(slideshow=True), pg.event.Event(ADVANCE))
 

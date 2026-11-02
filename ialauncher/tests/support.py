@@ -330,6 +330,7 @@ class HeadlessTestCase(unittest.TestCase):
         self.unzips: list[FakeUnzip] = []
         self.emulators: list[FakeEmulator] = []
         self.changed: list[Game] = []
+        self.saved: list[tuple[Game, str, str]] = []
         self.finish_jobs = True
         self.keep_running = False
         files = self.files
@@ -385,6 +386,11 @@ class HeadlessTestCase(unittest.TestCase):
         self.enterContext(mock.patch.object(Game, "start", start))
         self.enterContext(mock.patch.object(Game, "get_emulator", lambda _: []))
         self.enterContext(mock.patch.object(Game, "reload_metadata", lambda _: True))
+        self.enterContext(
+            mock.patch.object(
+                Game, "save_metadata", lambda *args: self.saved.append(args)
+            )
+        )
         self.enterContext(mock.patch.object(Gamelist, "changed_games", changed_games))
         self.enterContext(mock.patch.object(play, "get_dosbox_command"))
 
@@ -436,10 +442,10 @@ class HeadlessTestCase(unittest.TestCase):
         """Make the game qualify to autoplay, and return it."""
         if game is None:
             self.fail("No game to autoplay")
-        options.autoplay = 300
+        options.autoplay = True
         game.engine = "dosbox"
         game.emulator_start = "GAME.EXE"
-        game.autoplayable = True
+        game.autoplay = 300
         self.files[game.identifier] = state
         return game
 

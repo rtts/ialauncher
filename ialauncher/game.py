@@ -93,8 +93,7 @@ class Game:
         self.scummvm_game = metadata.get("scummvm_game")
         self.scummvm_args = (metadata.get("scummvm_args") or "").split()
         self.emulator_start = metadata.get("emulator_start")
-        self.autoplayable = metadata.getboolean("autoplayable", fallback=True)
-        self.intro = metadata.getboolean("intro", fallback=False)
+        self.autoplay = metadata.getint("autoplay", fallback=0)
         datadir = "scummvm_data" if self.engine == "scummvm" else "dosbox_drive_c"
         self.gamedir = self.path / datadir
 

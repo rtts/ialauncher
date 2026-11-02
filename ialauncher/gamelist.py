@@ -163,7 +163,7 @@ class Gamelist:
 
     def random_game(self) -> None:
         """Jump to a random autoplayable game, if any are shown."""
-        if games := [game for game in self.games if game.autoplayable]:
+        if games := [game for game in self.games if game.autoplay]:
             self.current_game = self.games.index(random.choice(games))  # noqa: S311
 
 
