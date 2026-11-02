@@ -110,7 +110,8 @@ class TestHero(HeadlessTestCase):
 
     def test_ctrl_r(self) -> Script:
         """Ctrl-R plays the game, and saves how long it ran as autoplay."""
-        game = gamelist.get_current_game()
+        game = self.qualify(gamelist.get_current_game())
+        game.autoplay = 0
         yield Hero()
         yield key(pg.K_r, pg.KMOD_LCTRL, "\x12")
         yield from self.wait_for(Hero)

@@ -78,11 +78,13 @@ class TestHero(HeadlessTestCase):
         yield from self.expect(Hero(), key(pg.K_RETURN, pg.KMOD_LCTRL))
 
     def test_ctrl_r(self) -> Script:
-        """Hero > ctrl-R > CRToff > Download > Unzip > Record > CRTon > Hero."""
+        """Hero > ctrl-R > CRToff > Unzip > Record > CRTon > Hero."""
+        self.qualify(gamelist.get_current_game())
         yield from self.expect(Hero(), key(pg.K_r, pg.KMOD_LCTRL, "\x12"))
 
     def test_ctrl_a(self) -> Script:
-        """Hero > ctrl-A > CRToff > Download > Unzip > Autoplay > CRTon > Hero."""
+        """Hero > ctrl-A > CRToff > Unzip > Autoplay > CRTon > Hero."""
+        self.qualify(gamelist.get_current_game())
         yield from self.expect(Hero(), key(pg.K_a, pg.KMOD_LCTRL, "\x01"))
 
     def test_space(self) -> Script:

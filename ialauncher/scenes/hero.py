@@ -151,11 +151,18 @@ class Hero(Browse):
         return CRToff(Download(game, Unzip(game, play)))
 
     def play_timed(self, scene: type[Autoplay | Record]) -> NextScene:
-        """Get the game ready, and autoplay or record it with the CRT off."""
+        """Unzip the game if needed, and autoplay or record it with the CRT off.
+
+        Like the slideshow, never download the game.
+        """
         game = gamelist.get_current_game()
-        if game is None or game.is_running() or not find_emulator(game):
+        if game is None or game.is_running() or not game.is_downloaded():
             return None
-        return CRToff(Download(game, Unzip(game, scene(game, CRTon(self)))))
+        if scene is Autoplay and not Autoplay.qualifies(game):
+            return None
+        if not find_emulator(game):
+            return None
+        return CRToff(Unzip(game, scene(game, CRTon(self))))
 
     @override
     def draw(self) -> None:
