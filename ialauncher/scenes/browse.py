@@ -97,6 +97,12 @@ class Browse(Scene):
             next_scene = self.handle_wheel(event)
         elif (
             event.type == pg.KEYDOWN
+            and event.mod & pg.KMOD_CTRL
+            and event.key == pg.K_e
+        ):
+            self.edit_metadata()
+        elif (
+            event.type == pg.KEYDOWN
             and event.mod & pg.KMOD_SHIFT
             and pg.K_a <= event.key <= pg.K_z
         ):
@@ -152,8 +158,6 @@ class Browse(Scene):
         """Execute one of the Shift commands."""
         if key == pg.K_s:
             return self.play_at_speed(SLOW_CYCLES)
-        if key == pg.K_e:
-            self.edit_metadata()
         if key == pg.K_m:
             options.muted = not options.muted
             self.show_message("MUTED" if options.muted else "UNMUTED")
