@@ -68,10 +68,15 @@ class TestAutoplay(HeadlessTestCase):
         self.qualify(game)
         options.autoplay = 0
         self.assertFalse(Autoplay.qualifies(game))
+        self.qualify(game)
+        options.idle = 0
+        self.assertFalse(Autoplay.qualifies(game))
+        game.intro = True
+        self.assertTrue(Autoplay.qualifies(game))
 
     def test_skip(self) -> Script:
         """A game that doesn't qualify continues right away."""
-        yield Autoplay(self.game("ready"), End(), seconds=300)
+        yield Autoplay(self.game("ready"), End())
         yield from self.wait_until_quit()
         self.assertEqual(self.emulators, [])
         self.assertEqual(self.trace, ["Autoplay", "End"])
@@ -79,20 +84,32 @@ class TestAutoplay(HeadlessTestCase):
     def test_time_up(self) -> Script:
         """The game stops when time is up, and Autoplay continues."""
         self.keep_running = True
-        autoplay = Autoplay(self.qualify(self.game(), "ready"), End(), seconds=300)
+        autoplay = Autoplay(self.qualify(self.game(), "ready"), End())
         yield autoplay
         remaining = autoplay.deadline - pg.time.get_ticks()
-        self.assertGreater(remaining, 299_000)
+        self.assertGreater(remaining, options.idle * 1000 - 1000)
         self.assertIsInstance((yield key(pg.K_ESCAPE)), Autoplay)
         autoplay.deadline = 0
         yield from self.wait_until_quit()
         self.assertTrue(self.emulators[0].stopped)
         self.assertEqual(self.trace, ["Autoplay", "End"])
 
+    def test_intro_time(self) -> Script:
+        """Intros play for --autoplay seconds instead of --idle seconds."""
+        self.keep_running = True
+        game = self.qualify(self.game(), "ready")
+        game.intro = True
+        autoplay = Autoplay(game, End())
+        yield autoplay
+        remaining = autoplay.deadline - pg.time.get_ticks()
+        self.assertGreater(remaining, options.autoplay * 1000 - 1000)
+        autoplay.deadline = 0
+        yield from self.wait_until_quit()
+
     def test_error(self) -> Script:
         """A game that fails continues without showing the error."""
         self.keep_running = True
-        yield Autoplay(self.qualify(self.game(), "ready"), End(), seconds=300)
+        yield Autoplay(self.qualify(self.game(), "ready"), End())
         self.emulators[0].exit("Illegal function call")
         yield from self.wait_until_quit()
         self.assertEqual(self.errors, [])

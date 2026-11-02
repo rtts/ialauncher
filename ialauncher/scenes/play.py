@@ -64,15 +64,15 @@ class Play(Blackout):
 
 
 class Autoplay(Play):
-    """Play the game for the given seconds, and continue with the next scene.
+    """Play the game for a while, and continue with the next scene.
 
+    Intros play for --autoplay seconds, other games for --idle seconds.
     Continue right away if the game doesn't qualify.
     """
 
-    def __init__(self, game: Game, then: Scene, *, seconds: int) -> None:
+    def __init__(self, game: Game, then: Scene) -> None:
         """Prepare to play the game."""
         super().__init__(game, then)
-        self.seconds = seconds
         self.deadline = 0
 
     @override
@@ -81,7 +81,8 @@ class Autoplay(Play):
         if self.emulator is None:
             if not self.qualifies(self.game):
                 return self.then
-            self.deadline = pg.time.get_ticks() + self.seconds * 1000
+            seconds = options.autoplay if self.game.intro else options.idle
+            self.deadline = pg.time.get_ticks() + seconds * 1000
         elif pg.time.get_ticks() >= self.deadline or not self.emulator.is_alive():
             self.emulator.stop()
             return self.then
@@ -95,7 +96,7 @@ class Autoplay(Play):
     @staticmethod
     def qualifies(game: Game) -> bool:
         """Return whether the game qualifies to autoplay."""
-        if not options.autoplay:
+        if not options.autoplay or not (game.intro or options.idle):
             return False
         if not game.autoplayable or game.engine != "dosbox" or not game.emulator_start:
             return False
