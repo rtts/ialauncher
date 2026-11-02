@@ -254,7 +254,7 @@ class Browse(Scene):
             self.reshow()
         elif new_query:
             return None
-        self.keystroke(event)
+        self.keystroke(event, typed=added)
         if added:
             return None
         if event.key == pg.K_BACKSPACE:
@@ -292,8 +292,8 @@ class Browse(Scene):
             return False
         return bool(event.unicode) and event.unicode.isprintable()
 
-    def keystroke(self, event: pg.event.Event) -> None:
-        """React to a keystroke that wasn't ignored."""
+    def keystroke(self, event: pg.event.Event, *, typed: bool) -> None:
+        """React to a keystroke that wasn't ignored, and whether it typed."""
 
     def screensaver(self) -> Scene:
         """Return the screensaver."""

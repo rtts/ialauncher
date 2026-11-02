@@ -43,11 +43,12 @@ class TestHero(HeadlessTestCase):
         self.assertIsNone((yield key(pg.K_ESCAPE)))
 
     def test_slideshow_keys(self) -> Script:
-        """Tab and Backspace keep the slideshow running, other keys stop it."""
+        """Only keys that do something stop the slideshow, but not Tab or Backspace."""
         hero = Hero(slideshow=True)
         yield hero
-        yield key(pg.K_TAB)
-        yield key(pg.K_BACKSPACE)
+        for k in (pg.K_TAB, pg.K_BACKSPACE, pg.K_LGUI, pg.K_RGUI, pg.K_F15):
+            yield key(k)
+        yield key(pg.K_PLUS, unicode="+")
         self.assertTrue(hero.slideshow_running)
         yield key(pg.K_RIGHT)
         self.assertFalse(hero.slideshow_running)

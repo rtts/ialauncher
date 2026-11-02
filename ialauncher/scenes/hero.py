@@ -12,7 +12,7 @@ from ialauncher.gamelist import gamelist
 from ialauncher.utils import letterbox, sharp_scale
 
 from . import GRID_LARGER, grid
-from .browse import Browse
+from .browse import ARROW_KEYS, Browse
 from .crt import CRToff, CRTon
 from .dissolve import Dissolve
 from .download import Download
@@ -23,7 +23,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
 ADVANCE = pg.event.custom_type()
-KEEP_SLIDESHOW = {pg.K_ESCAPE, pg.K_TAB, pg.K_BACKSPACE}
+SLIDESHOW_KEYS = {pg.K_SPACE, pg.K_RETURN} | ARROW_KEYS | GRID_LARGER
 
 
 class Hero(Browse):
@@ -117,14 +117,11 @@ class Hero(Browse):
         return super().handle_wheel(event)
 
     @override
-    def keystroke(self, event: pg.event.Event) -> None:
-        """Stop the slideshow on most keystrokes, and after the screensaver.
-
-        Space starts it, unless it typed a space into the filter.
-        """
-        if event.key not in KEEP_SLIDESHOW:
+    def keystroke(self, event: pg.event.Event, *, typed: bool) -> None:
+        """Stop the slideshow and reset self.after_screensaver on certain keys."""
+        if typed or event.key in SLIDESHOW_KEYS:
             self.after_screensaver = False
-            self.set_slideshow(enabled=event.key == pg.K_SPACE and not self.typing)
+            self.set_slideshow(enabled=event.key == pg.K_SPACE and not typed)
 
     @override
     def navigate(self, event: pg.event.Event) -> NextScene:
