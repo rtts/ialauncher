@@ -19,8 +19,8 @@ repos:
         additional_dependencies: [pygame-ce]
         types: [python]
         pass_filenames: false
-      - id: tabs
-        name: tabs
-        entry: python -c "import pathlib, sys; [p.write_bytes(new) for p in map(pathlib.Path, sys.argv[1:]) if (new := p.read_bytes().replace(bytes(8 * [32]), bytes([9]))) != p.read_bytes()]"
+      - id: metadata
+        name: metadata
+        entry: python -c "import sys,configparser as c;[(p:=c.ConfigParser(),p.read(f),p.write(open(f,'w',newline='\n'))) for f in sys.argv[1:]]"
         language: python
         files: (^|/)metadata\.ini$
