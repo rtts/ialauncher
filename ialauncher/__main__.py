@@ -3,6 +3,7 @@
 import argparse
 import io
 import sys
+from collections import Counter
 from pathlib import Path
 
 import games
@@ -126,10 +127,24 @@ def print_stats(games_dir: Path) -> None:
     all_games = [
         Game(path) for path in games_dir.iterdir() if (path / "metadata.ini").exists()
     ]
-    print(f"Total: {len(all_games)}")
+    print(f"\nTotal: {len(all_games)}")
     print(f"Downloaded: {sum(game.is_downloaded() for game in all_games)}")
     print(f"Autoplayable: {sum(bool(game.autoplay) for game in all_games)}")
     print(f"Played: {sum(game.gamedir.is_dir() for game in all_games)}")
+    if times := [game.autoplay for game in all_games if game.autoplay]:
+        print("\nAutoplay times:")
+        print_histogram(times)
+        print(f"\nTotal autoplay time: {sum(times) / 3600:.1f} hours")
+    print()
+
+
+def print_histogram(values: list[int], bin_size: int = 10, width: int = 50) -> None:
+    """Print a histogram of the values, skipping empty bins."""
+    bins = Counter(value // bin_size * bin_size for value in values)
+    most = max(bins.values())
+    for start in sorted(bins):
+        bar = "#" * max(1, round(bins[start] * width / most))
+        print(f"{start:4}-{start + bin_size - 1:<4} {bar} {bins[start]}")
 
 
 def set_options(args: argparse.Namespace) -> None:
