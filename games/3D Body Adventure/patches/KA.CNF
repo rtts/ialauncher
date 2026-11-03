@@ -1,0 +1,25 @@
+AutoMovie         : on
+CDdrive           : C
+CDroot            : C:\3DBODY
+DigitizedSound    : on
+ExtraMemory       : Automatic
+HDdrive           : C
+hdroot            : C:\3DBODY
+LANG              : eng
+mouseSensitivity  : 50
+Music             : on
+musicDevParams    : a220 
+musicDriver       : C:\3DBODY\drivers\SBP2FM.DRV
+musicType         : adl
+musicVolume       : 70
+needMem           : 520
+no                : N
+PrinterPort       : LPT1
+Printing          : Detect
+shortTitle        : 3DBODY
+soundDevice       : Sound Blaster 16
+soundDevParams    : a220 i7 d1 
+soundDriver       : C:\3DBODY\drivers\SBPDIG.DRV
+title             : 3-D Body Adventure
+yes               : Y
+zoomUseRealSound  : off
