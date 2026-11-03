@@ -34,6 +34,7 @@ class Play(Blackout):
         self.autorun = autorun
         self.wait = wait
         self.emulator: Emulator | None = None
+        self.message = f"NOW PLAYING: {game.title.upper()}"
 
     @override
     def update(self) -> NextScene:

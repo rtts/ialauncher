@@ -1,7 +1,5 @@
 """Base class for browsing title screens."""
 
-import shutil
-import subprocess
 from typing import override
 
 import pygame as pg
@@ -38,7 +36,6 @@ MESSAGE_EXPIRED = pg.event.custom_type()
 MESSAGE_TIMEOUT = 1000
 READY_MESSAGES = {None: "All", True: "Favorites", False: "Least favorites"}
 NEXT_READY = {None: True, True: False, False: None}
-SLOW_CYCLES = 300
 
 
 class Browse(Scene):
@@ -97,12 +94,6 @@ class Browse(Scene):
             next_scene = self.handle_wheel(event)
         elif (
             event.type == pg.KEYDOWN
-            and event.mod & pg.KMOD_CTRL
-            and event.key == pg.K_e
-        ):
-            self.edit_metadata()
-        elif (
-            event.type == pg.KEYDOWN
             and event.mod & pg.KMOD_SHIFT
             and pg.K_a <= event.key <= pg.K_z
         ):
@@ -146,29 +137,12 @@ class Browse(Scene):
             return self.add_or_remove(game)
         return self.start_game(game, mod)
 
-    def play_at_speed(self, cpu_cycles: int) -> NextScene:
-        """Start the current DOSBox game with cpu_cycles, and remember it."""
-        game = gamelist.get_current_game()
-        if game and game.engine == "dosbox" and not game.is_running():
-            game.set_cpu_cycles(cpu_cycles)
-            return self.start_game(game, 0)
-        return None
-
     def shift_command(self, key: int) -> NextScene:
         """Execute one of the Shift commands."""
-        if key == pg.K_s:
-            return self.play_at_speed(SLOW_CYCLES)
         if key == pg.K_m:
             options.muted = not options.muted
             self.show_message("MUTED" if options.muted else "UNMUTED")
         return None
-
-    @staticmethod
-    def edit_metadata() -> None:
-        """Open the current game's metadata.ini in xjed, if it's installed."""
-        game = gamelist.get_current_game()
-        if game and (editor := shutil.which("xjed")):
-            subprocess.Popen([editor, game.path / "metadata.ini"])  # noqa: S603
 
     def add_or_remove(self, game: Game) -> NextScene:
         """Delete the gamedir if it exists, or get the game ready if it doesn't."""

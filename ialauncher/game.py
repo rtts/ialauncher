@@ -32,6 +32,8 @@ from .emulator import (
 from .iso import ISOFile
 from .utils import tls_context
 
+type Engine = Literal["dosbox", "scummvm"]
+
 QUICK_EXIT = 3  # seconds
 OUTPUT_LINES = 5
 EMULATOR_FAILED = pg.event.custom_type()
@@ -43,7 +45,12 @@ CERTIFICATE_HINT = (
     "Visit https://archive.org/ in your web browser and then try again, it might help."
 )
 
-type Engine = Literal["dosbox", "scummvm"]
+NOT_APPLICABLE = "n/a"
+DOSBOX_DEFAULTS = {
+    "core": "auto",
+    "cpu_cycles": "3000",
+    "cpu_cycles_protected": "60000",
+}
 
 
 class MetadataError(Exception):
@@ -94,6 +101,9 @@ class Game:
         self.scummvm_args = (metadata.get("scummvm_args") or "").split()
         self.emulator_start = metadata.get("emulator_start")
         self.autoplay = metadata.getint("autoplay", fallback=0)
+        self.dosbox_settings = {
+            key: metadata.get(key, default) for key, default in DOSBOX_DEFAULTS.items()
+        }
         datadir = "scummvm_data" if self.engine == "scummvm" else "dosbox_drive_c"
         self.gamedir = self.path / datadir
 
@@ -128,6 +138,9 @@ class Game:
 
         dosbox = get_dosbox_command()
         dosbox_args = [".", *get_dosbox_options()]
+        for key, value in self.dosbox_settings.items():
+            if value != NOT_APPLICABLE:
+                dosbox_args.extend(["-c", f"@config -set {key} {value}"])
 
         # Copy patch files to C:\
         for file in filter(Path.is_file, self.path.glob("patches/*")):
@@ -173,18 +186,10 @@ class Game:
         thread.start()
         return thread
 
-    def set_cpu_cycles(self, cpu_cycles: int) -> None:
-        """Set cpu_cycles at the top of `emulator_start`."""
-        if not self.emulator_start:
-            return
-        line = f"config -set cpu_cycles={cpu_cycles}"
-        lines = self.emulator_start.split("\n")
-        top = 0 if lines[0] else 1
-        if lines[top : top + 1] == [line]:
-            return
-        lines.insert(top, line)
-        self.emulator_start = "\n".join(lines)
-        self.save_metadata("emulator_start", self.emulator_start)
+    def set_dosbox_setting(self, key: str, value: str) -> None:
+        """Change one of the DOSBox settings, and save it to metadata.ini."""
+        self.dosbox_settings[key] = value
+        self.save_metadata(key, value)
 
     def save_metadata(self, key: str, value: str) -> None:
         """Save the value to metadata.ini and the cache."""

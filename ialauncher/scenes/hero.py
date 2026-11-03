@@ -69,9 +69,12 @@ class Hero(Browse):
         be autoplayed, dissolve into the next game instead.
 
         Ctrl-A autoplays the game right away, Ctrl-R records it, and
-        Ctrl-Shift-R resets the game before recording it.
+        Ctrl-Shift-R resets the game before recording it. Ctrl-E shows
+        its settings.
         """
         ctrl = event.type == pg.KEYDOWN and event.mod & pg.KMOD_CTRL
+        if ctrl and event.key == pg.K_e:
+            return edit.Edit()
         if ctrl and (scene := TIMED_KEYS.get(event.key)):
             reset = scene is Record and bool(event.mod & pg.KMOD_SHIFT)
             return self.play_timed(scene, reset=reset)
@@ -189,3 +192,7 @@ class Hero(Browse):
     def dot_area(self) -> pg.Rect:
         """Draw the dots in the corners of the title screen."""
         return letterbox(self.screen.get_rect())
+
+
+# Edit is a Hero, so import it once Hero exists.
+from . import edit  # noqa: E402

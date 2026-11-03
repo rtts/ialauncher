@@ -17,6 +17,7 @@ Scene transitions:
 - Hero > delete > Starfield
 - Hero > IDLE > Starfield
 - Hero > minus > Grid
+- Hero > ctrl-E > Edit
 - Hero > METADATA > Hero
 - Hero > escape > quit
 - Grid > click > Download > Unzip > Play > Grid
@@ -29,6 +30,8 @@ Scene transitions:
 - Grid > zoom out > Stars > Grid
 - Grid > delete > Starfield
 - Grid > IDLE > Starfield
+- Edit > escape > Hero
+- Edit > METADATA > Edit
 - Starfield > collision > Hero
 - Starfield > escape > Hero
 - Starfield > escape > Grid
@@ -41,7 +44,7 @@ from typing import override
 
 import pygame as pg
 
-from ialauncher import engine
+from ialauncher import ega, engine
 from ialauncher.cheats import cheat
 from ialauncher.engine import NextScene
 from ialauncher.gamelist import LOADING_FAILED
@@ -50,9 +53,11 @@ from ialauncher.utils import gradient, letterbox, sharp_scale, show_error
 CYAN = (0, 204, 255)
 MAGENTA = (255, 0, 204)
 BLACK = (0, 0, 0)
+WHITE = (255, 255, 255)
 GRID_LARGER = {pg.K_MINUS, pg.K_KP_MINUS}
 GRID_SMALLER = {pg.K_PLUS, pg.K_EQUALS, pg.K_KP_PLUS}
 CHECK_INTERVAL = 100  # milliseconds
+MESSAGE_DELAY = 1000  # milliseconds, for DOSBox to start up
 FONT_FAMILY = "dejavusans,liberationsans,arial,helvetica,sans"
 
 
@@ -152,12 +157,25 @@ class TitleScreen(Scene):
 
 
 class Blackout(Scene):
-    """A black screen behind DOSBox."""
+    """A black screen behind DOSBox, with an optional message."""
+
+    message = ""
+    message_at = 0
+
+    @override
+    def start(self) -> NextScene:
+        """Show the message after a second, when DOSBox has started up."""
+        self.message_at = pg.time.get_ticks() + MESSAGE_DELAY
+        return super().start()
 
     @override
     def update(self) -> NextScene:
-        """Stay black."""
+        """Stay black, and show the message in the middle of the screen."""
         self.screen.fill(BLACK)
+        if self.message and pg.time.get_ticks() >= self.message_at:
+            image = ega.render(self.message, WHITE, BLACK, (8, 4))
+            center = self.screen.get_rect().center
+            self.screen.blit(image, image.get_rect(center=center))
         return None
 
     @override

@@ -11,6 +11,7 @@ from ialauncher import options, scenes
 from ialauncher.gamelist import gamelist
 from ialauncher.scenes import snake
 from ialauncher.scenes.browse import IDLE
+from ialauncher.scenes.edit import Edit
 from ialauncher.scenes.grid import Grid
 from ialauncher.scenes.hero import ADVANCE, Hero
 from ialauncher.scenes.loading import Loading
@@ -148,6 +149,10 @@ class TestHero(HeadlessTestCase):
         """Hero > METADATA > Hero."""
         yield from self.expect(Hero(), self.change_metadata)
 
+    def test_ctrl_e(self) -> Script:
+        """Hero > ctrl-E > Edit."""
+        yield from self.expect(Hero(), key(pg.K_e, pg.KMOD_LCTRL, "\x05"))
+
     def test_escape(self) -> Script:
         """Hero > escape > quit."""
         yield from self.expect(Hero(), key(pg.K_ESCAPE))
@@ -226,6 +231,20 @@ class TestScreensaver(HeadlessTestCase):
     def test_exit(self) -> Script:
         """Stars > exit > Grid."""
         yield from self.expect(Stars(Grid()), self.exit_stars)
+
+
+class TestEdit(HeadlessTestCase):
+    """The transitions from Edit."""
+
+    loaded = True
+
+    def test_escape(self) -> Script:
+        """Edit > escape > Hero."""
+        yield from self.expect(Edit(), key(pg.K_ESCAPE))
+
+    def test_metadata(self) -> Script:
+        """Edit > METADATA > Edit."""
+        yield from self.expect(Edit(), self.change_metadata)
 
 
 class TestAny(HeadlessTestCase):

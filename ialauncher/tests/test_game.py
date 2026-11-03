@@ -190,18 +190,33 @@ class TestGame(unittest.TestCase):
             thread.join()
         self.assertTrue(game.is_ready())
 
-    def test_set_cpu_cycles(self) -> None:
-        """Slowing a game down configures cpu_cycles at the top, once."""
-        directory = Path(self.enterContext(tempfile.TemporaryDirectory()))
-        (directory / "metadata.ini").write_text(
-            "[metadata]\ntitle = Game\nyear = 1990\nurl = https://example.com/G.ZIP\n"
-            "emulator_start = \n\tcd game\n\tgame\n"
-        )
-        (directory / "title.png").touch()
-        game = Game(directory)
-        game.set_cpu_cycles(300)
-        game.set_cpu_cycles(300)
+    def test_dosbox_settings(self) -> None:
+        """The DOSBox settings default to the auto core at 3000 cycles."""
+        metadata = {"title": "Game", "year": "1981", "url": "https://example.com/G.ZIP"}
+        game = Game(Path("Game"), {**metadata, "core": "simple", "cpu_cycles": "300"})
         self.assertEqual(
-            Game(directory).emulator_start,
-            "\nconfig -set cpu_cycles=300\ncd game\ngame",
+            game.dosbox_settings,
+            {"core": "simple", "cpu_cycles": "300", "cpu_cycles_protected": "60000"},
+        )
+
+    def test_not_applicable(self) -> None:
+        """DOSBox gets a config -set for each setting, except the ones that are n/a."""
+        metadata = {"title": "Game", "year": "1981", "url": "https://example.com/G.ZIP"}
+        game = Game(Path("Game"), {**metadata, "cpu_cycles_protected": "n/a"})
+        with (
+            mock.patch("ialauncher.game.get_dosbox_command", return_value=["dosbox"]),
+            mock.patch("ialauncher.game.get_dosbox_options", return_value=[]),
+            mock.patch("ialauncher.game.DOSBox") as dosbox,
+        ):
+            game.start()
+        self.assertEqual(
+            dosbox.call_args.args[1],
+            [
+                "dosbox",
+                ".",
+                "-c",
+                "@config -set core auto",
+                "-c",
+                "@config -set cpu_cycles 3000",
+            ],
         )
