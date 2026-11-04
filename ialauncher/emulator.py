@@ -63,7 +63,7 @@ def get_dosbox_options() -> list[str]:
     args = ["-fullscreen", "--nolocalconf", "--set", "shader=sharp"]
     if not has_opengl():
         args.extend(["--set", "output=texture"])
-    args.extend(["-c", "@mixer master 88 pcspeaker 44 /noshow"])
+    args.extend(["-c", "@mixer master 88 pcspeaker 33 /noshow"])
     if options.muted:
         args.extend(["--set", "nosound=true"])
     return args

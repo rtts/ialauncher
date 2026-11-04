@@ -8,19 +8,28 @@ import pygame as pg
 
 from ialauncher import ega
 from ialauncher.engine import NextScene
-from ialauncher.game import NOT_APPLICABLE
+from ialauncher.game import NOT_APPLICABLE, Game
 from ialauncher.gamelist import gamelist
 
 from . import BLACK, WHITE
 from .hero import Hero
 
 MARGIN = 16
-CYCLES = ["300", "3000", "6000", "12000", "25000", "60000", "100000", "200000"]
-SETTING_KEYS = {
-    pg.K_1: ("core", ["simple", "normal", "dynamic"]),
-    pg.K_2: ("cpu_cycles", CYCLES),
-    pg.K_3: ("cpu_cycles_protected", [*CYCLES, "auto", NOT_APPLICABLE]),
+CORES = {
+    "simple": {
+        "cpu_cycles": ["300"],
+        "cpu_cycles_protected": [NOT_APPLICABLE],
+    },
+    "normal": {
+        "cpu_cycles": ["3000", "6000", "12000"],
+        "cpu_cycles_protected": [NOT_APPLICABLE],
+    },
+    "dynamic": {
+        "cpu_cycles": ["25000", "60000", "100000"],
+        "cpu_cycles_protected": ["auto", NOT_APPLICABLE],
+    },
 }
+SETTING_KEYS = {pg.K_2: "cpu_cycles", pg.K_3: "cpu_cycles_protected"}
 
 
 def next_value(value: str, values: list[str]) -> str:
@@ -35,11 +44,9 @@ def next_value(value: str, values: list[str]) -> str:
 
 
 class Edit(Hero):
-    """Show the settings of the current game, and change them.
+    """Edit the settings of the current game.
 
-    1, 2 and 3 cycle through the values of core, cpu_cycles and
-    cpu_cycles_protected, and save the new value right away. Ctrl-E
-    opens metadata.ini in xjed.
+    Temporary view, will remove later.
     """
 
     @override
@@ -51,19 +58,32 @@ class Edit(Hero):
         if mod & pg.KMOD_CTRL and event.key == pg.K_e:
             self.edit_metadata()
             return None
-        if not mod and event.key in SETTING_KEYS:
-            self.change_setting(*SETTING_KEYS[event.key])
+        if not mod and (event.key == pg.K_1 or event.key in SETTING_KEYS):
+            game = gamelist.get_current_game()
+            if game and game.engine == "dosbox":
+                if event.key == pg.K_1:
+                    self.change_core(game)
+                else:
+                    self.change_setting(game, SETTING_KEYS[event.key])
             self.keystroke(event, typed=False)
             return None
         return super().handle(event)
 
     @staticmethod
-    def change_setting(key: str, values: list[str]) -> None:
-        """Switch the current DOSBox game's setting to the next value."""
-        game = gamelist.get_current_game()
-        if game and game.engine == "dosbox":
-            value = next_value(game.dosbox_settings[key], values)
-            game.set_dosbox_setting(key, value)
+    def change_core(game: Game) -> None:
+        """Switch to the next core, with the cycles that go with it."""
+        core = next_value(game.dosbox_settings["core"], list(CORES))
+        game.set_dosbox_setting("core", core)
+        for key, values in CORES[core].items():
+            if len(values) == 1 or key == "cpu_cycles":
+                game.set_dosbox_setting(key, values[0])
+
+    @staticmethod
+    def change_setting(game: Game, key: str) -> None:
+        """Switch the setting to its next value for the core, if it has one."""
+        values = CORES.get(game.dosbox_settings["core"], {}).get(key, [])
+        if len(values) > 1:
+            game.set_dosbox_setting(key, next_value(game.dosbox_settings[key], values))
 
     @override
     def escape(self) -> NextScene:

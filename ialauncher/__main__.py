@@ -15,6 +15,9 @@ from .game import Game, write_metadata_cache
 from .gamelist import gamelist
 from .scenes.loading import Loading
 
+# Autoplay times left out of the histogram and the total autoplay time.
+PLACEHOLDER_AUTOPLAY_TIMES = {60, 300}
+
 
 def main() -> None:
     """Parse the command-line arguments and start IA Launcher."""
@@ -131,7 +134,11 @@ def print_stats(games_dir: Path) -> None:
     print(f"Downloaded: {sum(game.is_downloaded() for game in all_games)}")
     print(f"Autoplayable: {sum(bool(game.autoplay) for game in all_games)}")
     print(f"Played: {sum(game.gamedir.is_dir() for game in all_games)}")
-    if times := [game.autoplay for game in all_games if game.autoplay]:
+    if times := [
+        game.autoplay
+        for game in all_games
+        if game.autoplay and game.autoplay not in PLACEHOLDER_AUTOPLAY_TIMES
+    ]:
         print("\nAutoplay times:")
         print_histogram(times)
         print(f"\nTotal autoplay time: {sum(times) / 3600:.1f} hours")
