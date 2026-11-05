@@ -13,6 +13,10 @@ BEEP_FREQUENCY = 882
 BEEP_AMPLITUDE = 4096
 BLIP_TIME = 16
 held_keys: set[int] = set()
+MODIFIER_KEYS = {
+    pg.K_LCTRL, pg.K_RCTRL, pg.K_LSHIFT, pg.K_RSHIFT,
+    pg.K_LALT, pg.K_RALT, pg.K_LGUI, pg.K_RGUI,
+}  # fmt: skip
 
 
 def kb_int(event: pg.event.Event) -> bool:
@@ -20,11 +24,13 @@ def kb_int(event: pg.event.Event) -> bool:
 
     Handle one keystroke per frame. When more come in while a frame is
     drawn, by holding a key or tapping it fast, drop them, and beep.
+    Modifier keys don't count, so that the key pressed with them isn't
+    dropped.
     """
     if event.type == pg.KEYUP:
         held_keys.discard(event.key)
         speaker.stop()
-    if event.type != pg.KEYDOWN:
+    if event.type != pg.KEYDOWN or event.key in MODIFIER_KEYS:
         return True
     released = event.key in held_keys and not pg.key.get_pressed()[event.key]
     held_keys.add(event.key)
