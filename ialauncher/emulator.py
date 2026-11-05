@@ -1,4 +1,4 @@
-"""Find the locations of the supported emulators: DOSBox, and ScummVM."""
+"""Find the locations of the supported emulators: DOSBox, ScummVM, and QEMU."""
 
 import ctypes
 import os
@@ -55,6 +55,18 @@ def get_scummvm_command() -> list[str]:
             ["/Applications/ScummVM.app/Contents/MacOS/scummvm"],
             *windows_candidates("scummvm*/scummvm.exe"),
         ],
+    )
+
+
+@cache
+def get_qemu_command() -> list[str]:
+    """Return the command that runs QEMU."""
+    if options.qemu_executable:
+        return get_executable("QEMU", options.qemu_executable)
+    return get_command(
+        "QEMU",
+        "https://www.qemu.org/",
+        [["qemu-system-i386"], *windows_candidates("qemu*/qemu-system-i386.exe")],
     )
 
 

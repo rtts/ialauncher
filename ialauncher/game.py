@@ -3,6 +3,7 @@
 import configparser
 import glob
 import json
+import os
 import shlex
 import shutil
 import ssl
@@ -27,12 +28,13 @@ from .emulator import (
     NO_WINDOW,
     get_dosbox_command,
     get_dosbox_options,
+    get_qemu_command,
     get_scummvm_command,
 )
 from .iso import ISOFile
 from .utils import tls_context
 
-type Engine = Literal["dosbox", "scummvm"]
+type Engine = Literal["dosbox", "scummvm", "qemu"]
 
 QUICK_EXIT = 3  # seconds
 OUTPUT_LINES = 5
@@ -51,6 +53,10 @@ DOSBOX_DEFAULTS = {
     "cpu_cycles": "3000",
     "cpu_cycles_protected": "60000",
 }
+QEMU_ARGS = shlex.split(
+    "-icount shift=7 -hda hda.img -nic user,ipv6=off,model=ne2k_pci "
+    "-device sb16 -vga cirrus -snapshot -display sdl,full-screen=on"
+)
 
 
 class MetadataError(Exception):
@@ -93,7 +99,7 @@ class Game:
         self.urls = metadata["url"].split()
         self.size = metadata.getint("size")
         engine = metadata.get("engine", "dosbox")
-        if engine not in ("dosbox", "scummvm"):
+        if engine not in ("dosbox", "scummvm", "qemu"):
             msg = f"Unknown engine {engine!r}"
             raise ValueError(msg)
         self.engine: Engine = engine
@@ -104,13 +110,17 @@ class Game:
         self.dosbox_settings = {
             key: metadata.get(key, default) for key, default in DOSBOX_DEFAULTS.items()
         }
-        datadir = "scummvm_data" if self.engine == "scummvm" else "dosbox_drive_c"
+        datadir = {"scummvm": "scummvm_data", "qemu": "qemu_data"}.get(
+            self.engine, "dosbox_drive_c"
+        )
         self.gamedir = self.path / datadir
 
     def get_emulator(self) -> list[str]:
         """Return the emulator's command, or raise EmulatorError."""
         if self.engine == "scummvm":
             return get_scummvm_command()
+        if self.engine == "qemu":
+            return get_qemu_command()
         return get_dosbox_command()
 
     def start(self, *, autorun: bool = True) -> "Emulator":
@@ -135,6 +145,11 @@ class Game:
         """
         if self.engine == "scummvm":
             return self.start_scummvm(autorun=autorun)
+        if self.engine == "qemu":
+            thread = Emulator(self, [*get_qemu_command(), *QEMU_ARGS])
+            thread.env = {**os.environ, "SDL_RENDER_SCALE_QUALITY": "linear"}
+            thread.start()
+            return thread
 
         dosbox = get_dosbox_command()
         dosbox_args = [".", *get_dosbox_options()]
@@ -296,6 +311,8 @@ class Game:
 class Emulator(Thread):
     """A thread that runs a game in an emulator."""
 
+    env: dict[str, str] | None = None
+
     def __init__(self, game: Game, command: list[str]) -> None:
         """Prepare to run the game with the given emulator command."""
         self.game = game
@@ -319,6 +336,7 @@ class Emulator(Thread):
         with subprocess.Popen(  # noqa: S603
             self.command,
             cwd=self.game.gamedir,
+            env=self.env,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             encoding="utf-8",

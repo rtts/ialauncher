@@ -13,3 +13,4 @@ autoplay: bool = False
 muted: bool = False
 dosbox_executable: str | None = None
 scummvm_executable: str | None = None
+qemu_executable: str | None = None

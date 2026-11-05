@@ -78,6 +78,11 @@ def main() -> None:
         help="Run ScummVM from PATH instead of looking for it",
     )
     parser.add_argument(
+        "--qemu",
+        metavar="PATH",
+        help="Run QEMU from PATH instead of looking for it",
+    )
+    parser.add_argument(
         "--slurp",
         dest="slurp",
         action="store_true",
@@ -154,7 +159,7 @@ def print_histogram(values: list[int], bin_size: int = 10, width: int = 50) -> N
         print(f"{start:4}-{start + bin_size - 1:<4} {bar} {bins[start]}")
 
 
-def set_options(args: argparse.Namespace) -> None:
+def set_options(args: argparse.Namespace) -> None:  # noqa: C901
     """Override the default options with the command-line arguments."""
     if args.fullscreen is not None:
         options.fullscreen = args.fullscreen
@@ -174,6 +179,8 @@ def set_options(args: argparse.Namespace) -> None:
         options.dosbox_executable = args.dosbox
     if args.scummvm is not None:
         options.scummvm_executable = args.scummvm
+    if args.qemu is not None:
+        options.qemu_executable = args.qemu
 
 
 if __name__ == "__main__":
