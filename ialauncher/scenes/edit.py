@@ -12,6 +12,7 @@ from ialauncher.game import NOT_APPLICABLE, Game
 from ialauncher.gamelist import gamelist
 
 from . import BLACK, WHITE
+from .browse import IDLE
 from .hero import Hero
 
 MARGIN = 16
@@ -51,7 +52,14 @@ class Edit(Hero):
 
     @override
     def handle(self, event: pg.event.Event) -> NextScene:
-        """Change a setting with 1, 2 or 3, or open xjed with Ctrl-E."""
+        """Change a setting with 1, 2 or 3, or open xjed with Ctrl-E.
+
+        The screensaver doesn't start, not when idle and not with Delete.
+        """
+        if event.type == IDLE or (
+            event.type == pg.KEYDOWN and event.key == pg.K_DELETE
+        ):
+            return None
         if event.type != pg.KEYDOWN:
             return super().handle(event)
         mod = event.mod & (pg.KMOD_CTRL | pg.KMOD_ALT | pg.KMOD_SHIFT)
@@ -103,7 +111,8 @@ class Edit(Hero):
         game = gamelist.get_current_game()
         if game is None or game.engine != "dosbox":
             return
-        lines = [f"{key} = {value}" for key, value in game.dosbox_settings.items()]
+        lines = [f"{game.title} ({game.year})"]
+        lines.extend(f"{key} = {value}" for key, value in game.dosbox_settings.items())
         if game.emulator_start is not None:
             lines.append("emulator_start =")
             commands = game.emulator_start.strip("\n").split("\n")
