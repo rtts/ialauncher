@@ -74,6 +74,7 @@ class Hero(Browse):
         """
         ctrl = event.type == pg.KEYDOWN and event.mod & pg.KMOD_CTRL
         if ctrl and event.key == pg.K_e:
+            edit.Edit.where_was_i()
             return edit.Edit()
         if ctrl and (scene := TIMED_KEYS.get(event.key)):
             reset = scene is Record and bool(event.mod & pg.KMOD_SHIFT)

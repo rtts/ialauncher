@@ -222,6 +222,11 @@ class Game:
             self.config.write(f)
         self.update_cache()
 
+        # Remember where I was.
+        (self.path.parent / "where_was_i.txt").write_text(
+            self.path.name + "\n", encoding="utf-8"
+        )
+
     def reload_metadata(self) -> bool:
         """Read metadata.ini again, and return whether the metadata changed.
 
