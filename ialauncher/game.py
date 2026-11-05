@@ -182,7 +182,14 @@ class Game:
         return thread
 
     def write_c(self, filename: str, text: str) -> None:
-        r"""Write a text file to C:\."""
+        r"""Write a text file to C:\.
+
+        Work around that one game that comes with its *own* dosbox.bat
+        that sometimes takes precedence (Circus Quest).
+        """
+        for file in self.gamedir.iterdir():
+            if file.name.lower() == filename.lower() and file.name != filename:
+                file.unlink()
         (self.gamedir / filename).write_text(text, encoding="cp437", newline="\r\n")
 
     def start_scummvm(self, *, autorun: bool = True) -> "Emulator":
