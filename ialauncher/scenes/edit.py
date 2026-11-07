@@ -13,7 +13,11 @@ from ialauncher.gamelist import gamelist
 
 from . import BLACK, WHITE
 from .browse import IDLE
+from .crt import CRToff, CRTon
+from .download import Download
 from .hero import Hero
+from .play import Play
+from .unzip import Unzip
 
 MARGIN = 16
 CORES = {
@@ -95,6 +99,13 @@ class Edit(Hero):
         values = CORES.get(game.dosbox_settings["core"], {}).get(key, [])
         if len(values) > 1:
             game.set_dosbox_setting(key, next_value(game.dosbox_settings[key], values))
+
+    @override
+    def launch(self, game: Game, *, autorun: bool) -> NextScene:
+        """Return to Edit right away when the game exits."""
+        play = Play(game, CRTon(self), autorun=autorun)
+        play.end_delay = 0
+        return CRToff(Download(game, Unzip(game, play)))
 
     @override
     def escape(self) -> NextScene:

@@ -22,6 +22,8 @@ class Play(Blackout):
     so the grid will be shown while you're playing.
     """
 
+    end_delay: int | None = None  # TODO(jj): Remove when removing Edit
+
     def __init__(
         self,
         game: Game,
@@ -72,7 +74,8 @@ class Play(Blackout):
             for event in pg.event.get(EMULATOR_FAILED):
                 self.handle(event)
             now = pg.time.get_ticks()  # The error may have taken a while
-            self.end_at = now + DELAY * 1000
+            delay = DELAY if self.end_delay is None else self.end_delay
+            self.end_at = now + delay * 1000
         return self.then if now >= self.end_at else None
 
     @override
