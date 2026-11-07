@@ -393,6 +393,7 @@ class HeadlessTestCase(unittest.TestCase):
         )
         self.enterContext(mock.patch.object(Gamelist, "changed_games", changed_games))
         self.enterContext(mock.patch.object(play, "get_dosbox_command"))
+        self.enterContext(mock.patch.object(play, "DELAY", 0))
 
     def fake_stars(self) -> None:
         """Fake stars.exe, which starts unless the test says it can't."""

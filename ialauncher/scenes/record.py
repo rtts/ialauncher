@@ -16,8 +16,9 @@ class Record(Play):
         """Start the clock with the game, and save the time when it exits."""
         if self.emulator is None:
             self.started = monotonic()
+        playing = self.end_at is None
         next_scene = super().update()
-        if next_scene is self.then and self.emulator is not None:
+        if playing and self.end_at is not None:  # It just exited
             self.game.autoplay = round(monotonic() - self.started)
             self.game.save_metadata("autoplay", str(self.game.autoplay))
         return next_scene

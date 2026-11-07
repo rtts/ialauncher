@@ -4,12 +4,15 @@ from typing import override
 
 import pygame as pg
 
+from ialauncher import ega
 from ialauncher.emulator import EmulatorError, get_dosbox_command
 from ialauncher.engine import NextScene
 from ialauncher.game import EMULATOR_FAILED, Emulator, Game
 from ialauncher.utils import show_error
 
-from . import Blackout, Scene
+from . import BLACK, WHITE, Blackout, Scene
+
+DELAY = 3
 
 
 class Play(Blackout):
@@ -35,13 +38,21 @@ class Play(Blackout):
         self.wait = wait
         self.emulator: Emulator | None = None
         self.message = f"NOW PLAYING: {game.title.upper()}"
+        self.message_at = 0
+        self.end_at: int | None = None
+
+    @override
+    def start(self) -> NextScene:
+        """Show the message after a while, when DOSBox has started up."""
+        self.message_at = pg.time.get_ticks() + DELAY * 1000
+        return super().start()
 
     @override
     def update(self) -> NextScene:
-        """Start the game if it's ready, and continue when it exits.
+        """Start the game if it's ready, and continue a while after it exits.
 
-        The error, if any, is posted just before the game exits, so show
-        it now, before changing scenes clears it.
+        The error, if any, is posted just before the game exits, so
+        handle it now, before changing scenes clears it.
         """
         if self.emulator is None:
             if not self.game.is_ready():  # Downloading or unzipping failed
@@ -49,11 +60,20 @@ class Play(Blackout):
             self.emulator = self.game.emulator = self.game.start(autorun=self.autorun)
             if not self.wait:
                 return self.then
+        super().update()
+        now = pg.time.get_ticks()
         if self.emulator.is_alive():
-            return super().update()
-        for event in pg.event.get(EMULATOR_FAILED):
-            show_error(event.message)
-        return self.then
+            if now >= self.message_at and not self.emulator.stopped:
+                image = ega.render(self.message, WHITE, BLACK, (8, 4))
+                center = self.screen.get_rect().center
+                self.screen.blit(image, image.get_rect(center=center))
+            return None
+        if self.end_at is None:
+            for event in pg.event.get(EMULATOR_FAILED):
+                self.handle(event)
+            now = pg.time.get_ticks()  # The error may have taken a while
+            self.end_at = now + DELAY * 1000
+        return self.then if now >= self.end_at else None
 
     @override
     def handle(self, event: pg.event.Event) -> NextScene:
@@ -76,14 +96,17 @@ class Autoplay(Play):
 
     @override
     def update(self) -> NextScene:
-        """Continue when time is up, or when the game exits."""
+        """Stop the game when time is up."""
         if self.emulator is None:
             if not self.qualifies(self.game):
                 return self.then
             self.deadline = pg.time.get_ticks() + self.game.autoplay * 1000
-        elif pg.time.get_ticks() >= self.deadline or not self.emulator.is_alive():
+        elif (
+            self.emulator.is_alive()
+            and not self.emulator.stopped
+            and pg.time.get_ticks() >= self.deadline
+        ):
             self.emulator.stop()
-            return self.then
         return super().update()
 
     @override
