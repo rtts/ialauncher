@@ -105,17 +105,24 @@ class Loading(TitleScreen):
             number_of_games -= 1
 
     def download_game(self) -> None:
-        """Download the next game."""
+        """Download the next game that isn't unzipped yet.
+
+        An unzipped game doesn't need its downloads anymore, which may
+        even be gone, so skip it.
+        """
         if self.downloading:
             thread = self.downloading.download_thread
             if thread is not None and thread.is_alive():
                 return
             self.downloading = None
-        if self.todo:
+        while self.todo:
             path, _ = self.todo.pop()
             gamelist.add(path)
-            self.downloading = gamelist.games[-1]
-            self.downloading.download()
+            game = gamelist.games[-1]
+            if not game.is_ready():
+                self.downloading = game
+                game.download()
+                return
 
     def done(self) -> NextScene:
         """Choose the next scene."""
