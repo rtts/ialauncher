@@ -102,9 +102,8 @@ class Edit(Hero):
 
     @override
     def launch(self, game: Game, *, autorun: bool) -> NextScene:
-        """Return to Edit right away when the game exits."""
+        """Return to Edit when the game exits."""
         play = Play(game, CRTon(self), autorun=autorun)
-        play.end_delay = 0
         return CRToff(Download(game, Unzip(game, play)))
 
     @override

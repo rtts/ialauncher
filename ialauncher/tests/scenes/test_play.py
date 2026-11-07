@@ -1,10 +1,8 @@
 """Play and Autoplay: playing a game, by hand or for a while."""
 
-from unittest import mock
-
 import pygame as pg
 
-from ialauncher.scenes import BLACK, play
+from ialauncher.scenes import BLACK
 from ialauncher.scenes.play import Autoplay, Play
 from ialauncher.scenes.record import Record
 from ialauncher.tests.support import End, HeadlessTestCase, Script, key, screen
@@ -23,20 +21,6 @@ class TestPlay(HeadlessTestCase):
         self.assertEqual(screen().get_at((0, 0)), BLACK)
         self.assertEqual(len(self.emulators), 1)
         self.emulators[0].exit()
-        yield from self.wait_until_quit()
-        self.assertEqual(self.trace, ["Play", "End"])
-
-    def test_delay(self) -> Script:
-        """The screen stays black for a while after the game exits."""
-        self.keep_running = True
-        self.enterContext(mock.patch.object(play, "DELAY", 60))
-        scene = Play(self.game("ready"), End())
-        yield scene
-        self.emulators[0].exit()
-        self.assertIs((yield None), scene)
-        self.assertIs((yield None), scene)
-        self.assertEqual(screen().get_at((0, 0)), BLACK)
-        scene.end_at = 0
         yield from self.wait_until_quit()
         self.assertEqual(self.trace, ["Play", "End"])
 

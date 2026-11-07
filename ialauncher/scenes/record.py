@@ -11,8 +11,6 @@ from .play import Play
 class Record(Play):
     """Play the game, and when it exits, save autoplay = n to metadata.ini."""
 
-    end_delay = 0
-
     @override
     def update(self) -> NextScene:
         """Start the clock with the game, and save the time when it exits."""
