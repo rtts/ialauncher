@@ -52,10 +52,7 @@ class Edit(Hero):
 
     @override
     def handle(self, event: pg.event.Event) -> NextScene:
-        """Change a setting with 1, 2 or 3, or open xjed with Ctrl-E.
-
-        The screensaver doesn't start, not when idle and not with Delete.
-        """
+        """Change a setting with 0, 1, 2 or 3, or open xjed with Ctrl-E."""
         if event.type == IDLE or (
             event.type == pg.KEYDOWN and event.key == pg.K_DELETE
         ):
@@ -73,6 +70,12 @@ class Edit(Hero):
                     self.change_core(game)
                 else:
                     self.change_setting(game, SETTING_KEYS[event.key])
+            self.keystroke(event, typed=False)
+            return None
+        if not mod and event.key == pg.K_0:
+            if game := gamelist.get_current_game():
+                game.autoplay = 0
+                game.save_metadata("autoplay", "0")
             self.keystroke(event, typed=False)
             return None
         return super().handle(event)
