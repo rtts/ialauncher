@@ -110,6 +110,7 @@ class Game:
         self.dosbox_settings = {
             key: metadata.get(key, default) for key, default in DOSBOX_DEFAULTS.items()
         }
+        self.memsize = metadata.get("memsize")
         datadir = {"scummvm": "scummvm_data", "qemu": "qemu_data"}.get(
             self.engine, "dosbox_drive_c"
         )
@@ -153,9 +154,10 @@ class Game:
 
         dosbox = get_dosbox_command()
         dosbox_args = [".", *get_dosbox_options()]
-        for key, value in self.dosbox_settings.items():
-            if value != NOT_APPLICABLE:
-                dosbox_args.extend(["-c", f"@config -set {key} {value}"])
+        settings = {**self.dosbox_settings, "memsize": self.memsize}
+        for key, value in settings.items():
+            if value and value != NOT_APPLICABLE:
+                dosbox_args.extend(["--set", f"{key}={value}"])
 
         # Copy patch files to C:\
         for file in filter(Path.is_file, self.path.glob("patches/*")):

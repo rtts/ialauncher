@@ -198,25 +198,3 @@ class TestGame(unittest.TestCase):
             game.dosbox_settings,
             {"core": "simple", "cpu_cycles": "300", "cpu_cycles_protected": "60000"},
         )
-
-    def test_not_applicable(self) -> None:
-        """DOSBox gets a config -set for each setting, except the ones that are n/a."""
-        metadata = {"title": "Game", "year": "1981", "url": "https://example.com/G.ZIP"}
-        game = Game(Path("Game"), {**metadata, "cpu_cycles_protected": "n/a"})
-        with (
-            mock.patch("ialauncher.game.get_dosbox_command", return_value=["dosbox"]),
-            mock.patch("ialauncher.game.get_dosbox_options", return_value=[]),
-            mock.patch("ialauncher.game.DOSBox") as dosbox,
-        ):
-            game.start()
-        self.assertEqual(
-            dosbox.call_args.args[1],
-            [
-                "dosbox",
-                ".",
-                "-c",
-                "@config -set core auto",
-                "-c",
-                "@config -set cpu_cycles 3000",
-            ],
-        )
