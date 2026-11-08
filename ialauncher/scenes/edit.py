@@ -124,7 +124,7 @@ class Edit(Hero):
         game = gamelist.get_current_game()
         if game is None or game.engine != "dosbox":
             return
-        lines = [f"{game.title} ({game.year})"]
+        lines = [str(gamelist.all_games.index(game) + 1), f"{game.title} ({game.year})"]
         lines.extend(f"{key} = {value}" for key, value in game.dosbox_settings.items())
         if game.emulator_start is not None:
             lines.append("emulator_start =")
