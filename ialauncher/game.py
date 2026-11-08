@@ -55,9 +55,9 @@ MT32_ROMS_URL = (
 
 NOT_APPLICABLE = "n/a"
 DOSBOX_DEFAULTS = {
-    "core": "auto",
+    "core": "normal",
     "cpu_cycles": "3000",
-    "cpu_cycles_protected": "60000",
+    "cpu_cycles_protected": NOT_APPLICABLE,
 }
 QEMU_ARGS = shlex.split(
     "-icount shift=7 -hda hda.img -nic user,ipv6=off,model=ne2k_pci "
@@ -114,7 +114,7 @@ class Game:
         self.emulator_start = metadata.get("emulator_start")
         self.autoplay = metadata.getint("autoplay", fallback=0)
         self.dosbox_settings = {
-            key: metadata.get(key, default) for key, default in DOSBOX_DEFAULTS.items()
+            key: metadata.get(key, NOT_APPLICABLE) for key in DOSBOX_DEFAULTS
         }
         self.memsize = metadata.get("memsize")
         datadir = {"scummvm": "scummvm_data", "qemu": "qemu_data"}.get(
@@ -218,12 +218,21 @@ class Game:
 
     def set_dosbox_setting(self, key: str, value: str) -> None:
         """Change one of the DOSBox settings, and save it to metadata.ini."""
-        self.dosbox_settings[key] = value
         self.save_metadata(key, value)
+        self.dosbox_settings[key] = value
 
     def save_metadata(self, key: str, value: str) -> None:
-        """Save the value to metadata.ini and the cache."""
-        self.config["metadata"][key] = value
+        """Save the value and missing DOSBox defaults to metadata.ini and the cache."""
+        metadata = dict(self.config["metadata"])
+        if self.engine == "dosbox":
+            missing = {k: v for k, v in DOSBOX_DEFAULTS.items() if k not in metadata}
+            self.dosbox_settings.update(missing)
+            items = list(metadata.items())
+            index = list(metadata).index("size") + 1
+            metadata = dict(items[:index] + list(missing.items()) + items[index:])
+        metadata[key] = value
+        self.config = RawConfigParser()
+        self.config.read_dict({"metadata": metadata})
         with (self.path / "metadata.ini").open(
             "w", encoding="utf-8", newline="\n"
         ) as f:

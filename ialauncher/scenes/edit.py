@@ -8,7 +8,7 @@ import pygame as pg
 
 from ialauncher import ega
 from ialauncher.engine import NextScene
-from ialauncher.game import NOT_APPLICABLE, Game
+from ialauncher.game import DOSBOX_DEFAULTS, NOT_APPLICABLE, Game
 from ialauncher.gamelist import gamelist
 
 from . import BLACK, WHITE
@@ -87,7 +87,11 @@ class Edit(Hero):
     @staticmethod
     def change_core(game: Game) -> None:
         """Switch to the next core, with the cycles that go with it."""
-        core = next_value(game.dosbox_settings["core"], list(CORES))
+        core = game.dosbox_settings["core"]
+        if core == NOT_APPLICABLE:
+            core = DOSBOX_DEFAULTS["core"]
+        else:
+            core = next_value(core, list(CORES))
         game.set_dosbox_setting("core", core)
         for key, values in CORES[core].items():
             if len(values) == 1 or key == "cpu_cycles":

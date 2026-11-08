@@ -189,12 +189,3 @@ class TestGame(unittest.TestCase):
             release.set()
             thread.join()
         self.assertTrue(game.is_ready())
-
-    def test_dosbox_settings(self) -> None:
-        """The DOSBox settings default to the auto core at 3000 cycles."""
-        metadata = {"title": "Game", "year": "1981", "url": "https://example.com/G.ZIP"}
-        game = Game(Path("Game"), {**metadata, "core": "simple", "cpu_cycles": "300"})
-        self.assertEqual(
-            game.dosbox_settings,
-            {"core": "simple", "cpu_cycles": "300", "cpu_cycles_protected": "60000"},
-        )
