@@ -28,6 +28,7 @@ from .emulator import (
     NO_WINDOW,
     get_dosbox_command,
     get_dosbox_options,
+    get_mt32_roms_dir,
     get_qemu_command,
     get_scummvm_command,
 )
@@ -45,6 +46,11 @@ METADATA_CACHE = "metadata.json"
 # Browsers make Windows fetch missing root certificates, Python doesn't.
 CERTIFICATE_HINT = (
     "Visit https://archive.org/ in your web browser and then try again, it might help."
+)
+# With two dots, as he says, for a double dose of his pimping.
+MT32_ROMS_URL = (
+    "https://archive.org/download/mame-versioned-roland-mt-32-and-cm-32l-rom-files/"
+    "MT-32_and_CM-32L_MAME-Versioned_ROM_files..zip"
 )
 
 NOT_APPLICABLE = "n/a"
@@ -293,6 +299,15 @@ class Game:
             file.is_file() for file in downloaded_filenames(self.urls, self.path)
         )
 
+    def missing_mt32_roms(self) -> Path | None:
+        """Return where the MT-32 ROMs go, if the game needs them and lacks them."""
+        if self.engine != "dosbox" or "mt32" not in (self.emulator_start or ""):
+            return None
+        romdir = get_mt32_roms_dir()
+        if romdir is None or any(romdir.glob("*.rom")):
+            return None
+        return romdir
+
     def is_running(self) -> bool:
         """Return whether the game's emulator is running."""
         return self.emulator is not None and self.emulator.is_alive()
@@ -305,7 +320,9 @@ class Game:
 
     def download(self) -> None:
         """Start downloading the game in a new thread."""
-        self.download_thread = Download(self.urls, self.gamedir, size=self.size)
+        self.download_thread = Download(
+            self.urls, self.gamedir, size=self.size, romdir=self.missing_mt32_roms()
+        )
         self.download_thread.start()
 
     def unzip(self) -> "Unzip":
@@ -451,11 +468,17 @@ class Download(Job):
     """A thread that downloads a game, and can be cancelled."""
 
     def __init__(
-        self, urls: list[str], gamedir: Path, *, size: int | None = None
+        self,
+        urls: list[str],
+        gamedir: Path,
+        *,
+        size: int | None = None,
+        romdir: Path | None = None,
     ) -> None:
-        """Prepare to download the URLs next to gamedir."""
+        """Prepare to download the URLs next to gamedir, and MT-32 ROMs to romdir."""
         super().__init__(urls, gamedir)
         self.size = size
+        self.romdir = romdir
         self.downloaded = 0
         self.step = 0
         self.steps = 1
@@ -486,7 +509,23 @@ class Download(Job):
                 self.report(0, 0)
                 self.request(u, dest)
                 print(" done!")
+        if self.romdir:
+            self.download_mt32_roms(self.romdir)
         self.progress = 1.0
+
+    def download_mt32_roms(self, romdir: Path) -> None:
+        """Download the MT-32 ROMs and extract them into romdir."""
+        self.filename = "the MT-32 ROMs"
+        romdir.mkdir(parents=True, exist_ok=True)
+        archive = romdir / "mt32-roms.zip"
+        print(f"Downloading {MT32_ROMS_URL}", end="", flush=True)
+        self.request(MT32_ROMS_URL, archive)
+        try:
+            with ZipFile(archive) as f:
+                f.extractall(romdir)
+        finally:
+            archive.unlink()
+        print(" done!")
 
     def request(self, url: str, dest: Path) -> None:
         """Download the URL to dest, and remove dest if that fails."""

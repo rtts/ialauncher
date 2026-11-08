@@ -81,6 +81,29 @@ def get_dosbox_options() -> list[str]:
     return args
 
 
+@cache
+def get_mt32_roms_dir() -> Path | None:
+    """Return the mt32-roms directory in DOSBox Staging's configuration directory."""
+    try:
+        result = subprocess.run(  # noqa: S603
+            [*get_dosbox_command(), "--printconf"],
+            capture_output=True,
+            check=True,
+            text=True,
+            timeout=3,
+            creationflags=NO_WINDOW,
+        )
+    except (
+        EmulatorError,
+        OSError,
+        subprocess.CalledProcessError,
+        subprocess.TimeoutExpired,
+    ):
+        return None
+    lines = result.stdout.splitlines()
+    return Path(lines[0].strip()).parent / "mt32-roms" if lines else None
+
+
 def bundled_candidates() -> Iterator[list[str]]:
     """Yield the DOSBox Staging that ships with the Windows installer."""
     if getattr(sys, "frozen", False):

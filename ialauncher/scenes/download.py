@@ -23,7 +23,7 @@ class Download(TitleScreen):
     @override
     def start(self) -> NextScene:
         """Start downloading, unless the game already is downloaded."""
-        if self.game.is_downloaded():
+        if self.game.is_downloaded() and not self.game.missing_mt32_roms():
             return self.then
         self.game.download()  # Spawns a new thread
         return None
