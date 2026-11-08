@@ -3,6 +3,7 @@
 import argparse
 import io
 import sys
+import traceback
 from collections import Counter
 from pathlib import Path
 
@@ -14,12 +15,31 @@ from .engine import run
 from .game import Game, write_metadata_cache
 from .gamelist import gamelist
 from .scenes.loading import Loading
+from .utils import show_error
 
 # Autoplay times left out of the histogram and the total autoplay time.
 PLACEHOLDER_AUTOPLAY_TIMES = {60, 300}
 
 
+BUG_REPORT = """\
+Congratulations! You have found a bug in IA Launcher!
+The following wasn't supposed to happen:
+
+{}
+If you're feeling adventurous, you are welcome to report this bug.
+Otherwise, please continue as if nothing happened :-)"""
+
+
 def main() -> None:
+    """Start IA Launcher, and show any unexpected error as a bug."""
+    try:
+        launch()
+    except Exception:  # noqa: BLE001
+        show_error(BUG_REPORT.format(traceback.format_exc()))
+        sys.exit(1)
+
+
+def launch() -> None:
     """Parse the command-line arguments and start IA Launcher."""
     parser = argparse.ArgumentParser(
         description="DOSBox frontend for the Internet Archive MS-DOS games collection"

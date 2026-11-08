@@ -155,7 +155,8 @@ class Starfield(Scene):
     def star(self, *, center: bool = False) -> Star:
         """Return a new star at depth z = 1, optionally in the exact center."""
         width, height = self.screen.get_size()
-        game = random.choice(self.games)  # noqa: S311
+        autoplayable = [game for game in self.games if game.autoplay] if center else []
+        game = random.choice(autoplayable or self.games)  # noqa: S311
         x = 0.0 if center else random.triangular(-width / 2, width / 2)  # noqa: S311
         y = 0.0 if center else random.triangular(-height / 2, height / 2)  # noqa: S311
         return Star(x, y, 1, game, size=1, image=self.image(game, 1))
