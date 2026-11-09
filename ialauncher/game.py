@@ -117,6 +117,7 @@ class Game:
             key: metadata.get(key, NOT_APPLICABLE) for key in DOSBOX_DEFAULTS
         }
         self.memsize = metadata.get("memsize")
+        self.machine = metadata.get("machine")
         datadir = {"scummvm": "scummvm_data", "qemu": "qemu_data"}.get(
             self.engine, "dosbox_drive_c"
         )
@@ -160,7 +161,11 @@ class Game:
 
         dosbox = get_dosbox_command()
         dosbox_args = [".", *get_dosbox_options()]
-        settings = {**self.dosbox_settings, "memsize": self.memsize}
+        settings = {
+            **self.dosbox_settings,
+            "memsize": self.memsize,
+            "machine": self.machine,
+        }
         for key, value in settings.items():
             if value and value != NOT_APPLICABLE:
                 dosbox_args.extend(["--set", f"{key}={value}"])
