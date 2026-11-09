@@ -1,2 +1,2 @@
 * text=auto eol=lf
-games/*/patches/* eol=crlf
+games/*/patches/** eol=crlf
