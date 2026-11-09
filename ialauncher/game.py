@@ -170,9 +170,10 @@ class Game:
             if value and value != NOT_APPLICABLE:
                 dosbox_args.extend(["--set", f"{key}={value}"])
 
-        # Copy patch files to C:\
-        for file in filter(Path.is_file, self.path.glob("patches/*")):
-            shutil.copy(file, self.gamedir)
+        # Copy patch files to C:\, including subdirectories
+        patches = self.path / "patches"
+        if patches.is_dir():
+            shutil.copytree(patches, self.gamedir, dirs_exist_ok=True)
 
         if self.emulator_start:
             if autorun:
