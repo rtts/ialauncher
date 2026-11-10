@@ -13,145 +13,146 @@ rem   b d f g h j k l m n p r s t v w y z   (j as in jacket)
 rem Special consonants, two uppercase letters:
 rem   CH train   SH fish    NG king    DH the     WH whale
 rem   TH and ZH are in the driver's phoneme table but unused by the game
-rem Pitch bend: a digit after a vowel, 1 bends down and 9 bends up
-rem   ]  before a vowel: clean, glottal start, e.g. ]EY7 (the letter A)
-rem   [  before a vowel: soft, linked syllable, e.g. tER2t[AXl (turtle)
+rem Pitch: a digit anywhere sets the pitch from there on, 1 (low) to 9 (high).
+rem   Each SAY starts at 5. A digit at the very end has no effect.
+rem   ]  before a vowel: clean, glottal start, e.g. 7]EHvrIY (every)
+rem   [  before a vowel: soft, linked syllable, e.g. l8IHt[AXl (little)
 rem Spaces separate words. The DOS command line limits each SAY to 127 chars.
-rem Examples: dAA2g (dog), EHr3plEYn (airplane), [AO2r[EYn5j (orange)
+rem Examples: bl8UW (blue), tw7EHlv (twelve), 3]EHntrIYz (entries)
 
 echo My original games launcher was a blue menu with twelve numbered entries,
-say mAY AXrIH4jAXnAXl gEY4mz lAO4nCHER wAHz AX blUW4 mEH4nyUW wIHTH twEH4lv nAH4mbERd ]EH4ntrIYz
+say mAY AXr9IHjAXnAXl gEY4mz lAOnCHER wAHz AX bl8UW mEH4nyUW wIHTH tw7EHlv n6AHmbERd 3]EHntrIYz
 echo and I knew every one of them by heart.
-say AEnd AY nUW ]EH4vrIY wAH4n AXv DHEHm bAY hAA4rt
+say AEnd AY nUW 8]EHvrIY w7AHn AXv DH6EHm b4AY h2AArt
 echo 3 was Commander Keen.
-say THrIY4 wAHz kAXmAE4ndER kIY4n
+say THr8IY w6AHz kAXm7AEnd4ER k7IYn
 echo 7 was Prince of Persia.
-say sEH4vAXn wAHz prIH4ns AXv pER4ZHAX
+say s8EHvAXn w6AHz pr9IHns 8AXv p7ER1ZHAX
 echo 11 was a flight simulator,
-say AXlEH4vAXn wAHz AX flAY3t sIH4myUWlEYtER
+say AXl8EHvAXn w7AHz 6AX fl8AYt s6IHmyUWl7EYt3ER
 echo and only once did I manage to get the plane off the runway.
-say AEnd ]OW4nlIY wAH4ns dIHd AY mAE4nIHj tUW gEHt DHAX plEY4n ]AO3f DHAX rAH4nwEY
+say AEnd 8]OWnlIY w7AHns dIHd 6AY mAEnIHj t5UW gEHt DH4AX plEYn 3]AOf DHAX r2AHnwEY
 echo On Saturday mornings,
-say AAn sAE4tERdEY mAO4rnIHNGz
+say AAn s8AEtERdEY m3AOrnIHNGz
 echo I would sneak out of my bedroom before
-say AY wUHd snIY4k ]AW3t AXv mAY bEH4drUWm bIHfAO3r
+say AY wUHd sn7IYk 6]AWt AXv m5AY bEHdrUWm bIHf4AOr
 echo anyone else was awake and switch on the 486.
-say ]EH4nIYwAHn ]EH3ls wAHz AXwEY4k AEnd swIH4CH AAn DHAX fAO3r EY4tIY sIH3ks
+say 8]EHnIYwAHn 7]EHls wAHz AXw6EYk AEnd sw5IHCH 4AAn DHAX f3AOr EYtIY s2IHks
 echo The blue glow of the menu lit up my happy young face until I pressed 1:
-say DHAX blUW4 glOW4 AXv DHAX mEH4nyUW lIH3t ]AH3p mAY hAE4pIY yAH3NG fEY4s AHntIH3l AY prEH3st wAH4n
+say DHAX 8blUW 7glOW AXv DHAX 8mEHn3yUW 4lIHt ]AHp mAY 7hAE9pIY 7yAHNG 5fEYs AHntIHl 4AY prEHst 2wAHn
 echo Duke Nukem.
-say dUW4k nUW4kAXm
+say d8UWk n2UWkAXm
 echo Then,
 say DHEHn
 echo one evening in the winter of 1992,
-say wAH4n ]IY4vnIHNG IHn DHAX wIH4ntER AXv nAY4ntIYn nAY3ntIY tUW4
+say w8AHn 7]IYvnIHNG IHn DH6AX wIHntER 5AXv n4AYntIYn nAYntIY t3UW
 echo my father came home with a stack of floppy disks and a smile from ear to ear.
-say mAY fAA4DHER kEYm hOW4m wIHTH AX stAE4k AXv flAA4pIY dIH4sks AEnd AX smAY4l frAHm ]IY4r tUW ]IY4r
+say mAY f8AADHER kEYm h7OWm wIHTH 6AX stAEk AXv fl5AApIY dIHsks 4AEnd AX smAYl fr3AHm ]IYr t2UW ]IYr
 echo He shut himself in the study for hours.
-say hIY SHAH3t hIHmsEH4lf IHn DHAX stAH4dIY fAOr ]AW4ERz
+say hIY SH8AHt hIHms7EHlf 6IHn DH5AX st4AHdIY f3AOr 2]AWERz
 echo At bedtime he came up to my room,
-say AEt bEH4dtAYm hIY kEYm ]AH3p tUW mAY rUW4m
+say AEt b8EHdtAYm h7IY k6EYm ]AHp t5UW m4AY r3UWm
 echo sat on the edge of my bed,
-say sAE3t AAn DHAX ]EH4j AXv mAY bEH4d
+say s8AEt 7AAn DH6AX ]EHj 5AXv m4AY b3EHd
 echo and whispered:
-say AEnd wIH4spERd
+say AEnd w4IHspERd
 echo "Tomorrow,
-say tAXmAA4rOW
+say tAXmAArOW
 echo you're going to fly through space."
-say yUWr gOW4IHNG tUW flAY4 THrUW spEY4s
+say yUWr g8OWIHNG t6UW fl5AY THr4UW sp2EYs
 echo I didn't sleep that night.
-say AY dIH4dAXnt slIY4p DHAEt nAY4t
+say AY d8IHdAXnt sl6IYp DH4AEt n2AYt
 echo I could already see the spaceship.
-say AY kUHd AOlrEH4dIY sIY4 DHAX spEY4sSHIHp
+say AY kUHd AOlr8EHdIY s6IY DH4AX sp2EYsSHIHp
 echo A cockpit with illuminated buttons everywhere.
-say AX kAA4kpIHt wIHTH IHlUW4mIHnEYtIHd bAH4tAXnz ]EH4vrIYwEHr
+say AX k8AAkpIHt w6IHTH IHl5UWmIHnEYtIHd b4AHtAXnz 2]EHvrIYwEHr
 echo Not one,
-say nAA4t wAH4n
+say n8AAt w3AHn
 echo but two computer screens running advanced simulations within the simulation.
-say bAHt tUW4 kAXmpyUW4tER skrIY4nz rAH4nIHNG AXdvAE4nst sIHmyUWlEY4SHAXnz wIHTHIH3n DHAX sIHmyUWlEY4SHAXn
+say bAHt t8UW kAXmpy7UWtER skr6IYnz rAHnIHNG AXdv5AEnst sIHmyUWl4EYSHAXnz wIHTHIHn DH3AX sIHmyUWl2EYSHAXn
 echo And in the distance,
-say AEnd IHn DHAX dIH4stAXns
+say AEnd IHn DHAX dIHstAXns
 echo a beautiful collection of colorful stars and galaxies.
-say AX byUW4tIHfAXl kAXlEH4kSHAXn AXv kAH4lERfAXl stAA4rz AEnd gAE4lAXksIYz
+say AX by8UWtIHfAXl kAXl7EHkSHAXn 6AXv k5AHlERfAXl st4AArz 3AEnd g2AElAXksIYz
 echo The next morning,
-say DHAX nEH4kst mAO4rnIHNG
+say DHAX n8EHkst m3AOrnIHNG
 echo the computer greeted me with a strange trumpet sound.
-say DHAX kAXmpyUW4tER grIY4tIHd mIY wIHTH AX strEY4nj trAH4mpAXt sAW4nd
+say DHAX kAXmpy8UWtER gr7IYtIHd m6IY w5IHTH AX str4EYnj tr3AHmpAXt s2AWnd
 echo There were odd little boxes on a brick background,
-say DHEHr wER ]AA4d lIH3t[AXl bAA4ksIHz AAn AX brIH4k bAE4kgrAWnd
+say DHEHr wER 8]AAd l7IHt[AXl b6AAksIHz AAn 5AX br4IHk b3AEkgrAWnd
 echo and the games launcher was gone.
-say AEnd DHAX gEY4mz lAO4nCHER wAHz gAO4n
+say AEnd DHAX g8EYmz l6AOnCHER w4AHz g2AOn
 echo My father leaned over my shoulder,
-say mAY fAA4DHER lIY4nd ]OW4vER mAY SHOW4ldER
+say mAY f8AADHER l7IYnd 6]OWvER m4AY SH3OWldER
 echo clicked around until he found something called "Starfield Simulation",
-say klIH4kt AXrAW4nd AHntIH3l hIY fAW4nd sAH4mTHIHNG kAO4ld stAA4rfIYld sIHmyUWlEY4SHAXn
+say kl8IHkt AXr7AWnd AHntIHl h6IY fAWnd s5AHmTHIHNG k4AOld stAArfIYld sIHmyUWl3EYSHAXn
 echo and clicked a button called "Test".
-say AEnd klIH4kt AX bAH4tAXn kAO4ld tEH4st
+say AEnd kl8IHkt 6AX b5AHtAXn k4AOld t2EHst
 echo The screen went black,
-say DHAX skrIY4n wEH4nt blAE4k
+say DHAX skr8IYn w6EHnt bl3AEk
 echo and little white dots came drifting out of nowhere.
-say AEnd lIH3t[AXl wAY4t dAA4ts kEYm drIH4ftIHNG ]AW3t AXv nOW4wEHr
+say AEnd l8IHt[AXl w7AYt d6AAts k5EYm drIHftIHNG 4]AWt 3AXv n2OWwEHr
 echo "See?"
-say sIY4
+say s9IY
 echo he said.
-say hIY sEH4d
+say hIY s2EHd
 echo I waited for the ship.
-say AY wEY4tIHd fAOr DHAX SHIH4p
+say AY w8EYtIHd f6AOr DH4AX SH2IHp
 echo I moved the mouse to find the controls,
-say AY mUW4vd DHAX mAW4s tUW fAY4nd DHAX kAXntrOW4lz
+say AY m8UWvd DH7AX m6AWs tUW f5AYnd DH4AX kAXntr3OWlz
 echo but the stars vanished and the boxes came back.
-say bAHt DHAX stAA4rz vAE4nIHSHt AEnd DHAX bAA4ksIHz kEYm bAE4k
+say bAHt DHAX st8AArz v7AEnIHSHt 6AEnd DH5AX b4AAksIHz k3EYm b2AEk
 echo My father clicked "Test" again.
-say mAY fAA4DHER klIH4kt tEH4st AXgEH4n
+say mAY f8AADHER kl6IHkt t4EHst AXg2EHn
 echo "Stay absolutely still,"
-say stEY4 AE4bsAXlUWtlIY stIH4l
+say st8EY 6AEbsAXlUWtlIY st3IHl
 echo he said.
-say hIY sEH4d
+say hIY s2EHd
 echo "If you don't move,
-say IHf yUW dOW4nt mUW4v
+say IHf yUW d8OWnt m3UWv
 echo the stars will keep appearing.
-say DHAX stAA4rz wIHl kIY4p AXpIY4rIHNG
+say DHAX st8AArz w6IHl k4IYp AXp2IYrIHNG
 echo Every star you see is a discarded bit of memory.
-say ]EH4vrIY stAA4r yUW sIY4 IHz AX dIHskAA4rdIHd bIH4t AXv mEH4mERIY
+say 8]EHvrIY st7AAr yUW s6IY 5IHz AX dIHsk4AArdIHd b3IHt AXv m2EHmERIY
 echo They need to be cleaned up,
-say DHEY nIY4d tUW bIY klIY4nd ]AH3p
+say DHEY n8IYd t7UW b6IY kl4IYnd 3]AHp
 echo you see?"
-say yUW sIY4
+say yUW s9IY
 echo I cried.
-say AY krAY4d
+say AY kr2AYd
 echo Losing my games was the worst thing that could happen to nine-year-old me.
-say lUW4zIHNG mAY gEY4mz wAHz DHAX wER4st THIH4NG DHAEt kUHd hAE4pAXn tUW nAY4n yIY3r ]OW4ld mIY
+say l8UWzIHNG mAY g7EYmz wAHz DH6AX wERst TH5IHNG DHAEt kUHd h4AEpAXn tUW n3AYn yIYr 2]OWld mIY
 echo My father,
-say mAY fAA4DHER
+say mAY fAADHER
 echo meanwhile,
-say mIY4nwAYl
+say mIYnwAYl
 echo thought the whole thing was hilarious.
-say THAO4t DHAX hOW4l THIH4NG wAHz hIHlEH4rIYAXs
+say TH8AOt DH7AX h6OWl TH4IHNG w3AHz hIHl2EHrIYAXs
 echo He opened AUTOEXEC.BAT and added this:
-say hIY ]OW4pAXnd ]AO4tOWEHgzEHk dAA3t bAE4t AEnd ]AE4dIHd DHIHs
+say hIY 7]OWpAXnd 6]AOtOWEHgzEHk dAAt bAEt 5AEnd 4]AEdIHd DHIHs
 echo echo Turn the computer off and go outside to play!
-say ]EH4kOW tER4n DHAX kAXmpyUW4tER ]AO3f AEnd gOW4 ]AW3tsAY4d tUW plEY4
+say 9]EHkOW t8ERn DHAX kAXmpy7UWtER ]AOf 6AEnd g5OW ]AWts4AYd tUW pl3EY
 echo pause.
-say pAO4z
+say p2AOz
 echo win.
-say wIH4n
+say w2IHn
 echo Don't worry,
-say dOW4nt wER4IY
+say d8OWnt w3ERIY
 echo the games menu came back soon enough,
-say DHAX gEY4mz mEH4nyUW kEYm bAE4k sUW4n IHnAH4f
+say DHAX g8EYmz m7EHnyUW k6EYm b5AEk s4UWn IHn3AHf
 echo with an added game called "Windows".
-say wIHTH AEn ]AE4dIHd gEY4m kAO4ld wIH4ndOWz
+say wIHTH AEn 8]AEdIHd g6EYm k4AOld w2IHndOWz
 echo But I never forgot that night of lying awake,
-say bAHt AY nEH4vER fERgAA4t DHAEt nAY4t AXv lAY4IHNG AXwEY4k
+say bAHt AY n8EHvER fERg7AAt DH6AEt nAYt 5AXv l4AYIHNG AXw3EYk
 echo waiting for my spaceship.
-say wEY4tIHNG fAOr mAY spEY4sSHIHp
+say w8EYtIHNG f6AOr m4AY sp2EYsSHIHp
 echo And I promised myself that one day,
-say AEnd AY prAA4mIHst mAYsEH4lf DHAEt wAH4n dEY4
+say AEnd AY pr8AAmIHst mAYs7EHlf DH6AEt w4AHn d3EY
 echo I would build the greatest games launcher ever,
-say AY wUHd bIH4ld DHAX grEY4tIHst gEY4mz lAO4nCHER ]EH4vER
+say AY wUHd b8IHld DH7AX gr6EYtIHst g5EYmz l4AOnCHER 3]EHvER
 echo with a title screen that shows a real cockpit,
-say wIHTH AX tAY4t[AXl skrIY4n DHAEt SHOW4z AX rIY4l kAA4kpIHt
+say wIHTH AX t8AYt[AXl skr7IYn DH6AEt SHOWz 5AX r4IYl k3AAkpIHt
 echo illuminated buttons,
-say IHlUW4mIHnEYtIHd bAH4tAXnz
+say IHl8UWmIHnEYtIHd b3AHtAXnz
 echo and all the colorful stars I had dreamed of.
-say AEnd ]AO4l DHAX kAH4lERfAXl stAA4rz AY hAEd drIY4md AXv
+say AEnd 8]AOl DH7AX k6AHlERfAXl st5AArz AY h4AEd dr3IYmd 2AXv
