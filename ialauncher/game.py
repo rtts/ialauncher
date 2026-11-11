@@ -122,6 +122,7 @@ class Game:
             self.engine, "dosbox_drive_c"
         )
         self.gamedir = self.path / datadir
+        self.drive_c = self.gamedir / metadata.get("root", "")
 
     def get_emulator(self) -> list[str]:
         """Return the emulator's command, or raise EmulatorError."""
@@ -173,7 +174,7 @@ class Game:
         # Copy patch files to C:\, including subdirectories
         patches = self.path / "patches"
         if patches.is_dir():
-            shutil.copytree(patches, self.gamedir, dirs_exist_ok=True)
+            shutil.copytree(patches, self.drive_c, dirs_exist_ok=True)
 
         if self.emulator_start:
             if autorun:
@@ -201,10 +202,10 @@ class Game:
         Work around that one game that comes with its *own* dosbox.bat
         that sometimes takes precedence (Circus Quest).
         """
-        for file in self.gamedir.iterdir():
+        for file in self.drive_c.iterdir():
             if file.name.lower() == filename.lower() and file.name != filename:
                 file.unlink()
-        (self.gamedir / filename).write_text(text, encoding="cp437", newline="\r\n")
+        (self.drive_c / filename).write_text(text, encoding="cp437", newline="\r\n")
 
     def start_scummvm(self, *, autorun: bool = True) -> "Emulator":
         """Start the game with ScummVM.
@@ -363,6 +364,7 @@ class Emulator(Thread):
         """Prepare to run the game with the given emulator command."""
         self.game = game
         self.command = command
+        self.cwd = game.gamedir
         self.output: deque[str] = deque(maxlen=OUTPUT_LINES)
         self.returncode = 0
         self.process: subprocess.Popen[str] | None = None
@@ -381,7 +383,7 @@ class Emulator(Thread):
         print("Executing:", shlex.join(self.command))
         with subprocess.Popen(  # noqa: S603
             self.command,
-            cwd=self.game.gamedir,
+            cwd=self.cwd,
             env=self.env,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
@@ -405,6 +407,7 @@ class DOSBox(Emulator):
         """Prepare to run the game in DOSBox, with or without autorun."""
         self.autorun = autorun
         super().__init__(game, command)
+        self.cwd = game.drive_c
 
     @override
     def run(self) -> None:
