@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, override
 import pygame as pg
 
 from ialauncher import options
+from ialauncher.cd import Jukebox
 from ialauncher.engine import NextScene
 from ialauncher.game import Game
 from ialauncher.gamelist import gamelist
@@ -59,6 +60,7 @@ class Starfield(Scene):
         self.due = 0.0
         # Chance per frame of adding a star in the exact center.
         self.chance = 1 / (options.mtbc * FPS) if options.mtbc else 0
+        self.jukebox = Jukebox()
 
     @override
     def start(self) -> NextScene:
@@ -86,7 +88,13 @@ class Starfield(Scene):
                 if random.random() < star.z:  # noqa: S311
                     self.stars.append(star)
         self.stars.sort(key=lambda star: star.z, reverse=True)
+        self.jukebox.start()
         return None
+
+    @override
+    def stop(self) -> None:
+        """Stop the music."""
+        self.jukebox.stop()
 
     @override
     def update(self) -> NextScene:
@@ -144,11 +152,17 @@ class Starfield(Scene):
 
     @override
     def handle(self, event: pg.event.Event) -> NextScene:
-        """Exit on Escape, add center star on Space."""
+        """Exit on Escape, add center star on Space, change tracks with arrows."""
         if event.type != pg.KEYDOWN:
             return None
         if event.key == pg.K_SPACE:
             self.stars.insert(0, self.star(center=True))
+            return None
+        if event.key == pg.K_RIGHT:
+            self.jukebox.next()
+            return None
+        if event.key == pg.K_LEFT:
+            self.jukebox.previous()
             return None
         return self.referrer if event.key == pg.K_ESCAPE else None
 

@@ -37,7 +37,7 @@ window_size = [640, 480]
 
 def run(scene: NextScene, title: str = "Game", *, fullscreen: bool = True) -> None:
     """Initialize pygame and run scene loop starting with scene."""
-    pg.mixer.pre_init(44100, -16, 1, allowedchanges=0)
+    pg.mixer.pre_init(44100, -16, 2, allowedchanges=0)
     pg.init()
     pg.key.set_repeat(250, 50)
     pg.event.set_blocked(pg.TEXTINPUT)
