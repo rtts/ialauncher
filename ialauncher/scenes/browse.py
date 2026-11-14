@@ -97,7 +97,9 @@ class Browse(Scene):
             and event.mod & pg.KMOD_SHIFT
             and pg.K_a <= event.key <= pg.K_z
         ):
-            next_scene = self.shift_command(event.key)
+            if event.key == pg.K_m:
+                options.muted = not options.muted
+                self.show_message("MUTED" if options.muted else "UNMUTED")
         elif event.type == pg.KEYDOWN:
             next_scene = self.handle_key(event)
         self.blink()
@@ -136,13 +138,6 @@ class Browse(Scene):
         if mod & pg.KMOD_CTRL:
             return self.add_or_remove(game)
         return self.start_game(game, mod)
-
-    def shift_command(self, key: int) -> NextScene:
-        """Execute one of the Shift commands."""
-        if key == pg.K_m:
-            options.muted = not options.muted
-            self.show_message("MUTED" if options.muted else "UNMUTED")
-        return None
 
     def add_or_remove(self, game: Game) -> NextScene:
         """Delete the gamedir if it exists, or get the game ready if it doesn't."""

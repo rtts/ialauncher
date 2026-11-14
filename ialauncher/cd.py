@@ -11,11 +11,13 @@ from threading import Event, Lock, Thread
 import pygame as pg
 
 import games
+from ialauncher import options
 
 SECTOR = 2352
 FRAMES_PER_SECOND = 75
 GAMES_DIR = Path(games.__file__).parent
 POLL_INTERVAL = 0.1
+VOLUME = 0.5
 MIN_SECONDS = 10
 MAX_SECONDS = 25 * 60
 CHECKED_SAMPLES = 8 * SECTOR // 2
@@ -170,12 +172,18 @@ class Jukebox(Thread):
                 self.cued = None
                 self.current = track
                 channel = self.channel = sound.play()
+                channel.set_volume(self.volume)
                 if self.paused:
                     channel.pause()
                 print(f"Now playing: {cd.title}, {track}")
             while channel.get_busy():
                 if self.stopped.wait(POLL_INTERVAL):
                     return
+
+    @property
+    def volume(self) -> float:
+        """Return the volume of the music, which is silent when muted."""
+        return 0.0 if options.muted else VOLUME
 
     def skip(self, steps: int) -> None:
         """Cue the track the given number of steps away on the current CD."""
