@@ -45,7 +45,7 @@ offset  equ     17f60h + 92653dh + 82cbh
         int     21h
 done:   ret
 
-exe:    db      "\DELIRIUM\DELIRIUM.EXE", 0
+exe:    db      "DELIRIUM.EXE", 0
 script: db      26h, 02h, 0, 0, 0, 0, 0, 0, 0
         db      44h, 100, 44h, 0, 44h, 0, 44h, 0
         db      2dh, 80, 2

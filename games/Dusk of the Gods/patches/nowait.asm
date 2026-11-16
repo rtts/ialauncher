@@ -32,5 +32,5 @@
         int     21h
 done:   ret
 
-exe:    db      "\DUSKGOD\RUNTIME.1", 0
+exe:    db      "RUNTIME.1", 0
 ticks:  dw      100                     ; 18.2 a second

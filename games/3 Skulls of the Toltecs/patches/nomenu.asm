@@ -26,5 +26,5 @@
         int     21h
 done:   ret
 
-exe:    db      "\3SKULLS\PICTURE.EXE", 0
+exe:    db      "PICTURE.EXE", 0
 nops:   db      90h, 90h, 90h, 90h, 90h

@@ -24,5 +24,5 @@
         int     21h
 done:   ret
 
-exe:    db      "\ADESTINY\EXE.EXE", 0
+exe:    db      "EXE.EXE", 0
 jump:   db      0ebh, 33c45h - (33be7h + 2) ; jmp short to "No, I'm yours"
