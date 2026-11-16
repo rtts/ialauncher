@@ -132,7 +132,7 @@ class Game:
             return get_qemu_command()
         return get_dosbox_command()
 
-    def start(self, *, autorun: bool = True) -> "Emulator":
+    def start(self, *, autorun: bool = True, autoplay: bool = False) -> "Emulator":
         r"""Start the game and return the thread that runs the emulator.
 
         There are two modes:
@@ -179,7 +179,10 @@ class Game:
         if self.emulator_start:
             if autorun:
                 dosbox_args[0] = "dosbox.bat"
-                self.write_c("dosbox.bat", f"@echo off\ncls\n{self.emulator_start}\n")
+                env = "set AUTOPLAY=1\n" if autoplay else ""
+                self.write_c(
+                    "dosbox.bat", f"@echo off\n{env}cls\n{self.emulator_start}\n"
+                )
 
             else:
                 self.write_c("dosbox.bat", self.emulator_start + "\n")

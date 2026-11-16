@@ -26,6 +26,7 @@ class Play(Blackout):
         *,
         autorun: bool = True,
         wait: bool = True,
+        autoplay: bool = False,
     ) -> None:
         """Prepare to play the game."""
         super().__init__()
@@ -33,6 +34,7 @@ class Play(Blackout):
         self.then = then
         self.autorun = autorun
         self.wait = wait
+        self.autoplay = autoplay
         self.emulator: Emulator | None = None
 
     @override
@@ -45,7 +47,9 @@ class Play(Blackout):
         if self.emulator is None:
             if not self.game.is_ready():  # Downloading or unzipping failed
                 return self.then
-            self.emulator = self.game.emulator = self.game.start(autorun=self.autorun)
+            self.emulator = self.game.emulator = self.game.start(
+                autorun=self.autorun, autoplay=self.autoplay
+            )
             if not self.wait:
                 return self.then
         super().update()
@@ -71,7 +75,7 @@ class Autoplay(Play):
 
     def __init__(self, game: Game, then: Scene) -> None:
         """Prepare to play the game."""
-        super().__init__(game, then)
+        super().__init__(game, then, autoplay=True)
         self.deadline = 0
 
     @override
