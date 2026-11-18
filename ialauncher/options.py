@@ -3,6 +3,8 @@
 They can be overridden with command-line arguments.
 """
 
+from pathlib import Path
+
 fullscreen: bool = True
 slideshow: int = 5
 idle: int = 60
@@ -14,3 +16,4 @@ muted: bool = False
 dosbox_executable: str | None = None
 scummvm_executable: str | None = None
 qemu_executable: str | None = None
+games_dir: Path | None = None

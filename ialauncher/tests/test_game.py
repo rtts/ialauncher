@@ -13,6 +13,7 @@ from unittest import mock
 from urllib.error import HTTPError, URLError
 from zipfile import ZipFile
 
+from ialauncher import game
 from ialauncher.game import CERTIFICATE_HINT, Download, Game, Unzip
 
 URL = "https://example.com/games/Example%20Game%20%281992%29.zip"
@@ -85,6 +86,7 @@ class TestDownload(unittest.TestCase):
         other.write_text("PK")
         download = Download([URL], games / "Game" / "dosbox_drive_c")
         with (
+            mock.patch.object(game, "METADATA_DIR", games),
             mock.patch.object(Download, "request") as request,
             contextlib.redirect_stdout(io.StringIO()),
         ):

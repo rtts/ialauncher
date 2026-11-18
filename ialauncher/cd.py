@@ -10,12 +10,10 @@ from threading import Event, Lock, Thread
 
 import pygame as pg
 
-import games
 from ialauncher import options
 
 SECTOR = 2352
 FRAMES_PER_SECOND = 75
-GAMES_DIR = Path(games.__file__).parent
 POLL_INTERVAL = 0.1
 VOLUME = 0.5
 MIN_SECONDS = 10
@@ -141,9 +139,12 @@ class Jukebox(Thread):
 
     def cds(self) -> list[CD]:
         """Return the CDs beneath the games directory that have playable tracks."""
+        games_dir = options.games_dir
+        if games_dir is None:
+            return []
         cds = [
-            CD(path, path.relative_to(GAMES_DIR).parts[0])
-            for path in GAMES_DIR.glob("*/**/*")
+            CD(path, path.relative_to(games_dir).parts[0])
+            for path in games_dir.glob("*/**/*")
             if path.suffix.lower() == ".cue"
         ]
         return [cd for cd in cds if cd.playlist]

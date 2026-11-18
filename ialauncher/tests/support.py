@@ -18,7 +18,7 @@ from unittest import mock
 import pygame as pg
 
 import games as gd
-from ialauncher import __main__, bios, engine, options, scenes, utils
+from ialauncher import __main__, bios, config, engine, options, scenes, utils
 from ialauncher.cga import cga
 from ialauncher.cheats import cheats
 from ialauncher.emulator import EmulatorError
@@ -278,12 +278,13 @@ class HeadlessTestCase(unittest.TestCase):
 
     def setUp(self) -> None:
         """Reset the global state, fake the outside world, and load the games."""
-        for name in ("fullscreen", "slideshow", "autoplay", "idle"):
+        for name in ("fullscreen", "slideshow", "autoplay", "idle", "games_dir"):
             value = getattr(options, name)
             self.enterContext(mock.patch.object(options, name, value))
         self.enterContext(mock.patch.object(sys, "argv", list(self.argv)))
         self.enterContext(mock.patch.object(Gamelist, "add", add_game_once))
         self.enterContext(mock.patch.object(pg.time, "Clock", Clock))
+        self.enterContext(mock.patch.object(bios, "tune", return_value=None))
         self.enterContext(mock.patch.object(loading, "read_metadata_cache", find_games))
         self.enterContext(
             mock.patch.object(loading.Loading, "load_games", load_many_games)
@@ -292,6 +293,7 @@ class HeadlessTestCase(unittest.TestCase):
         self.trace: list[str] = []
         self.errors: list[str] = []
         self.animate_crt = False
+        self.fake_config()
         self.fake_crt()
         self.fake_errors()
         self.fake_games()
@@ -303,6 +305,13 @@ class HeadlessTestCase(unittest.TestCase):
         random.seed(0)
         if self.loaded:
             self.load()
+
+    def fake_config(self) -> None:
+        """Store ialauncher.ini in a temporary directory, with the usual games."""
+        directory = Path(self.enterContext(tempfile.TemporaryDirectory()))
+        file = directory / "ialauncher.ini"
+        self.enterContext(mock.patch.object(config, "config_file", lambda: file))
+        config.write_games_dir(GAMES_DIR)
 
     def fake_crt(self) -> None:
         """Skip the frames of CRT, unless the test animates it."""

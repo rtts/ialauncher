@@ -11,7 +11,9 @@ import pygame as pg
 # - It is 28.1 cents flat of the original IBM PC's power-on beep
 BEEP_FREQUENCY = 882
 BEEP_AMPLITUDE = 4096
-BLIP_TIME = 16
+BLIP_TIME = 5
+BLEEP = ((2000, 25), (1000, 25))
+BLOOP = (*BLEEP, (888, 100), (0, 50), (444, 100))
 held_keys: set[int] = set()
 MODIFIER_KEYS = {
     pg.K_LCTRL, pg.K_RCTRL, pg.K_LSHIFT, pg.K_RSHIFT,
@@ -55,8 +57,21 @@ class Speaker:
 
     def blip(self) -> None:
         """Beep for a moment."""
-        if sound := square_wave():
-            sound.play(loops=-1, maxtime=BLIP_TIME)
+        self.play(((BEEP_FREQUENCY, BLIP_TIME),))
+
+    def bleep(self) -> None:
+        """Play the bleep of the DOOM installer."""
+        self.play(BLEEP)
+
+    def bloop(self) -> None:
+        """Play the bloop of the DOOM installer."""
+        self.play(BLOOP)
+
+    @staticmethod
+    def play(notes: tuple[tuple[int, int], ...]) -> None:
+        """Play (frequency, milliseconds) notes, where frequency 0 is a rest."""
+        if sound := tune(notes):
+            sound.play()
 
     def stop(self) -> None:
         """Stop beeping."""
@@ -74,14 +89,28 @@ def square_wave() -> pg.mixer.Sound | None:
     timer chip, round the frequency to one that divides evenly into
     half the sample rate (the Nyquist frequency).
     """
+    return tune(((BEEP_FREQUENCY, 0),))
+
+
+def tune(notes: tuple[tuple[int, int], ...]) -> pg.mixer.Sound | None:
+    """Return square wave (frequency, milliseconds) notes, where frequency 0 is a rest.
+
+    A note of 0 milliseconds is one whole wave, which loops seamlessly.
+    """
     if (mixer := pg.mixer.get_init()) is None:
         return None
     rate, size, channels = mixer
     if size != -16:  # noqa: PLR2004
         return None
-    half = max(1, round(rate / BEEP_FREQUENCY / 2))
-    high, low = [BEEP_AMPLITUDE] * channels, [-BEEP_AMPLITUDE] * channels
-    return pg.mixer.Sound(buffer=array("h", high * half + low * half))
+    samples = array("h")
+    for frequency, milliseconds in notes:
+        half = max(1, round(rate / frequency / 2)) if frequency else 1
+        level = BEEP_AMPLITUDE if frequency else 0
+        wave = [level] * half + [-level] * half
+        length = rate * milliseconds // 1000 or len(wave)
+        mono = wave * (length // len(wave) + 1)
+        samples.extend(sample for sample in mono[:length] for _ in range(channels))
+    return pg.mixer.Sound(buffer=samples)
 
 
 speaker = Speaker()

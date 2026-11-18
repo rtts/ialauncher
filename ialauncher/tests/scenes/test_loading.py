@@ -21,10 +21,10 @@ class TestLoading(HeadlessTestCase):
         self.assertIsNone((yield pg.event.Event(pg.QUIT)))
 
     def test_main(self) -> Script:
-        """The app starts with Loading."""
+        """The app starts with Install, which continues to Loading right away."""
         yield None
         yield from self.wait_for(Hero)
-        self.assertEqual(self.trace, ["Loading", "Dissolve", "Hero"])
+        self.assertEqual(self.trace, ["Install", "Loading", "Dissolve", "Hero"])
         self.assertIsNone((yield pg.event.Event(pg.QUIT)))
 
     def test_slurp(self) -> Script:

@@ -24,6 +24,9 @@ from zipfile import ZipFile
 
 import pygame as pg
 
+import games
+
+from . import options
 from .emulator import (
     NO_WINDOW,
     get_dosbox_command,
@@ -42,6 +45,7 @@ OUTPUT_LINES = 5
 EMULATOR_FAILED = pg.event.custom_type()
 TITLESCREEN_SIZE = 320, 200
 METADATA_CACHE = "metadata.json"
+METADATA_DIR = Path(games.__file__).parent
 
 # Browsers make Windows fetch missing root certificates, Python doesn't.
 CERTIFICATE_HINT = (
@@ -121,7 +125,8 @@ class Game:
         datadir = {"scummvm": "scummvm_data", "qemu": "qemu_data"}.get(
             self.engine, "dosbox_drive_c"
         )
-        self.gamedir = self.path / datadir
+        games_dir = options.games_dir or self.path.parent
+        self.gamedir = games_dir / self.identifier / datadir
         self.drive_c = self.gamedir / metadata.get("root", "")
 
     def get_emulator(self) -> list[str]:
@@ -315,7 +320,8 @@ class Game:
     def is_downloaded(self) -> bool:
         """Return whether the game has been downloaded or unzipped."""
         return self.is_ready() or all(
-            file.is_file() for file in downloaded_filenames(self.urls, self.path)
+            file.is_file()
+            for file in downloaded_filenames(self.urls, self.gamedir.parent)
         )
 
     def missing_mt32_roms(self) -> Path | None:
@@ -550,6 +556,7 @@ class Download(Job):
 
     def request(self, url: str, dest: Path) -> None:
         """Download the URL to dest, and remove dest if that fails."""
+        dest.parent.mkdir(parents=True, exist_ok=True)
         try:
             self.fetch(url, dest)
         except BaseException:
@@ -659,7 +666,7 @@ def find_download(url: str, dest: Path) -> Path | None:
     games_dir = dest.parent.parent
     for file in games_dir.glob(f"*/{glob.escape(dest.name)}"):
         config = RawConfigParser()
-        config.read(file.parent / "metadata.ini", encoding="utf-8")
+        config.read(METADATA_DIR / file.parent.name / "metadata.ini", encoding="utf-8")
         urls = config.get("metadata", "url", fallback="").split()
         if file.is_file() and url in urls:
             return file
@@ -668,6 +675,7 @@ def find_download(url: str, dest: Path) -> Path | None:
 
 def link_or_copy(source: Path, dest: Path) -> None:
     """Hard link dest to source, or copy it where hard links aren't possible."""
+    dest.parent.mkdir(parents=True, exist_ok=True)
     try:
         dest.hardlink_to(source)
     except OSError:

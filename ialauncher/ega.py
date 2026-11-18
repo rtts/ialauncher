@@ -16,8 +16,9 @@ def render(
     color: tuple[int, int, int],
     background: tuple[int, int, int],
     padding: tuple[int, int] = (0, 0),
+    scale: int = 2,
 ) -> pg.Surface:
-    """Return the text at 16x28 pixels per character, padding included.
+    """Return the text at 8x14 times scale pixels per character, padding included.
 
     Characters that are not in code page 437 are shown as smiley faces.
     """
@@ -31,4 +32,4 @@ def render(
         pixels[start : start + len(bits)] = bytes(map(int, bits))
     image = pg.image.frombytes(bytes(pixels), (width, height), "P")
     image.set_palette([background, color])
-    return pg.transform.scale_by(image, 2)
+    return pg.transform.scale_by(image, scale)

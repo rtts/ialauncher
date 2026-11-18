@@ -2,6 +2,10 @@
 
 Scene transitions:
 
+- Install > Loading
+- Install > enter > Loading
+- Install > enter, Y > Loading
+- Install > escape > quit
 - Loading > Dissolve > Hero
 - Loading > escape > quit
 - Hero > enter > CRToff > Download > Unzip > Play > CRTon > Hero
@@ -150,9 +154,14 @@ class TitleScreen(Scene):
         progress = self.gradient.get_rect()
         progress.width = int(progress.width * fraction)
         canvas.blit(self.gradient, self.BAR, progress)
+        canvas = pg.transform.scale_by(canvas, 2)
+        self.draw_overlay(canvas)
         self.screen.fill(BLACK)
         target = letterbox(self.screen.get_rect())
         self.screen.blit(sharp_scale(canvas, target.size), target)
+
+    def draw_overlay(self, canvas: pg.Surface) -> None:
+        """Draw on top of the title screen, at twice its resolution."""
 
 
 class Blackout(Scene):

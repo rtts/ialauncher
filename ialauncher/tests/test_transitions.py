@@ -2,18 +2,20 @@
 
 import inspect
 import sys
+import tempfile
 import unittest
 from unittest import mock
 
 import pygame as pg
 
-from ialauncher import options, scenes
+from ialauncher import config, options, scenes
 from ialauncher.gamelist import gamelist
 from ialauncher.scenes import snake
 from ialauncher.scenes.browse import IDLE
 from ialauncher.scenes.edit import Edit
 from ialauncher.scenes.grid import Grid
 from ialauncher.scenes.hero import ADVANCE, Hero
+from ialauncher.scenes.install import Install
 from ialauncher.scenes.loading import Loading
 from ialauncher.scenes.starfield import Starfield
 from ialauncher.scenes.stars import Stars
@@ -51,6 +53,41 @@ def skip_intro(intro: snake.Intro) -> Events:
     """Let all tiles disappear at once."""
     intro.tiles.clear()
     return None
+
+
+class TestInstall(HeadlessTestCase):
+    """The transitions from Install."""
+
+    def test_known(self) -> Script:
+        """Install > Loading."""
+        yield from self.expect(Install(Loading()))
+
+    def test_enter(self) -> Script:
+        """Install > enter > Loading."""
+        config.config_file().unlink()
+        directory = self.enterContext(tempfile.TemporaryDirectory())
+
+        def enter(install: Install) -> Events:
+            install.text = directory
+            return key(pg.K_RETURN)
+
+        yield from self.expect(Install(Loading()), enter)
+
+    def test_create(self) -> Script:
+        """Install > enter, Y > Loading."""
+        config.config_file().unlink()
+        directory = self.enterContext(tempfile.TemporaryDirectory())
+
+        def enter_y(install: Install) -> Events:
+            install.text = f"{directory}/games"
+            return [*key(pg.K_RETURN), *key(pg.K_y, unicode="y")]
+
+        yield from self.expect(Install(Loading()), enter_y)
+
+    def test_escape(self) -> Script:
+        """Install > escape > quit."""
+        config.config_file().unlink()
+        yield from self.expect(Install(Loading()), key(pg.K_ESCAPE))
 
 
 class TestLoading(HeadlessTestCase):

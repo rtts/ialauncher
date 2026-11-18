@@ -10,10 +10,12 @@ from pathlib import Path
 import games
 
 from . import options
+from .config import read_games_dir
 from .emulator import has_opengl
 from .engine import run
 from .game import Game, write_metadata_cache
 from .gamelist import gamelist
+from .scenes.install import Install
 from .scenes.loading import Loading
 from .utils import show_error
 
@@ -132,6 +134,7 @@ def launch() -> None:
         return
 
     if args.stats:
+        options.games_dir = read_games_dir()
         print_stats(Path(games.__file__).parent)
         return
 
@@ -141,7 +144,7 @@ def launch() -> None:
         sys.stdout.reconfigure(errors="replace")
     try:
         run(
-            Loading(slurp=args.slurp),
+            Install(Loading(slurp=args.slurp)),
             title="IA Launcher",
             fullscreen=options.fullscreen,
         )
