@@ -10,6 +10,7 @@ from pathlib import Path
 import games
 
 from . import options
+from .cleanup import cleanup
 from .config import read_games_dir
 from .emulator import has_opengl
 from .engine import run
@@ -106,7 +107,6 @@ def launch() -> None:
     )
     parser.add_argument(
         "--slurp",
-        dest="slurp",
         action="store_true",
         help=argparse.SUPPRESS,
     )
@@ -120,6 +120,11 @@ def launch() -> None:
         action="store_true",
         help="Build metadata cache (for faster startup!)",
     )
+    parser.add_argument(
+        "--cleanup",
+        action="store_true",
+        help=argparse.SUPPRESS,
+    )
     args = parser.parse_args()
 
     if args.build_cache:
@@ -131,6 +136,13 @@ def launch() -> None:
         }
         write_metadata_cache(games_dir, cache)
         print("Done!")
+        return
+
+    if args.cleanup:
+        games_dir = read_games_dir()
+        if games_dir is None:
+            sys.exit("No games directory configured yet, start IA Launcher first")
+        cleanup(games_dir)
         return
 
     if args.stats:
