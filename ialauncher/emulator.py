@@ -205,7 +205,7 @@ def works(command: list[str]) -> bool:
             [*command, "--version"],
             capture_output=True,
             check=True,
-            timeout=3,
+            timeout=10,
             creationflags=NO_WINDOW,
         )
     except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
