@@ -26,7 +26,7 @@ import pygame as pg
 
 import games
 
-from . import options
+from . import config, options
 from .emulator import (
     NO_WINDOW,
     get_dosbox_command,
@@ -255,9 +255,9 @@ class Game:
         self.update_cache()
 
         # Remember where I was.
-        (self.path.parent / "where_was_i.txt").write_text(
-            self.path.name + "\n", encoding="utf-8"
-        )
+        file = config.where_was_i_file()
+        file.parent.mkdir(parents=True, exist_ok=True)
+        file.write_text(self.path.name + "\n", encoding="utf-8")
 
     def reload_metadata(self) -> bool:
         """Read metadata.ini again, and return whether the metadata changed.

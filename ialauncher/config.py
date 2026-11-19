@@ -25,6 +25,11 @@ def config_file() -> Path:
     return config_dir() / "ialauncher.ini"
 
 
+def where_was_i_file() -> Path:
+    """Return the path of where_was_i.txt, next to ialauncher.ini."""
+    return config_file().parent / "where_was_i.txt"
+
+
 def default_games_dir() -> Path:
     """Return the suggested games directory, in the home directory."""
     return Path.home() / "games"

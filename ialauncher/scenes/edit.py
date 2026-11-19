@@ -6,7 +6,7 @@ from typing import override
 
 import pygame as pg
 
-from ialauncher import ega
+from ialauncher import config, ega
 from ialauncher.engine import NextScene
 from ialauncher.game import DOSBOX_DEFAULTS, NOT_APPLICABLE, Game
 from ialauncher.gamelist import gamelist
@@ -145,13 +145,12 @@ class Edit(Hero):
     @staticmethod
     def where_was_i() -> None:
         """Jump to the game whose metadata was saved last."""
-        if game := gamelist.get_current_game():
-            file = game.path.parent / "where_was_i.txt"
-            name = file.read_text(encoding="utf-8").strip() if file.exists() else ""
-            for game in gamelist.all_games:
-                if game.path.name == name:
-                    gamelist.show_game(game)
-                    break
+        file = config.where_was_i_file()
+        name = file.read_text(encoding="utf-8").strip() if file.exists() else ""
+        for game in gamelist.all_games:
+            if game.path.name == name:
+                gamelist.show_game(game)
+                break
 
     @staticmethod
     def edit_metadata() -> None:
