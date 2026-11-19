@@ -10,8 +10,7 @@ import pygame as pg
 # - It is 3.9 cents sharp of note A5 in concert pitch
 # - It is 28.1 cents flat of the original IBM PC's power-on beep
 BEEP_FREQUENCY = 882
-BEEP_AMPLITUDE = 4096
-BLIP_TIME = 5
+BEEP_AMPLITUDE = 2048
 BLEEP = ((2000, 25), (1000, 25))
 BLOOP = (*BLEEP, (888, 100), (0, 50), (444, 100))
 held_keys: set[int] = set()
@@ -54,10 +53,6 @@ class Speaker:
         """Start beeping."""
         if self.channel is None and (sound := square_wave()):
             self.channel = sound.play(loops=-1)
-
-    def blip(self) -> None:
-        """Beep for a moment."""
-        self.play(((BEEP_FREQUENCY, BLIP_TIME),))
 
     def bleep(self) -> None:
         """Play the bleep of the DOOM installer."""

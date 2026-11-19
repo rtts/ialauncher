@@ -123,19 +123,12 @@ class Snake(Field):
     """Yes, the game."""
 
     @override
-    def start(self) -> NextScene:
-        """Start the game, which Intro has set up."""
-        speaker.blip()
-        return None
-
-    @override
     def update(self) -> NextScene:
-        """Move snake and draw food, or beep for a frame when it dies."""
+        """Move snake and draw food, or bloop and hold for a frame when it dies."""
         if self.game_over:
-            speaker.stop()
             return self.referrer
         if not self.step():
-            speaker.start()
+            speaker.bloop()
             self.game_over = True
             return None
         self.screen.fill(BLACK)
@@ -210,7 +203,7 @@ class Snake(Field):
             return False
         if len(self.body) > length:
             self.images.appendleft(self.food_image)
-            speaker.blip()
+            speaker.bleep()
             return self.place_food()
         return True
 
