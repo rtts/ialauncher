@@ -31,8 +31,15 @@ def where_was_i_file() -> Path:
 
 
 def default_games_dir() -> Path:
-    """Return the suggested games directory, in the home directory."""
-    return Path.home() / "games"
+    """Return the suggested games directory, in the platform's usual place for data."""
+    home = Path.home()
+    if sys.platform == "win32":
+        base = os.environ.get("LOCALAPPDATA") or home / "AppData" / "Local"
+    elif sys.platform == "darwin":
+        base = home / "Library" / "Application Support"
+    else:
+        base = os.environ.get("XDG_DATA_HOME") or home / ".local" / "share"
+    return Path(base) / "ialauncher" / "games"
 
 
 def read_games_dir() -> Path | None:
