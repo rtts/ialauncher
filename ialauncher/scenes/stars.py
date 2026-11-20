@@ -33,7 +33,11 @@ class Stars(Blackout):
             dosbox = get_dosbox_command()
         except EmulatorError:
             return self.then
-        options = [*get_dosbox_options(), "-c", "@mixer pcspeaker 100 /noshow"]
+        options = [
+            *get_dosbox_options(),
+            *["--set", "dos_rate=host", "--set", "vsync=on"],
+            *["-c", "@mixer pcspeaker 100 /noshow"],
+        ]
         command = [*dosbox, "stars.exe", *options, "-exit"]
         self.dosbox = subprocess.Popen(  # noqa: S603
             command, cwd=Path(__file__).parent, creationflags=NO_WINDOW
