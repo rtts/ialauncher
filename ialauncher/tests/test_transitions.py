@@ -236,7 +236,7 @@ class TestGrid(HeadlessTestCase):
         )
 
     def test_zoom_out(self) -> Script:
-        """Grid > zoom out > Stars > Grid."""
+        """Grid > zoom out > Stars > Hero."""
         yield from self.expect(Grid(), zoom_to_stars, {Stars: self.exit_stars})
 
     def test_idle(self) -> Script:
@@ -266,7 +266,7 @@ class TestScreensaver(HeadlessTestCase):
         yield from self.expect(Starfield(Grid()), key(pg.K_ESCAPE))
 
     def test_exit(self) -> Script:
-        """Stars > exit > Grid."""
+        """Stars > exit > Hero."""
         yield from self.expect(Stars(Grid()), self.exit_stars)
 
 

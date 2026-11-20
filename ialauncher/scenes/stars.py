@@ -11,8 +11,9 @@ from ialauncher.emulator import (
     get_dosbox_options,
 )
 from ialauncher.engine import NextScene
+from ialauncher.gamelist import gamelist
 
-from . import Blackout, Scene
+from . import Blackout, Scene, hero
 
 
 class Stars(Blackout):
@@ -32,7 +33,8 @@ class Stars(Blackout):
             dosbox = get_dosbox_command()
         except EmulatorError:
             return self.then
-        command = [*dosbox, "stars.exe", *get_dosbox_options(), "-exit"]
+        options = [*get_dosbox_options(), "-c", "@mixer pcspeaker 100 /noshow"]
+        command = [*dosbox, "stars.exe", *options, "-exit"]
         self.dosbox = subprocess.Popen(  # noqa: S603
             command, cwd=Path(__file__).parent, creationflags=NO_WINDOW
         )
@@ -40,6 +42,9 @@ class Stars(Blackout):
 
     @override
     def update(self) -> NextScene:
-        """Stay black, and return to the previous scene once stars.exe exits."""
+        """Stay black, and show a random game once stars.exe exits."""
         super().update()
-        return None if self.dosbox.poll() is None else self.then
+        if self.dosbox.poll() is None:
+            return None
+        gamelist.random_game()
+        return hero.Hero()

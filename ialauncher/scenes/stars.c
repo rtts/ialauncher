@@ -1,10 +1,12 @@
 /* Starfield Simulation for MS-DOS.
 
-A simplified DOS version of starfield.py, running in VGA mode 12h.
+A simplified DOS version of starfield.py, running in VGA mode 12h,
+playing Beethoven's Moonlight Sonata in 3 voices on the PC speaker.
 */
 
 #include <conio.h>
 #include <ctype.h>
+#include <dos.h>
 #include <i86.h>
 #include <stdarg.h>
 #include <stdlib.h>
@@ -23,7 +25,6 @@ A simplified DOS version of starfield.py, running in VGA mode 12h.
 #define MAX_DENSITY 5000u
 #define CLUSTER 4
 #define ESCAPE 27
-#define SPACE ' '
 #define INPUT_STATUS 0x3DA
 #define RETRACE 0x08
 #define SEQUENCER 0x3C4
@@ -33,16 +34,40 @@ A simplified DOS version of starfield.py, running in VGA mode 12h.
 #define COMMAND_TAIL MK_FP(_psp, 0x80)
 #define MAX_ARGS 64
 #define RETRACES_PER_FRAME (60 / FPS)
+#define TIMER 8
+#define PIC 0x20
+#define END_OF_INTERRUPT 0x20
+#define PIT_CONTROL 0x43
+#define PIT_COUNTER 0x40
+#define PIT_SQUARE_WAVE 0x36
+#define PIT_DIVISOR 64 /* 1193182 Hz / 64 = 18643 Hz, as in sonata.awk */
+#define PIT_MILLISECOND 1193 /* 1193182 Hz / 1000 */
+#define PIT_SPEAKER 0x42
+#define PIT_SPEAKER_ONE_SHOT 0x90 /* channel 2, low byte only, mode 0 */
+#define SPEAKER 0x61
+#define SPEAKER_BITS 0x03 /* timer gate and speaker data */
+#define PULSE_STEP ((PIT_DIVISOR - 4) / VOICES) /* shortest pulse is 1 */
+#define PULSE_REST (PIT_DIVISOR + 8) /* low all tick, like before playing */
+#define FULL_VOLUME 256
+#define FADE_IN 10000L /* milliseconds */
+#define LEAD_IN 2000 /* milliseconds of rest, while fading in to 20% */
+#define VOICES 3
+#define SUBPIXELS 16
+
+#include "sonata.h"
+
+#define SONATA_LENGTH (sizeof sonata / sizeof *sonata)
 
 /* Prevent "waves" of stars by filling up a the correct rate. */
 #define TRAVELLED_NUM (2ul * CLUSTER * CLUSTER)
 #define TRAVELLED_DEN ((CLUSTER + 1ul) * (2 * CLUSTER + 1))
 
-/* A star with a fixed x and y and a moving z. */
+/* A star with a fixed x and y, in SUBPIXELS per pixel, and a moving z. */
 typedef struct {
     short x, y;
     unsigned short z;
     unsigned char color;
+    unsigned char timed; /* arrives when the sonata ends */
 } Star;
 
 /* Colors resembling the title screens. */
@@ -64,6 +89,12 @@ static unsigned char *planes[PLANES];
 static char line[128];
 static char *args[MAX_ARGS];
 static unsigned char __far *const vga = MK_FP(0xA000, 0);
+static void (__interrupt __far *bios_timer)(void);
+static unsigned next_event, remaining;
+static unsigned long now, sonata_end;
+static unsigned volume;
+static unsigned short bios_due, millisecond_due;
+static unsigned short phases[VOICES], speeds[VOICES];
 
 /* Return the machine status word, whose bit 0 is set in protected mode. */
 unsigned short smsw(void);
@@ -138,6 +169,106 @@ static void set_palette(void)
     }
 }
 
+/* Play a note on a voice, or silence it for note 0. */
+static void play_note(unsigned short event)
+{
+    unsigned char voice = event >> 8, note = event & 0xFF;
+
+    speeds[voice] = note ? steps[note] : 0;
+    if (!note) phases[voice] = 0;
+}
+
+/* Play the notes that are due this millisecond. */
+static void next_millisecond(void)
+{
+    while (next_event < SONATA_LENGTH && remaining == 0) {
+        play_note(sonata[next_event][1]);
+        if (++next_event < SONATA_LENGTH) remaining = sonata[next_event][0];
+    }
+    remaining--;
+    now++;
+    if (now < FADE_IN) {
+        volume = (unsigned)(now * FULL_VOLUME / FADE_IN);
+    } else {
+        volume = FULL_VOLUME;
+    }
+}
+
+/* Timer interrupt, 18643 times per second: move every voice along its
+   square wave, pulse the speaker low for less time the more voices are
+   high, closer to rest the lower the volume, play the notes every
+   millisecond, and call the BIOS timer as often as it would be called
+   normally. */
+static void __interrupt __far play(void)
+{
+    unsigned char voice, low = 1;
+
+    for (voice = 0; voice < VOICES; voice++) {
+        phases[voice] += speeds[voice];
+        if (!(phases[voice] & 0x8000)) low += PULSE_STEP;
+    }
+    outp(PIT_SPEAKER, PULSE_REST
+                      + ((int)low - PULSE_REST) * (int)volume / FULL_VOLUME);
+    millisecond_due += PIT_DIVISOR;
+    if (millisecond_due >= PIT_MILLISECOND) {
+        millisecond_due -= PIT_MILLISECOND;
+        next_millisecond();
+    }
+    bios_due += PIT_DIVISOR;
+    if (bios_due < PIT_DIVISOR) {
+        _chain_intr(bios_timer);
+    }
+    outp(PIC, END_OF_INTERRUPT);
+}
+
+/* Set the rate of the timer interrupt. */
+static void set_timer(unsigned short divisor)
+{
+    _disable();
+    outp(PIT_CONTROL, PIT_SQUARE_WAVE);
+    outp(PIT_COUNTER, divisor & 0xFF);
+    outp(PIT_COUNTER, divisor >> 8);
+    _enable();
+}
+
+/* Start playing the sonata from the beginning. */
+static void start_music(void)
+{
+    unsigned i;
+
+    for (i = 0; i < SONATA_LENGTH; i++) {
+        sonata_end += sonata[i][0];
+    }
+    sonata_end += LEAD_IN;
+    outp(PIT_CONTROL, PIT_SPEAKER_ONE_SHOT);
+    outp(PIT_SPEAKER, PULSE_REST);
+    outp(SPEAKER, inp(SPEAKER) | SPEAKER_BITS);
+    next_event = 0;
+    remaining = LEAD_IN + sonata[0][0];
+    bios_timer = _dos_getvect(TIMER);
+    _dos_setvect(TIMER, play);
+    set_timer(PIT_DIVISOR);
+}
+
+/* Stop playing, and give the timer back to the BIOS. */
+static void stop_music(void)
+{
+    set_timer(0);
+    _dos_setvect(TIMER, bios_timer);
+    outp(SPEAKER, inp(SPEAKER) & ~SPEAKER_BITS);
+}
+
+/* Return the milliseconds of the sonata played so far. */
+static unsigned long played(void)
+{
+    unsigned long ms;
+
+    _disable();
+    ms = now;
+    _enable();
+    return ms;
+}
+
 /* Divide by a positive number, rounding down instead of toward zero. */
 static long floor_div(long a, long b)
 {
@@ -188,12 +319,11 @@ static Star star(void)
 {
     Star s;
 
-    /* Whole pixels, so there's a chance you collide
-       with the star when both happen to be zero. */
-    s.x = clustered(WIDTH / 2);
-    s.y = clustered(HEIGHT / 2);
+    s.x = clustered(WIDTH / 2 * SUBPIXELS);
+    s.y = clustered(HEIGHT / 2 * SUBPIXELS);
     s.z = DEPTH;
     s.color = random_color();
+    s.timed = 0;
     return s;
 }
 
@@ -252,7 +382,7 @@ static int update(void)
     for (i = count; i-- > 0;) {
         s = stars[i];
         if (s.z - DEPTH / HEIGHT <= warp) {
-            if (s.x == 0 && s.y == 0) {
+            if (s.timed) {
                 /* Collision! The star fills the screen. */
                 for (plane = 0; plane < PLANES; plane++) {
                     memset(planes[plane], s.color >> plane & 1 ? 0xFF : 0,
@@ -265,8 +395,8 @@ static int update(void)
         }
         s.z -= warp;
         size = DEPTH / s.z;
-        left = WIDTH / 2 - size / 2 + muldiv(s.x, DEPTH, s.z);
-        top = HEIGHT / 2 - size / 2 + muldiv(s.y, DEPTH, s.z);
+        left = WIDTH / 2 - size / 2 + muldiv(s.x, DEPTH / SUBPIXELS, s.z);
+        top = HEIGHT / 2 - size / 2 + muldiv(s.y, DEPTH / SUBPIXELS, s.z);
         if (!(-size < left && left < WIDTH && -size < top && top < HEIGHT)) {
             gone++;
             continue;
@@ -290,12 +420,13 @@ static int update(void)
     return 0;
 }
 
-/* Add a star in the exact center. */
+/* Add a star in the exact center, the only one you can collide with. */
 static void center_star(void)
 {
     Star s = {0, 0, DEPTH};
 
     s.color = random_color();
+    s.timed = 1;
     if (count < density) {
         stars[count++] = s;
     } else if (count > 0) {
@@ -303,7 +434,16 @@ static void center_star(void)
     }
 }
 
-/* Handle Space and Esc. */
+/* Return whether it's time for the center star to set out, so that it
+   arrives around when the sonata ends. */
+static int time_to_launch(void)
+{
+    unsigned long frames = (DEPTH - DEPTH / HEIGHT) / warp;
+
+    return played() + frames * 1000 / FPS >= sonata_end;
+}
+
+/* Handle Esc. */
 static int escape(void)
 {
     int pressed = 0;
@@ -312,9 +452,6 @@ static int escape(void)
         switch (getch()) {
         case 0: /* extended key, skip its scan code */
             getch();
-            break;
-        case SPACE:
-            center_star();
             break;
         case ESCAPE:
             pressed = 1;
@@ -482,7 +619,7 @@ static void parse(int argc, char *argv[])
 int main(void)
 {
     unsigned i;
-    int collided = 0, plane;
+    int collided = 0, launched = 0, plane;
 
     parse(split(), args);
     /* One spare, so there's no asking DOS for nothing. */
@@ -499,7 +636,12 @@ int main(void)
     boost();
     set_mode(0x12);
     set_palette();
+    start_music();
     while (!collided && !escape()) {
+        if (!launched && time_to_launch()) {
+            center_star();
+            launched = 1;
+        }
         collided = update();
         for (i = 0; i < RETRACES_PER_FRAME; i++) {
             wait_retrace();
@@ -509,6 +651,7 @@ int main(void)
             memcpy(vga, planes[plane], SCREEN_SIZE);
         }
     }
+    stop_music();
     if (collided) delay(100);
     set_mode(0x03);
     return 0;

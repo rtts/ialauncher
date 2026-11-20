@@ -31,7 +31,7 @@ Scene transitions:
 - Grid > plus > Hero
 - Grid > METADATA > Hero
 - Grid > zoom > Intro > Snake > Grid
-- Grid > zoom out > Stars > Grid
+- Grid > zoom out > Stars > Hero
 - Grid > delete > Starfield
 - Grid > IDLE > Starfield
 - Edit > escape > Hero
@@ -39,7 +39,7 @@ Scene transitions:
 - Starfield > collision > Hero
 - Starfield > escape > Hero
 - Starfield > escape > Grid
-- Stars > exit > Grid
+- Stars > exit > Hero
 - Any > close > quit
 """
 
